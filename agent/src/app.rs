@@ -28,7 +28,7 @@ pub struct ExhaustControlArgs {
         long = "exhaust-control-disable",
         env = "GROW_AGENT_EXHAUST_CONTROL_DISABLE"
     )]
-    disable: bool,
+    pub disable: bool,
 
     /// The gpio pin used to disable the exhaust fan in slow mode
     #[arg(
@@ -37,7 +37,7 @@ pub struct ExhaustControlArgs {
         env = "GROW_AGENT_EXHAUST_CONTROL_PIN_SLOW",
         default_value_t = 25
     )]
-    pin_slow: u8,
+    pub pin_slow: u8,
 
     /// The gpio pin used to disable the exhaust fan in fast mode (not implemented so far)
     #[arg(
@@ -46,7 +46,7 @@ pub struct ExhaustControlArgs {
         env = "GROW_AGENT_EXHAUST_CONTROL_PIN_FAST",
         default_value_t = 26
     )]
-    pin_fast: u8,
+    pub pin_fast: u8,
 
     /// The duration in seconds for which the exhaust fan should run (0 means always stopped)
     #[arg(
@@ -55,7 +55,7 @@ pub struct ExhaustControlArgs {
         env = "GROW_AGENT_EXHAUST_CONTROL_ON_DURATION_SECS",
         default_value_t = 1
     )]
-    on_duration_secs: u64,
+    pub on_duration_secs: u64,
 
     /// The duration in seconds for which the exhaust fan should be stopped (0 means always running)
     #[arg(
@@ -64,7 +64,7 @@ pub struct ExhaustControlArgs {
         env = "GROW_AGENT_EXHAUST_CONTROL_OFF_DURATION_SECS",
         default_value_t = 0
     )]
-    off_duration_secs: u64,
+    pub off_duration_secs: u64,
 }
 
 #[derive(Debug, Parser)]
@@ -75,7 +75,7 @@ pub struct FanControlArgs {
         long = "fan-control-disable",
         env = "GROW_AGENT_FAN_CONTROL_DISABLE"
     )]
-    disable: bool,
+    pub disable: bool,
 
     /// The gpio pin used to disable the left circulation fan
     #[arg(
@@ -84,7 +84,7 @@ pub struct FanControlArgs {
         env = "GROW_AGENT_FAN_CONTROL_PIN_LEFT",
         default_value_t = 23
     )]
-    pin_left: u8,
+    pub pin_left: u8,
 
     /// The gpio pin used to disable the right circulation fan
     #[arg(
@@ -93,7 +93,7 @@ pub struct FanControlArgs {
         env = "GROW_AGENT_FAN_CONTROL_PIN_RIGHT",
         default_value_t = 24
     )]
-    pin_right: u8,
+    pub pin_right: u8,
 
     /// The duration in seconds for which the circulation fans should run (0 means always stopped)
     #[arg(
@@ -102,7 +102,7 @@ pub struct FanControlArgs {
         env = "GROW_AGENT_FAN_CONTROL_ON_DURATION_SECS",
         default_value_t = 1
     )]
-    on_duration_secs: u64,
+    pub on_duration_secs: u64,
 
     /// The duration in seconds for which the circulation fans should be stopped (0 means always running)
     #[arg(
@@ -111,7 +111,7 @@ pub struct FanControlArgs {
         env = "GROW_AGENT_FAN_CONTROL_OFF_DURATION_SECS",
         default_value_t = 0
     )]
-    off_duration_secs: u64,
+    pub off_duration_secs: u64,
 }
 
 #[derive(Debug, Parser)]
@@ -122,7 +122,7 @@ pub struct LightControlArgs {
         long = "light-control-disable",
         env = "GROW_AGENT_LIGHT_CONTROL_DISABLE"
     )]
-    disable: bool,
+    pub disable: bool,
 
     /// The gpio pin used to disable the light
     #[arg(
@@ -131,7 +131,7 @@ pub struct LightControlArgs {
         env = "GROW_AGENT_LIGHT_CONTROL_PIN",
         default_value_t = 6
     )]
-    pin: u8,
+    pub pin: u8,
 
     /// The hour of the day (24h format) on which the light should be switched on
     #[arg(
@@ -140,7 +140,7 @@ pub struct LightControlArgs {
         env = "GROW_AGENT_LIGHT_CONTROL_SWITCH_ON_HOUR",
         default_value_t = 10
     )]
-    switch_on_hour: u8,
+    pub switch_on_hour: u8,
 
     /// The hour of the day (24h format) on which the light should be switched off
     #[arg(
@@ -149,7 +149,7 @@ pub struct LightControlArgs {
         env = "GROW_AGENT_LIGHT_CONTROL_SWITCH_OFF_HOUR",
         default_value_t = 22
     )]
-    switch_off_hour: u8,
+    pub switch_off_hour: u8,
 }
 
 #[derive(Debug, Parser)]
@@ -160,7 +160,7 @@ pub struct PumpControlArgs {
         long = "pump-control-disable",
         env = "GROW_AGENT_LIGHT_CONTROL_DISABLE"
     )]
-    disable: bool,
+    pub disable: bool,
 
     /// The gpio pin used to disable the left pump
     #[arg(
@@ -169,7 +169,7 @@ pub struct PumpControlArgs {
         env = "GROW_AGENT_PUMP_CONTROL_LEFT_PIN",
         default_value_t = 17
     )]
-    pin_left: u8,
+    pub pin_left: u8,
 
     /// The gpio pin used to disable the right pump
     #[arg(
@@ -178,7 +178,7 @@ pub struct PumpControlArgs {
         env = "GROW_AGENT_PUMP_CONTROL_RIGHT_PIN",
         default_value_t = 22
     )]
-    pin_right: u8,
+    pub pin_right: u8,
     // tbd
 }
 

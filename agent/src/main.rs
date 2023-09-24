@@ -13,7 +13,7 @@ impl Termination for Exit {
         match self {
             Exit::Ok => ExitCode::from(0),
             Exit::Err(err) => {
-                log::error!("failed to run application: {}", err);
+                log::error!("failed to run: {}", err);
                 ExitCode::from(1)
             }
         }
