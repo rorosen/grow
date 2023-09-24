@@ -1,4 +1,6 @@
-# Grow
+# Grow Agent
+
+The grow agent is developed to run on a Raspberry Pi.
 
 ## Pi Pre-Install
 
