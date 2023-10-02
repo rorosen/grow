@@ -1,6 +1,19 @@
-use crate::error::AppError;
+use crate::{
+    control::{
+        exhaust_controller::{ExhaustControlArgs, ExhaustController},
+        fan_controller::{FanControlArgs, FanController},
+        light_controller::{LightControlArgs, LightController},
+        pump_controller::PumpControlArgs,
+    },
+    error::AppError,
+};
 use clap::Parser;
 use log::LevelFilter;
+use tokio::{
+    signal::unix::{signal, SignalKind},
+    sync::mpsc,
+};
+use tokio_util::sync::CancellationToken;
 
 #[derive(Debug, Parser)]
 pub struct App {
@@ -20,170 +33,55 @@ pub struct App {
     pump_control_args: PumpControlArgs,
 }
 
-#[derive(Debug, Parser)]
-pub struct ExhaustControlArgs {
-    /// Whether to disable the exhaust fan controller
-    #[arg(
-        id = "exhaust_control.disable",
-        long = "exhaust-control-disable",
-        env = "GROW_AGENT_EXHAUST_CONTROL_DISABLE"
-    )]
-    pub disable: bool,
-
-    /// The gpio pin used to disable the exhaust fan in slow mode
-    #[arg(
-        id = "exhaust_control.pin_slow",
-        long = "exhaust-control-pin-slow",
-        env = "GROW_AGENT_EXHAUST_CONTROL_PIN_SLOW",
-        default_value_t = 25
-    )]
-    pub pin_slow: u8,
-
-    /// The gpio pin used to disable the exhaust fan in fast mode (not implemented so far)
-    #[arg(
-        id = "exhaust_control.pin_fast",
-        long = "exhaust-control-pin-fast",
-        env = "GROW_AGENT_EXHAUST_CONTROL_PIN_FAST",
-        default_value_t = 26
-    )]
-    pub pin_fast: u8,
-
-    /// The duration in seconds for which the exhaust fan should run (0 means always stopped)
-    #[arg(
-        id = "exhaust_control.on_duration_secs",
-        long = "exhaust-control-on-duration-secs",
-        env = "GROW_AGENT_EXHAUST_CONTROL_ON_DURATION_SECS",
-        default_value_t = 1
-    )]
-    pub on_duration_secs: u64,
-
-    /// The duration in seconds for which the exhaust fan should be stopped (0 means always running)
-    #[arg(
-        id = "exhaust_control.off_duration_secs",
-        long = "exhaust-control-off-duration-secs",
-        env = "GROW_AGENT_EXHAUST_CONTROL_OFF_DURATION_SECS",
-        default_value_t = 0
-    )]
-    pub off_duration_secs: u64,
-}
-
-#[derive(Debug, Parser)]
-pub struct FanControlArgs {
-    /// Whether to disable the circulation fan controller
-    #[arg(
-        id = "fan_control.disable",
-        long = "fan-control-disable",
-        env = "GROW_AGENT_FAN_CONTROL_DISABLE"
-    )]
-    pub disable: bool,
-
-    /// The gpio pin used to disable the left circulation fan
-    #[arg(
-        id = "fan_control.pin_left",
-        long = "fan-control-pin-left",
-        env = "GROW_AGENT_FAN_CONTROL_PIN_LEFT",
-        default_value_t = 23
-    )]
-    pub pin_left: u8,
-
-    /// The gpio pin used to disable the right circulation fan
-    #[arg(
-        id = "fan_control.pin_right",
-        long = "fan-control-pin-right",
-        env = "GROW_AGENT_FAN_CONTROL_PIN_RIGHT",
-        default_value_t = 24
-    )]
-    pub pin_right: u8,
-
-    /// The duration in seconds for which the circulation fans should run (0 means always stopped)
-    #[arg(
-        id = "fan_control.on_duration_secs",
-        long = "fan-control-on-duration-secs",
-        env = "GROW_AGENT_FAN_CONTROL_ON_DURATION_SECS",
-        default_value_t = 1
-    )]
-    pub on_duration_secs: u64,
-
-    /// The duration in seconds for which the circulation fans should be stopped (0 means always running)
-    #[arg(
-        id = "fan_control.off_duration_secs",
-        long = "fan-control-off-duration-secs",
-        env = "GROW_AGENT_FAN_CONTROL_OFF_DURATION_SECS",
-        default_value_t = 0
-    )]
-    pub off_duration_secs: u64,
-}
-
-#[derive(Debug, Parser)]
-pub struct LightControlArgs {
-    /// Whether to disable the light controller
-    #[arg(
-        id = "light_control.disable",
-        long = "light-control-disable",
-        env = "GROW_AGENT_LIGHT_CONTROL_DISABLE"
-    )]
-    pub disable: bool,
-
-    /// The gpio pin used to disable the light
-    #[arg(
-        id = "light_control.pin",
-        long = "light-control-pin",
-        env = "GROW_AGENT_LIGHT_CONTROL_PIN",
-        default_value_t = 6
-    )]
-    pub pin: u8,
-
-    /// The hour of the day (24h format) on which the light should be switched on
-    #[arg(
-        id = "light_control.switch_on_hour",
-        long = "light-control-switch-on-hour",
-        env = "GROW_AGENT_LIGHT_CONTROL_SWITCH_ON_HOUR",
-        default_value_t = 10
-    )]
-    pub switch_on_hour: u8,
-
-    /// The hour of the day (24h format) on which the light should be switched off
-    #[arg(
-        id = "light_control.switch_off_hour",
-        long = "light-control-switch-off-hour",
-        env = "GROW_AGENT_LIGHT_CONTROL_SWITCH_OFF_HOUR",
-        default_value_t = 22
-    )]
-    pub switch_off_hour: u8,
-}
-
-#[derive(Debug, Parser)]
-pub struct PumpControlArgs {
-    /// Whether to disable the pump controller
-    #[arg(
-        id = "pump_control.disable",
-        long = "pump-control-disable",
-        env = "GROW_AGENT_LIGHT_CONTROL_DISABLE"
-    )]
-    pub disable: bool,
-
-    /// The gpio pin used to disable the left pump
-    #[arg(
-        id = "pump_control.pin_left",
-        long = "pump-control-pin-left",
-        env = "GROW_AGENT_PUMP_CONTROL_LEFT_PIN",
-        default_value_t = 17
-    )]
-    pub pin_left: u8,
-
-    /// The gpio pin used to disable the right pump
-    #[arg(
-        id = "pump_control.pin_right",
-        long = "pump-control-pin-right",
-        env = "GROW_AGENT_PUMP_CONTROL_RIGHT_PIN",
-        default_value_t = 22
-    )]
-    pub pin_right: u8,
-    // tbd
-}
-
 impl App {
     pub async fn run(self) -> Result<(), AppError> {
+        env_logger::Builder::new()
+            .filter_level(self.log_level)
+            .init();
+        log::info!("initialized logger with log level {}", self.log_level);
+
+        let mut sigint = signal(SignalKind::interrupt()).map_err(AppError::SignalHandlerError)?;
+        let mut sigterm = signal(SignalKind::terminate()).map_err(AppError::SignalHandlerError)?;
+        let (finish_tx, mut finish_rx) = mpsc::channel(1);
+        let cancel_token = CancellationToken::new();
+
+        let _shutdown_light = LightController::start(
+            self.light_control_args,
+            cancel_token.clone(),
+            finish_tx.clone(),
+        )
+        .map_err(AppError::ControlError)?;
+
+        let _shutdown_exhaust = ExhaustController::start(
+            self.exhaust_control_args,
+            cancel_token.clone(),
+            finish_tx.clone(),
+        )
+        .map_err(AppError::ControlError)?;
+
+        let _shutdown_fan = FanController::start(
+            self.fan_control_args,
+            cancel_token.clone(),
+            finish_tx.clone(),
+        )
+        .map_err(AppError::ControlError)?;
+
+        // drop sender so we don't wait forever later
+        drop(finish_tx);
+
+        tokio::select! {
+            _ = sigint.recv() => {
+                log::info!("shutting down on sigint");
+            }
+            _ = sigterm.recv() => {
+                log::info!("shutting down on sigterm");
+            }
+        }
+
+        cancel_token.cancel();
+        // wait until all tasks terminated
+        let _ = finish_rx.recv().await;
+
         Ok(())
     }
 }

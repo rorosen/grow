@@ -1,7 +1,7 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    utils.url = "github:numtide/flake-utils";
+    falke-utils.url = "github:numtide/flake-utils";
 
     crane = {
       url = "github:ipetkov/crane";
@@ -12,39 +12,46 @@
       url = "github:serokell/deploy-rs";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
+    };
   };
 
-  outputs = inputs @ {
+  outputs = {
     self,
     nixpkgs,
-    utils,
+    flake-utils,
     crane,
     deploy-rs,
+    rust-overlay,
     ...
   }:
-    utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (system: let
-      # pkgs = import nixpkgs { inherit system; };
-      craneLib = crane.lib.${system};
-      src = craneLib.cleanCargoSource (craneLib.path ./.);
+    flake-utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (localSystem: let
+      crossSystem = "aarch64-linux";
 
-      commonArgs = {
-        inherit src;
-        inherit (craneLib.crateNameFromCargoToml {cargoToml = ./Cargo.toml;}) version;
-        pname = "grow-common";
-        doCheck = false;
+      pkgs = import nixpkgs {
+        inherit crossSystem localSystem;
+        overlays = [(import rust-overlay)];
       };
 
-      cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-      agent = craneLib.buildPackage (commonArgs
-        // {
-          inherit cargoArtifacts;
-          inherit (craneLib.crateNameFromCargoToml {cargoToml = ./agent/Cargo.toml;}) pname;
-          cargoExtraArgs = "--bin grow-agent";
-        });
+      rustToolchain = pkgs.pkgsBuildHost.rust-bin.stable.latest.default.override {
+        targets = ["aarch64-unknown-linux-gnu"];
+      };
+
+      craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
     in {
       packages = {
-        agent = agent;
-        service = import ./nix/agent-service.nix inputs;
+        agent = pkgs.callPackage ./nix/agent.nix {inherit craneLib;};
+        service = import ./nix/agent-service.nix {
+          inherit self;
+          inherit (nixpkgs.lib) nixosSystem;
+          pkgs = nixpkgs.legacyPackages.x86_64-linux;
+        };
       };
     })
     // {

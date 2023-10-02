@@ -1,9 +1,10 @@
-inputs: let
-  inherit (inputs) nixpkgs self;
-  pkgs = nixpkgs.legacyPackages.aarch64-linux;
-
+{
+  pkgs,
+  nixosSystem,
+  self,
+}: let
   generateService = name: config:
-    (nixpkgs.lib.nixosSystem {
+    (nixosSystem {
       inherit (pkgs) system;
       modules = [
         {
@@ -22,8 +23,32 @@ inputs: let
     name = "grow-agent.service";
     text = generateService "grow-agent" {
       serviceConfig = {
-        Type = "oneshot";
+        Type = "simple";
         ExecStart = "${self.outputs.packages.${pkgs.system}.agent}/bin/grow-agent";
+      };
+      environment = {
+        RUST_LOG = "debug";
+
+        GROW_AGENT_EXHAUST_CONTROL_DISABLE = "false";
+        GROW_AGENT_EXHAUST_CONTROL_PIN_SLOW = "25";
+        GROW_AGENT_EXHAUST_CONTROL_PIN_FAST = "26";
+        GROW_AGENT_EXHAUST_CONTROL_ON_DURATION_SECS = "10";
+        GROW_AGENT_EXHAUST_CONTROL_OFF_DURATION_SECS = "10";
+
+        GROW_AGENT_FAN_CONTROL_DISABLE = "false";
+        GROW_AGENT_FAN_CONTROL_PIN_LEFT = "23";
+        GROW_AGENT_FAN_CONTROL_PIN_RIGHT = "24";
+        GROW_AGENT_FAN_CONTROL_ON_DURATION_SECS = "15";
+        GROW_AGENT_FAN_CONTROL_OFF_DURATION_SECS = "15";
+
+        GROW_AGENT_LIGHT_CONTROL_DISABLE = "true";
+        GROW_AGENT_LIGHT_CONTROL_PIN = "6";
+        GROW_AGENT_LIGHT_CONTROL_SWITCH_ON_HOUR = "10:00";
+        GROW_AGENT_LIGHT_CONTROL_SWITCH_OFF_HOUR = "22:00";
+
+        GROW_AGENT_PUMP_CONTROL_DISABLE = "true";
+        GROW_AGENT_PUMP_CONTROL_LEFT_PIN = "17";
+        GROW_AGENT_PUMP_CONTROL_RIGHT_PIN = "22";
       };
       wantedBy = ["multi-user.target"];
     };

@@ -11,4 +11,11 @@ env_logger = "0.10.0"
 log = "0.4.20"
 rppal = "0.14.1"
 thiserror = "1.0.48"
-tokio = { version = "1.32.0", features = ["macros", "rt-multi-thread", "time", "sync"] }
+tokio = { version = "1.32.0", features = [
+    "macros",
+    "rt-multi-thread",
+    "time",
+    "sync",
+    "signal",
+] }
+tokio-util = "0.7.9"

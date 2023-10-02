@@ -1,5 +1,5 @@
 #[derive(Debug, thiserror::Error)]
-pub enum ControlError {
+pub enum Error {
     #[error("failed to initialize a new gpio instance: {0}")]
     InitGpioFailed(rppal::gpio::Error),
 

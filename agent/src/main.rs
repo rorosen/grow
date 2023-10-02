@@ -1,36 +1,17 @@
-use std::process::{ExitCode, Termination};
+use std::process::ExitCode;
 
 use clap::Parser;
-use grow_agent::{app::App, error::AppError};
-
-pub enum Exit {
-    Ok,
-    Err(AppError),
-}
-
-impl Termination for Exit {
-    fn report(self) -> std::process::ExitCode {
-        match self {
-            Exit::Ok => ExitCode::from(0),
-            Exit::Err(err) => {
-                log::error!("failed to run: {}", err);
-                ExitCode::from(1)
-            }
-        }
-    }
-}
+use grow_agent::app::App;
 
 #[tokio::main]
-async fn main() -> Exit {
-    let args = App::parse();
+async fn main() -> ExitCode {
+    let app = App::parse();
 
-    env_logger::Builder::new()
-        .filter_level(args.log_level)
-        .init();
-    log::info!("initialized logger with log level {}", args.log_level);
-
-    match args.run().await {
-        Ok(_) => Exit::Ok,
-        Err(err) => Exit::Err(err),
+    match app.run().await {
+        Ok(_) => ExitCode::SUCCESS,
+        Err(err) => {
+            log::error!("failed to run app: {}", err);
+            ExitCode::FAILURE
+        }
     }
 }

@@ -1,3 +1,9 @@
 {
-  "words": ["gpio", "oneshot", "rppal", "thiserror"]
+  "words": [
+    "chrono",
+    "gpio",
+    "oneshot",
+    "rppal",
+    "thiserror"
+  ]
 }
