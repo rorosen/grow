@@ -50,7 +50,7 @@
         service = import ./nix/agent-service.nix {
           inherit self;
           inherit (nixpkgs.lib) nixosSystem;
-          pkgs = nixpkgs.legacyPackages.x86_64-linux;
+          pkgs = pkgs.pkgsBuildHost;
         };
       };
     })
