@@ -98,7 +98,7 @@ impl LightController {
                     timeout = self.control();
                 }
                 _ = self.cancel_token.cancelled() => {
-                    log::debug!("light controller shutting down");
+                    log::debug!("stopping light controller");
                     return;
                 }
             }

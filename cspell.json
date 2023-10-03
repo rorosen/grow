@@ -1,9 +1,17 @@
 {
   "words": [
+    "bootfs",
     "chrono",
+    "dtparam",
     "gpio",
+    "libc",
     "oneshot",
+    "periph",
     "rppal",
-    "thiserror"
+    "serokell",
+    "thiserror",
+    "udisksctl",
+    "unxz",
+    "userconf"
   ]
 }

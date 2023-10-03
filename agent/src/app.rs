@@ -1,11 +1,12 @@
 use crate::{
     control::{
-        exhaust_controller::{ExhaustControlArgs, ExhaustController},
-        fan_controller::{FanControlArgs, FanController},
-        light_controller::{LightControlArgs, LightController},
-        pump_controller::PumpControlArgs,
+        exhaust::{ExhaustControlArgs, ExhaustController},
+        fan::{FanControlArgs, FanController},
+        light::{LightControlArgs, LightController},
+        pump::PumpControlArgs,
     },
     error::AppError,
+    sample::water_level::{WaterLevelSampleArgs, WaterLevelSampler},
 };
 use clap::Parser;
 use log::LevelFilter;
@@ -31,6 +32,9 @@ pub struct App {
 
     #[command(flatten)]
     pump_control_args: PumpControlArgs,
+
+    #[command(flatten)]
+    water_level_sample_args: WaterLevelSampleArgs,
 }
 
 impl App {
@@ -65,6 +69,10 @@ impl App {
             finish_tx.clone(),
         )
         .map_err(AppError::ControlError)?;
+
+        WaterLevelSampler::start(self.water_level_sample_args)
+            .await
+            .unwrap();
 
         // drop sender so we don't wait forever later
         drop(finish_tx);

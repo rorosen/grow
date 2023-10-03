@@ -24,6 +24,12 @@ PASS=$(openssl passwd -6)
 echo "rob:$PASS" > /run/media/rob/bootfs/userconf.txt
 ```
 
+Enable I2C
+
+```bash
+sed -i '/dtparam=i2c_arm=on/s/^#//' /run/media/rob/bootfs/config.txt
+```
+
 Unmount the boot partition
 
 ```bash

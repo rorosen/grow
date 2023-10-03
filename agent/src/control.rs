@@ -1,7 +1,7 @@
 mod error;
-pub mod exhaust_controller;
-pub mod fan_controller;
-pub mod light_controller;
-pub mod pump_controller;
+pub mod exhaust;
+pub mod fan;
+pub mod light;
+pub mod pump;
 
 pub use error::Error;
