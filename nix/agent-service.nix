@@ -1,7 +1,7 @@
 {
   pkgs,
   nixosSystem,
-  self,
+  agent,
 }: let
   generateService = name: config:
     (nixosSystem {
@@ -24,7 +24,7 @@
     text = generateService "grow-agent" {
       serviceConfig = {
         Type = "simple";
-        ExecStart = "${self.outputs.packages.${pkgs.system}.agent}/bin/grow-agent";
+        ExecStart = "${agent}/bin/grow-agent";
       };
       environment = {
         RUST_LOG = "debug";
@@ -41,7 +41,7 @@
         GROW_AGENT_FAN_CONTROL_ON_DURATION_SECS = "15";
         GROW_AGENT_FAN_CONTROL_OFF_DURATION_SECS = "15";
 
-        GROW_AGENT_LIGHT_CONTROL_DISABLE = "true";
+        GROW_AGENT_LIGHT_CONTROL_DISABLE = "false";
         GROW_AGENT_LIGHT_CONTROL_PIN = "6";
         GROW_AGENT_LIGHT_CONTROL_SWITCH_ON_HOUR = "10:00";
         GROW_AGENT_LIGHT_CONTROL_SWITCH_OFF_HOUR = "22:00";
@@ -57,5 +57,6 @@ in
   pkgs.writeShellScriptBin "activate" ''
     mkdir -p /etc/systemd/system/
     ln -sf ${service} /etc/systemd/system/grow-agent.service
+    ln -sf ${service} /etc/systemd/system/multi-user.target.wants/grow-agent.service
     systemctl daemon-reload
   ''

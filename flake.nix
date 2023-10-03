@@ -44,11 +44,12 @@
       };
 
       craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
+      agent = pkgs.callPackage ./nix/agent.nix {inherit craneLib;};
     in {
       packages = {
-        agent = pkgs.callPackage ./nix/agent.nix {inherit craneLib;};
+        inherit agent;
         service = import ./nix/agent-service.nix {
-          inherit self;
+          inherit agent;
           inherit (nixpkgs.lib) nixosSystem;
           pkgs = pkgs.pkgsBuildHost;
         };
@@ -60,7 +61,7 @@
         profiles.grow = {
           user = "root";
           sshUser = "rob";
-          path = deploy-rs.lib.aarch64-linux.activate.custom self.packages.aarch64-linux.service "./bin/activate";
+          path = deploy-rs.lib.aarch64-linux.activate.custom self.packages.x86_64-linux.service "./bin/activate";
         };
       };
     };

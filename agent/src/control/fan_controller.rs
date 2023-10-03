@@ -129,14 +129,14 @@ impl FanController {
                 _ = tokio::time::sleep(timeout.to_std().unwrap()) => {
                     match is_on {
                         true => {
-                            log::debug!("deactivating circulation fan");
+                            log::debug!("deactivating circulation fans");
                             self.pin_left.set_low();
                             self.pin_right.set_low();
                             is_on = false;
                             timeout = self.off_duration;
                         }
                         _ => {
-                            log::debug!("activating circulation fan");
+                            log::debug!("activating circulation fans");
                             self.pin_left.set_high();
                             self.pin_right.set_high();
                             is_on = true;
