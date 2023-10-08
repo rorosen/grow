@@ -3,9 +3,9 @@ use crate::{
         exhaust::{ExhaustControlArgs, ExhaustController},
         fan::{FanControlArgs, FanController},
         light::{LightControlArgs, LightController},
-        pump::PumpControlArgs,
     },
     error::AppError,
+    manage::pump::PumpArgs,
     sample::water_level::{WaterLevelSampleArgs, WaterLevelSampler},
 };
 use clap::Parser;
@@ -31,7 +31,7 @@ pub struct App {
     light_control_args: LightControlArgs,
 
     #[command(flatten)]
-    pump_control_args: PumpControlArgs,
+    pump_control_args: PumpArgs,
 
     #[command(flatten)]
     water_level_sample_args: WaterLevelSampleArgs,
