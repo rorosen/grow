@@ -29,3 +29,5 @@ pub struct PumpControlArgs {
     pub pin_right: u8,
     // tbd
 }
+
+pub struct PumpController {}

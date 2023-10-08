@@ -44,51 +44,57 @@ impl App {
             .init();
         log::info!("initialized logger with log level {}", self.log_level);
 
-        let mut sigint = signal(SignalKind::interrupt()).map_err(AppError::SignalHandlerError)?;
-        let mut sigterm = signal(SignalKind::terminate()).map_err(AppError::SignalHandlerError)?;
-        let (finish_tx, mut finish_rx) = mpsc::channel(1);
-        let cancel_token = CancellationToken::new();
+        // let mut sigint = signal(SignalKind::interrupt()).map_err(AppError::SignalHandlerError)?;
+        // let mut sigterm = signal(SignalKind::terminate()).map_err(AppError::SignalHandlerError)?;
+        // let (finish_tx, mut finish_rx) = mpsc::channel(1);
+        // let cancel_token = CancellationToken::new();
 
-        let _shutdown_light = LightController::start(
-            self.light_control_args,
-            cancel_token.clone(),
-            finish_tx.clone(),
-        )
-        .map_err(AppError::ControlError)?;
+        // let _shutdown_light = LightController::start(
+        //     self.light_control_args,
+        //     cancel_token.clone(),
+        //     finish_tx.clone(),
+        // )
+        // .map_err(AppError::ControlError)?;
 
-        let _shutdown_exhaust = ExhaustController::start(
-            self.exhaust_control_args,
-            cancel_token.clone(),
-            finish_tx.clone(),
-        )
-        .map_err(AppError::ControlError)?;
+        // let _shutdown_exhaust = ExhaustController::start(
+        //     self.exhaust_control_args,
+        //     cancel_token.clone(),
+        //     finish_tx.clone(),
+        // )
+        // .map_err(AppError::ControlError)?;
 
-        let _shutdown_fan = FanController::start(
-            self.fan_control_args,
-            cancel_token.clone(),
-            finish_tx.clone(),
-        )
-        .map_err(AppError::ControlError)?;
+        // let _shutdown_fan = FanController::start(
+        //     self.fan_control_args,
+        //     cancel_token.clone(),
+        //     finish_tx.clone(),
+        // )
+        // .map_err(AppError::ControlError)?;
 
-        WaterLevelSampler::start(self.water_level_sample_args)
+        // WaterLevelSampler::new(self.water_level_sample_args)
+        //     .await
+        //     .unwrap();
+
+        // // drop sender so we don't wait forever later
+        // drop(finish_tx);
+
+        // tokio::select! {
+        //     _ = sigint.recv() => {
+        //         log::info!("shutting down on sigint");
+        //     }
+        //     _ = sigterm.recv() => {
+        //         log::info!("shutting down on sigterm");
+        //     }
+        // }
+
+        // cancel_token.cancel();
+        // // wait until all tasks terminated
+        // let _ = finish_rx.recv().await;
+
+        let mut w = WaterLevelSampler::new(self.water_level_sample_args)
             .await
             .unwrap();
 
-        // drop sender so we don't wait forever later
-        drop(finish_tx);
-
-        tokio::select! {
-            _ = sigint.recv() => {
-                log::info!("shutting down on sigint");
-            }
-            _ = sigterm.recv() => {
-                log::info!("shutting down on sigterm");
-            }
-        }
-
-        cancel_token.cancel();
-        // wait until all tasks terminated
-        let _ = finish_rx.recv().await;
+        w.measure_range().await.unwrap();
 
         Ok(())
     }

@@ -74,7 +74,7 @@ impl ExhaustController {
         let mut pin = gpio
             .get(args.pin_slow)
             .map_err(Error::GetPinFailed)?
-            .into_output();
+            .into_output_low();
 
         let on_duration = chrono::Duration::seconds(args.on_duration_secs);
         let off_duration = chrono::Duration::seconds(args.off_duration_secs);
