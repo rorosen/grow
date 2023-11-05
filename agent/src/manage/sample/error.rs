@@ -1,11 +1,11 @@
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("failed to initialize i2c: {0}")]
-    InitI2cFailed(crate::periph::Error),
+    InitI2cFailed(crate::utils::Error),
 
     #[error("failed to initialize {sensor} sensor: {src}")]
     InitSensor {
-        src: crate::periph::Error,
+        src: crate::utils::Error,
         sensor: String,
     },
 

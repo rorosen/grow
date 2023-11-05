@@ -1,3 +1,4 @@
+pub mod air_pump;
 mod error;
 pub mod exhaust;
 pub mod fan;

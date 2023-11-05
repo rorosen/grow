@@ -60,11 +60,20 @@ impl I2C {
         self.write_byte(address, data | mask).await
     }
 
+    #[allow(dead_code)]
     pub async fn read_u16(&mut self, address: u8) -> Result<u16, Error> {
         self.dev
             .write_all(&[address])
             .await
             .map_err(Error::I2cWriteError)?;
         self.dev.read_u16().await.map_err(Error::I2cReadError)
+    }
+
+    pub async fn write_u16(&mut self, address: u8, data: u16) -> Result<(), Error> {
+        let data = data.to_be_bytes();
+        self.dev
+            .write_all(&[address, data[1], data[2]])
+            .await
+            .map_err(Error::I2cWriteError)
     }
 }

@@ -1,18 +1,18 @@
 use crate::{
-    control::{
-        exhaust::{ExhaustControlArgs, ExhaustController},
-        fan::{FanControlArgs, FanController},
-        light::{LightControlArgs, LightController},
-    },
     error::AppError,
-    manage::pump::PumpArgs,
-    sample::water_level::{WaterLevelSampleArgs, WaterLevelSampler},
+    manage::{
+        exhaust::{ExhaustArgs, ExhaustManager},
+        fan::{FanArgs, FanManager},
+        light::{LightArgs, LightManager},
+        pump::PumpArgs,
+        PumpManager,
+    },
 };
 use clap::Parser;
 use log::LevelFilter;
 use tokio::{
     signal::unix::{signal, SignalKind},
-    sync::mpsc,
+    task::JoinSet,
 };
 use tokio_util::sync::CancellationToken;
 
@@ -22,19 +22,16 @@ pub struct App {
     pub log_level: LevelFilter,
 
     #[command(flatten)]
-    exhaust_control_args: ExhaustControlArgs,
+    light_args: LightArgs,
 
     #[command(flatten)]
-    fan_control_args: FanControlArgs,
+    pump_args: PumpArgs,
 
     #[command(flatten)]
-    light_control_args: LightControlArgs,
+    fan_args: FanArgs,
 
     #[command(flatten)]
-    pump_control_args: PumpArgs,
-
-    #[command(flatten)]
-    water_level_sample_args: WaterLevelSampleArgs,
+    exhaust_args: ExhaustArgs,
 }
 
 impl App {
@@ -44,57 +41,63 @@ impl App {
             .init();
         log::info!("initialized logger with log level {}", self.log_level);
 
-        // let mut sigint = signal(SignalKind::interrupt()).map_err(AppError::SignalHandlerError)?;
-        // let mut sigterm = signal(SignalKind::terminate()).map_err(AppError::SignalHandlerError)?;
-        // let (finish_tx, mut finish_rx) = mpsc::channel(1);
-        // let cancel_token = CancellationToken::new();
+        let mut sigint = signal(SignalKind::interrupt()).map_err(AppError::SignalHandlerError)?;
+        let mut sigterm = signal(SignalKind::terminate()).map_err(AppError::SignalHandlerError)?;
+        let cancel_token = CancellationToken::new();
 
-        // let _shutdown_light = LightController::start(
-        //     self.light_control_args,
-        //     cancel_token.clone(),
-        //     finish_tx.clone(),
-        // )
-        // .map_err(AppError::ControlError)?;
+        let mut set = JoinSet::new();
 
-        // let _shutdown_exhaust = ExhaustController::start(
-        //     self.exhaust_control_args,
-        //     cancel_token.clone(),
-        //     finish_tx.clone(),
-        // )
-        // .map_err(AppError::ControlError)?;
+        let c = cancel_token.clone();
+        set.spawn(async move { ("light", LightManager::start(self.light_args, c).await) });
 
-        // let _shutdown_fan = FanController::start(
-        //     self.fan_control_args,
-        //     cancel_token.clone(),
-        //     finish_tx.clone(),
-        // )
-        // .map_err(AppError::ControlError)?;
+        let c = cancel_token.clone();
+        set.spawn(async move { ("pump", PumpManager::start(self.pump_args, c).await) });
 
-        // WaterLevelSampler::new(self.water_level_sample_args)
-        //     .await
-        //     .unwrap();
+        let c = cancel_token.clone();
+        set.spawn(async move { ("circulation fan", FanManager::start(self.fan_args, c).await) });
 
-        // // drop sender so we don't wait forever later
-        // drop(finish_tx);
+        let c = cancel_token.clone();
+        set.spawn(async move {
+            (
+                "exhaust fan",
+                ExhaustManager::start(self.exhaust_args, c).await,
+            )
+        });
 
-        // tokio::select! {
-        //     _ = sigint.recv() => {
-        //         log::info!("shutting down on sigint");
-        //     }
-        //     _ = sigterm.recv() => {
-        //         log::info!("shutting down on sigterm");
-        //     }
-        // }
+        loop {
+            tokio::select! {
+                _ = sigint.recv() => {
+                    log::info!("shutting down on sigint");
+                }
+                _ = sigterm.recv() => {
+                    log::info!("shutting down on sigterm");
+                }
+                res = set.join_next() => {
+                    match res {
+                        Some(Ok((id, Ok(_)))) => log::info!("{id} manager task terminated successfully"),
+                        Some(Ok((id, Err(err)))) => log::warn!("{id} manager task terminated with error: {err}"),
+                        Some(Err(err)) => {
+                            log::error!("some task panicked: {err}");
+                            break;
+                        }
+                        None => {
+                            log::error!("all manager tasks finished unexpectedly");
+                            break;
+                        }
+                    }
+                }
+            }
+        }
 
-        // cancel_token.cancel();
-        // // wait until all tasks terminated
-        // let _ = finish_rx.recv().await;
+        cancel_token.cancel();
 
-        let mut w = WaterLevelSampler::new(self.water_level_sample_args)
-            .await
-            .unwrap();
-
-        w.measure_range().await.unwrap();
+        while let Some(res) = set.join_next().await {
+            match res {
+                Ok((id, Ok(_))) => log::info!("{id} manager task terminated successfully"),
+                Ok((id, Err(err))) => log::warn!("{id} manager task terminated with error: {err}"),
+                Err(err) => log::error!("some task panicked: {err}"),
+            }
+        }
 
         Ok(())
     }

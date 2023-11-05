@@ -10,7 +10,7 @@ async fn main() -> ExitCode {
     match app.run().await {
         Ok(_) => ExitCode::SUCCESS,
         Err(err) => {
-            log::error!("failed to run app: {}", err);
+            log::error!("failed to run: {}", err);
             ExitCode::FAILURE
         }
     }

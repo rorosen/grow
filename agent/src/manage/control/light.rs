@@ -1,7 +1,6 @@
 use chrono::{NaiveTime, Utc};
 use clap::Parser;
 use rppal::gpio::{Gpio, OutputPin};
-use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 use super::error::Error;
@@ -52,10 +51,9 @@ pub struct LightController {
 }
 
 impl LightController {
-    pub fn start(
+    pub async fn start(
         args: LightControlArgs,
         cancel_token: CancellationToken,
-        finish: mpsc::Sender<()>,
     ) -> Result<(), Error> {
         if args.disable {
             log::info!("light controller is disabled by configuration");
@@ -75,20 +73,17 @@ impl LightController {
             .map_err(Error::GetPinFailed)?
             .into_output();
 
-        tokio::spawn(
-            Self {
-                pin,
-                cancel_token,
-                activate_time: args.activate_time,
-                deactivate_time: args.deactivate_time,
-            }
-            .run(finish),
-        );
-
-        Ok(())
+        Self {
+            pin,
+            cancel_token,
+            activate_time: args.activate_time,
+            deactivate_time: args.deactivate_time,
+        }
+        .run()
+        .await
     }
 
-    pub async fn run(mut self, _finish: mpsc::Sender<()>) {
+    pub async fn run(mut self) -> Result<(), Error> {
         log::debug!("starting light controller");
         let mut timeout = chrono::Duration::zero();
 
@@ -99,7 +94,7 @@ impl LightController {
                 }
                 _ = self.cancel_token.cancelled() => {
                     log::debug!("stopping light controller");
-                    return;
+                    return Ok(());
                 }
             }
         }

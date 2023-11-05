@@ -1,12 +1,13 @@
 use clap::Parser;
-use rppal::gpio::{Gpio, OutputPin};
-use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
-use super::Error;
+use super::{
+    control::exhaust::{ExhaustControlArgs, ExhaustController},
+    error::Error,
+};
 
 #[derive(Debug, Parser)]
-pub struct ExhaustControlArgs {
+pub struct ExhaustArgs {
     /// Whether to disable the exhaust fan controller
     #[arg(
         id = "exhaust_control_disable",
@@ -15,23 +16,8 @@ pub struct ExhaustControlArgs {
     )]
     pub disable: bool,
 
-    /// The gpio pin used to enable the exhaust fan in slow mode
-    #[arg(
-        id = "exhaust_control_pin_slow",
-        long = "exhaust-control-pin-slow",
-        env = "GROW_AGENT_EXHAUST_CONTROL_PIN_SLOW",
-        default_value_t = 25
-    )]
-    pub pin_slow: u8,
-
-    /// The gpio pin used to enable the exhaust fan in fast mode (not implemented so far)
-    #[arg(
-        id = "exhaust_control_pin_fast",
-        long = "exhaust-control-pin-fast",
-        env = "GROW_AGENT_EXHAUST_CONTROL_PIN_FAST",
-        default_value_t = 26
-    )]
-    pub pin_fast: u8,
+    #[command(flatten)]
+    control: ExhaustControlArgs,
 
     /// The duration in seconds for which the exhaust fan should run (0 means always stopped)
     #[arg(
@@ -52,63 +38,50 @@ pub struct ExhaustControlArgs {
     pub off_duration_secs: i64,
 }
 
-pub struct ExhaustController {
-    pin: OutputPin,
-    cancel_token: CancellationToken,
+pub struct ExhaustManager {
+    controller: ExhaustController,
     on_duration: chrono::Duration,
     off_duration: chrono::Duration,
 }
 
-impl ExhaustController {
-    pub fn start(
-        args: ExhaustControlArgs,
-        cancel_token: CancellationToken,
-        finish: mpsc::Sender<()>,
-    ) -> Result<(), Error> {
+impl ExhaustManager {
+    pub async fn start(args: ExhaustArgs, cancel_token: CancellationToken) -> Result<(), Error> {
         if args.disable {
             log::info!("exhaust fan controller is disabled by configuration");
             return Ok(());
         }
 
-        let gpio = Gpio::new().map_err(Error::InitGpioFailed)?;
-        let mut pin = gpio
-            .get(args.pin_slow)
-            .map_err(Error::GetPinFailed)?
-            .into_output_low();
+        let mut controller = ExhaustController::new(args.control.pin_slow)
+            .await
+            .map_err(Error::ControlError)?;
 
         let on_duration = chrono::Duration::seconds(args.on_duration_secs);
         let off_duration = chrono::Duration::seconds(args.off_duration_secs);
 
-        if off_duration == chrono::Duration::zero() {
+        if on_duration.is_zero() {
             log::info!("exhaust fan is always on");
-            pin.set_reset_on_drop(false);
-            pin.set_high();
+            controller.deactivate_permanent();
             return Ok(());
         }
 
-        if on_duration == chrono::Duration::zero() {
+        if off_duration.is_zero() {
             log::info!("exhaust fan is always off");
-            pin.set_reset_on_drop(false);
-            pin.set_low();
+            controller.activate_permanent();
             return Ok(());
         }
 
-        tokio::spawn(
-            Self {
-                pin,
-                cancel_token,
-                on_duration,
-                off_duration,
-            }
-            .run(finish),
-        );
-
-        Ok(())
+        Self {
+            controller,
+            on_duration,
+            off_duration,
+        }
+        .run(cancel_token)
+        .await
     }
 
-    pub async fn run(mut self, _finish: mpsc::Sender<()>) {
-        log::debug!("starting exhaust fan controller");
-        self.pin.set_high();
+    async fn run(mut self, cancel_token: CancellationToken) -> Result<(), Error> {
+        log::debug!("starting exhaust fan management loop");
+        self.controller.activate();
         let mut is_on = true;
         let mut timeout = self.on_duration;
 
@@ -118,22 +91,22 @@ impl ExhaustController {
                     match is_on {
                         true => {
                             log::debug!("deactivating exhaust fan");
-                            self.pin.set_low();
+                            self.controller.deactivate();
                             is_on = false;
                             timeout = self.off_duration;
                         }
                         _ => {
                             log::debug!("activating exhaust fan");
-                            self.pin.set_high();
+                            self.controller.activate();
                             is_on = true;
                             timeout = self.on_duration;
 
                         }
                     }
                 }
-                _ = self.cancel_token.cancelled() => {
+                _ = cancel_token.cancelled() => {
                     log::debug!("stopping exhaust fan controller");
-                    return;
+                    return Ok(());
                 }
             }
         }

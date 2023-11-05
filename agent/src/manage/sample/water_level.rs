@@ -1,6 +1,5 @@
 use super::Error;
-use crate::periph::{self, i2c::I2C};
-use clap::Parser;
+use crate::utils::{self, i2c::I2C};
 
 const IDENTIFICATION_MODEL_ID: u8 = 0xEE;
 const RANGE_SEQUENCE_STEP_DSS: u8 = 0x28;
@@ -18,35 +17,8 @@ const REG_SYSTEM_INTERRUPT_CLEAR: u8 = 0x0B;
 const REG_RESULT_INTERRUPT_STATUS: u8 = 0x13;
 const REG_SYSRANGE_START: u8 = 0x00;
 const REG_RESULT_RANGE_STATUS: u8 = 0x14;
-
-#[derive(Debug, Parser)]
-pub struct WaterLevelSampleArgs {
-    /// Whether to disable the water level sampler
-    #[arg(
-        id = "water_sample_disable",
-        long = "water-sample-disable",
-        env = "GROW_AGENT_WATER_SAMPLE_DISABLE"
-    )]
-    pub disable: bool,
-
-    /// The I2C address of the left water level sensor
-    #[arg(
-        id = "water_sample_address_left",
-        long = "water-sample-address-left",
-        env = "GROW_AGENT_WATER_SAMPLE_ADDRESS_LEFT",
-        default_value_t = 0x29
-    )]
-    pub address_left: u8,
-
-    /// The I2C address of the right water level sensor
-    #[arg(
-        id = "water_sample_address_right",
-        long = "water-sample-address-right",
-        env = "GROW_AGENT_WATER_SAMPLE_ADDRESS_RIGHT",
-        default_value_t = 0x29
-    )]
-    pub address_right: u8,
-}
+const REG_MSRC_CONFIG_CONTROL: u8 = 0x60;
+const REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT: u8 = 0x44;
 
 pub struct WaterLevelSampler {
     i2c: I2C,
@@ -54,10 +26,8 @@ pub struct WaterLevelSampler {
 }
 
 impl WaterLevelSampler {
-    pub async fn new(args: WaterLevelSampleArgs) -> Result<Self, Error> {
-        let mut i2c = I2C::new(args.address_left)
-            .await
-            .map_err(Error::InitI2cFailed)?;
+    pub async fn new(address_left: u8, _: u8) -> Result<Self, Error> {
+        let mut i2c = I2C::new(address_left).await.map_err(Error::InitI2cFailed)?;
 
         let device_id = i2c
             .read_byte(REG_IDENTIFICATION_MODEL_ID)
@@ -71,7 +41,7 @@ impl WaterLevelSampler {
         log::debug!(
             "identified {} sensor at 0x{:02x}",
             SENSOR_NAME,
-            args.address_left
+            address_left
         );
 
         let stop_variable = WaterLevelSampler::init_data(&mut i2c)
@@ -91,7 +61,7 @@ impl WaterLevelSampler {
         Ok(Self { i2c, stop_variable })
     }
 
-    pub async fn measure_range(&mut self) -> Result<u16, periph::Error> {
+    pub async fn measure_range(&mut self) -> Result<u16, utils::Error> {
         // stop any ongoing measurement
         self.stop_measurement().await?;
         // trigger new range measurement
@@ -120,7 +90,7 @@ impl WaterLevelSampler {
         Ok(range)
     }
 
-    async fn stop_measurement(&mut self) -> Result<(), periph::Error> {
+    async fn stop_measurement(&mut self) -> Result<(), utils::Error> {
         self.i2c.write_byte(0x80, 0x01).await?;
         self.i2c.write_byte(0xFF, 0x01).await?;
         self.i2c.write_byte(0x00, 0x00).await?;
@@ -132,7 +102,7 @@ impl WaterLevelSampler {
         Ok(())
     }
 
-    async fn init_data(i2c: &mut I2C) -> Result<u8, periph::Error> {
+    async fn init_data(i2c: &mut I2C) -> Result<u8, utils::Error> {
         // set 2v8 mode
         i2c.set_bits(REG_VHV_CONFIG_PAD_SCL_SDA_EXTSUP_HV, 0x01)
             .await?;
@@ -147,10 +117,19 @@ impl WaterLevelSampler {
         i2c.write_byte(0xFF, 0x00).await?;
         i2c.write_byte(0x80, 0x00).await?;
 
+        // disable SIGNAL_RATE_MSRC (bit 1) and SIGNAL_RATE_PRE_RANGE (bit 4) limit checks
+        i2c.set_bits(REG_MSRC_CONFIG_CONTROL, 0x12).await?;
+
+        // set final range signal rate limit to 0.25 million counts per second
+        // Q9.7 fixed point format (9 integer bits, 7 fractional bits)
+        //   writeReg16Bit(FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, limit_Mcps * (1 << 7));
+        i2c.write_u16(REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, 208)
+            .await?;
+
         Ok(stop_variable)
     }
 
-    async fn init_static(i2c: &mut I2C) -> Result<(), periph::Error> {
+    async fn init_static(i2c: &mut I2C) -> Result<(), utils::Error> {
         // load default tuning settings
         i2c.write_byte(0xFF, 0x01).await?;
         i2c.write_byte(0x00, 0x00).await?;
@@ -256,7 +235,7 @@ impl WaterLevelSampler {
         Ok(())
     }
 
-    async fn perform_ref_calibration(i2c: &mut I2C) -> Result<(), periph::Error> {
+    async fn perform_ref_calibration(i2c: &mut I2C) -> Result<(), utils::Error> {
         WaterLevelSampler::perform_single_ref_calibration(i2c, 0x01, 0x01 | 0x40).await?;
         WaterLevelSampler::perform_single_ref_calibration(i2c, 0x02, 0x01 | 0x00).await?;
 
@@ -276,7 +255,7 @@ impl WaterLevelSampler {
         i2c: &mut I2C,
         sequence_config: u8,
         sysrange_start: u8,
-    ) -> Result<(), periph::Error> {
+    ) -> Result<(), utils::Error> {
         i2c.write_byte(REG_SYSTEM_SEQUENCE_CONFIG, sequence_config)
             .await?;
         i2c.write_byte(REG_SYSRANGE_START, sysrange_start).await?;
@@ -294,7 +273,7 @@ impl WaterLevelSampler {
     }
 }
 
-fn init_error(src: periph::Error) -> Error {
+fn init_error(src: utils::Error) -> Error {
     Error::InitSensor {
         src,
         sensor: "water level (VL53L0X)".into(),
