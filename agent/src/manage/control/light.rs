@@ -1,47 +1,8 @@
 use chrono::{NaiveTime, Utc};
-use clap::Parser;
 use rppal::gpio::{Gpio, OutputPin};
 use tokio_util::sync::CancellationToken;
 
 use super::error::Error;
-
-#[derive(Debug, Parser)]
-pub struct LightControlArgs {
-    /// Whether to disable the light controller
-    #[arg(
-        id = "light_control_disable",
-        long = "light-control-disable",
-        env = "GROW_AGENT_LIGHT_CONTROL_DISABLE"
-    )]
-    pub disable: bool,
-
-    /// The gpio pin used to disable the light
-    #[arg(
-        id = "light_control_pin",
-        long = "light-control-pin",
-        env = "GROW_AGENT_LIGHT_CONTROL_PIN",
-        default_value_t = 6
-    )]
-    pub pin: u8,
-
-    /// The time of the day when the light should be switched on
-    #[arg(
-        id = "light_control_switch_on_hour",
-        long = "light-control-switch-on-hour",
-        env = "GROW_AGENT_LIGHT_CONTROL_SWITCH_ON_HOUR",
-        default_value_t = NaiveTime::from_hms_opt(10, 0, 0).unwrap()
-    )]
-    pub activate_time: NaiveTime,
-
-    /// The time of the day when the light should be switched off
-    #[arg(
-        id = "light_control_switch_off_hour",
-        long = "light-control-switch-off-hour",
-        env = "GROW_AGENT_LIGHT_CONTROL_SWITCH_OFF_HOUR",
-        default_value_t = NaiveTime::from_hms_opt(22, 0, 0).unwrap()
-    )]
-    pub deactivate_time: NaiveTime,
-}
 
 pub struct LightController {
     pin: OutputPin,
@@ -52,15 +13,18 @@ pub struct LightController {
 
 impl LightController {
     pub async fn start(
-        args: LightControlArgs,
         cancel_token: CancellationToken,
+        disable: bool,
+        pin: u8,
+        activate_time: NaiveTime,
+        deactivate_time: NaiveTime,
     ) -> Result<(), Error> {
-        if args.disable {
+        if disable {
             log::info!("light controller is disabled by configuration");
             return Ok(());
         }
 
-        if args.activate_time == args.deactivate_time {
+        if activate_time == deactivate_time {
             return Err(Error::InvalidArgs(
                 "light".into(),
                 "activate time and deactivate time cannot be equal".into(),
@@ -68,16 +32,13 @@ impl LightController {
         }
 
         let gpio = Gpio::new().map_err(Error::InitGpioFailed)?;
-        let pin = gpio
-            .get(args.pin)
-            .map_err(Error::GetPinFailed)?
-            .into_output();
+        let pin = gpio.get(pin).map_err(Error::GetPinFailed)?.into_output();
 
         Self {
             pin,
             cancel_token,
-            activate_time: args.activate_time,
-            deactivate_time: args.deactivate_time,
+            activate_time,
+            deactivate_time,
         }
         .run()
         .await

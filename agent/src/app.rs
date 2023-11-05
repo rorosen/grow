@@ -1,6 +1,7 @@
 use crate::{
     error::AppError,
     manage::{
+        air_pump::{AirPumpArgs, AirPumpManager},
         exhaust::{ExhaustArgs, ExhaustManager},
         fan::{FanArgs, FanManager},
         light::{LightArgs, LightManager},
@@ -32,6 +33,9 @@ pub struct App {
 
     #[command(flatten)]
     exhaust_args: ExhaustArgs,
+
+    #[command(flatten)]
+    air_pump_args: AirPumpArgs,
 }
 
 impl App {
@@ -64,17 +68,21 @@ impl App {
             )
         });
 
+        set.spawn(async move { ("air pump", AirPumpManager::start(self.air_pump_args).await) });
+
         loop {
             tokio::select! {
                 _ = sigint.recv() => {
                     log::info!("shutting down on sigint");
+                    break;
                 }
                 _ = sigterm.recv() => {
                     log::info!("shutting down on sigterm");
+                    break;
                 }
                 res = set.join_next() => {
                     match res {
-                        Some(Ok((id, Ok(_)))) => log::info!("{id} manager task terminated successfully"),
+                        Some(Ok((id, Ok(_)))) => log::debug!("{id} manager task terminated successfully"),
                         Some(Ok((id, Err(err)))) => log::warn!("{id} manager task terminated with error: {err}"),
                         Some(Err(err)) => {
                             log::error!("some task panicked: {err}");
@@ -93,7 +101,7 @@ impl App {
 
         while let Some(res) = set.join_next().await {
             match res {
-                Ok((id, Ok(_))) => log::info!("{id} manager task terminated successfully"),
+                Ok((id, Ok(_))) => log::debug!("{id} manager task terminated successfully"),
                 Ok((id, Err(err))) => log::warn!("{id} manager task terminated with error: {err}"),
                 Err(err) => log::error!("some task panicked: {err}"),
             }

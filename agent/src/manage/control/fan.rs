@@ -5,42 +5,7 @@ use tokio_util::sync::CancellationToken;
 use super::Error;
 
 #[derive(Debug, Parser)]
-pub struct FanControlArgs {
-    /// Whether to disable the circulation fan controller
-    #[arg(
-        id = "fan_control_disable",
-        long = "fan-control-disable",
-        env = "GROW_AGENT_FAN_CONTROL_DISABLE"
-    )]
-    pub disable: bool,
-
-    /// The gpio pin used to control the circulation fans
-    #[arg(
-        id = "fan_control_pin",
-        long = "fan-control-pin",
-        env = "GROW_AGENT_FAN_CONTROL_PIN",
-        default_value_t = 23
-    )]
-    pub pin: u8,
-
-    /// The duration in seconds for which the circulation fans should run (0 means always stopped)
-    #[arg(
-        id = "fan_control_on_duration_secs",
-        long = "fan-control-on-duration-secs",
-        env = "GROW_AGENT_FAN_CONTROL_ON_DURATION_SECS",
-        default_value_t = 1
-    )]
-    pub on_duration_secs: i64,
-
-    /// The duration in seconds for which the circulation fans should be stopped (0 means always running)
-    #[arg(
-        id = "fan_control_off_duration_secs",
-        long = "fan-control-off-duration-secs",
-        env = "GROW_AGENT_FAN_CONTROL_OFF_DURATION_SECS",
-        default_value_t = 0
-    )]
-    pub off_duration_secs: i64,
-}
+pub struct FanControlArgs {}
 
 pub struct FanController {
     pin: OutputPin,
@@ -49,20 +14,23 @@ pub struct FanController {
 }
 
 impl FanController {
-    pub async fn start(args: FanControlArgs, cancel_token: CancellationToken) -> Result<(), Error> {
-        if args.disable {
+    pub async fn start(
+        cancel_token: CancellationToken,
+        disable: bool,
+        pin: u8,
+        on_duration_secs: i64,
+        off_duration_secs: i64,
+    ) -> Result<(), Error> {
+        if disable {
             log::info!("circulation fan controller is disabled by configuration");
             return Ok(());
         }
 
         let gpio = Gpio::new().map_err(Error::InitGpioFailed)?;
-        let mut pin = gpio
-            .get(args.pin)
-            .map_err(Error::GetPinFailed)?
-            .into_output();
+        let mut pin = gpio.get(pin).map_err(Error::GetPinFailed)?.into_output();
 
-        let on_duration = chrono::Duration::seconds(args.on_duration_secs);
-        let off_duration = chrono::Duration::seconds(args.off_duration_secs);
+        let on_duration = chrono::Duration::seconds(on_duration_secs);
+        let off_duration = chrono::Duration::seconds(off_duration_secs);
 
         if off_duration == chrono::Duration::zero() {
             log::info!("circulation fans are always on");

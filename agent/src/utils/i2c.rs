@@ -72,7 +72,7 @@ impl I2C {
     pub async fn write_u16(&mut self, address: u8, data: u16) -> Result<(), Error> {
         let data = data.to_be_bytes();
         self.dev
-            .write_all(&[address, data[1], data[2]])
+            .write_all(&[address, data[0], data[1]])
             .await
             .map_err(Error::I2cWriteError)
     }

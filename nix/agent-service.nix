@@ -51,6 +51,7 @@
         GROW_AGENT_PUMP_CONTROL_DISABLE = "true";
         GROW_AGENT_PUMP_CONTROL_PIN_LEFT = "17";
         GROW_AGENT_PUMP_CONTROL_PIN_RIGHT = "22";
+        GROW_AGENT_WATER_LEVEL_SAMPLE_INTERVAL = "10";
       };
       wantedBy = ["multi-user.target"];
     };

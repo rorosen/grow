@@ -73,5 +73,7 @@ sudo reboot
 ## Deploy the Systemd Service
 
 ```bash
+deploy .#growPi
+# or
 nix run github:serokell/deploy-rs .#growPi
 ```

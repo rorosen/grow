@@ -1,10 +1,7 @@
 use clap::Parser;
 use tokio_util::sync::CancellationToken;
 
-use super::{
-    control::exhaust::{ExhaustControlArgs, ExhaustController},
-    error::Error,
-};
+use super::{control::exhaust::ExhaustController, error::Error};
 
 #[derive(Debug, Parser)]
 pub struct ExhaustArgs {
@@ -14,10 +11,25 @@ pub struct ExhaustArgs {
         long = "exhaust-control-disable",
         env = "GROW_AGENT_EXHAUST_CONTROL_DISABLE"
     )]
-    pub disable: bool,
+    disable: bool,
 
-    #[command(flatten)]
-    control: ExhaustControlArgs,
+    /// The gpio pin used to enable the exhaust fan in slow mode
+    #[arg(
+        id = "exhaust_control_pin_slow",
+        long = "exhaust-control-pin-slow",
+        env = "GROW_AGENT_EXHAUST_CONTROL_PIN_SLOW",
+        default_value_t = 25
+    )]
+    pin_slow: u8,
+
+    /// The gpio pin used to enable the exhaust fan in fast mode (not implemented)
+    #[arg(
+        id = "exhaust_control_pin_fast",
+        long = "exhaust-control-pin-fast",
+        env = "GROW_AGENT_EXHAUST_CONTROL_PIN_FAST",
+        default_value_t = 26
+    )]
+    pin_fast: u8,
 
     /// The duration in seconds for which the exhaust fan should run (0 means always stopped)
     #[arg(
@@ -26,7 +38,7 @@ pub struct ExhaustArgs {
         env = "GROW_AGENT_EXHAUST_CONTROL_ON_DURATION_SECS",
         default_value_t = 1
     )]
-    pub on_duration_secs: i64,
+    on_duration_secs: i64,
 
     /// The duration in seconds for which the exhaust fan should be stopped (0 means always running)
     #[arg(
@@ -35,7 +47,7 @@ pub struct ExhaustArgs {
         env = "GROW_AGENT_EXHAUST_CONTROL_OFF_DURATION_SECS",
         default_value_t = 0
     )]
-    pub off_duration_secs: i64,
+    off_duration_secs: i64,
 }
 
 pub struct ExhaustManager {
@@ -51,7 +63,7 @@ impl ExhaustManager {
             return Ok(());
         }
 
-        let mut controller = ExhaustController::new(args.control.pin_slow)
+        let mut controller = ExhaustController::new(args.pin_slow)
             .await
             .map_err(Error::ControlError)?;
 
@@ -59,13 +71,13 @@ impl ExhaustManager {
         let off_duration = chrono::Duration::seconds(args.off_duration_secs);
 
         if on_duration.is_zero() {
-            log::info!("exhaust fan is always on");
+            log::info!("exhaust fan is always off");
             controller.deactivate_permanent();
             return Ok(());
         }
 
         if off_duration.is_zero() {
-            log::info!("exhaust fan is always off");
+            log::info!("exhaust fan is always on");
             controller.activate_permanent();
             return Ok(());
         }
@@ -105,7 +117,7 @@ impl ExhaustManager {
                     }
                 }
                 _ = cancel_token.cancelled() => {
-                    log::debug!("stopping exhaust fan controller");
+                    log::debug!("stopping exhaust fan manager");
                     return Ok(());
                 }
             }
