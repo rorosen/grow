@@ -5,16 +5,23 @@
     "dtparam",
     "EXTSUP",
     "gpio",
+    "HMASK",
     "libc",
     "MSRC",
     "oneshot",
-    "utils",
+    "OSRS",
+    "PMASK",
+    "RLSB",
+    "RMSB",
     "rppal",
     "serokell",
     "sysrange",
     "thiserror",
+    "TMASK",
     "udisksctl",
     "unxz",
-    "userconf"
+    "userconf",
+    "utils",
+    "XLSB"
   ]
 }

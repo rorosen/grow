@@ -1,12 +1,11 @@
-use std::time::Duration;
-
+use super::{control::pump::PumpController, sample::water_level::WaterLevelSampler};
+use crate::error::AppError;
 use clap::Parser;
+use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
-use super::{control::pump::PumpController, error::Error, sample::water_level::WaterLevelSampler};
-
 #[derive(Debug, Parser)]
-pub struct PumpArgs {
+pub struct WaterArgs {
     /// Whether to disable the pump manager
     #[arg(
         id = "pump.disable",
@@ -64,41 +63,37 @@ pub struct PumpArgs {
 }
 
 #[allow(dead_code)]
-pub struct PumpManager {
-    args: PumpArgs,
+pub struct WaterManager {
+    args: WaterArgs,
     controller: PumpController,
     sampler: Option<WaterLevelSampler>,
 }
 
-impl PumpManager {
-    pub async fn start(args: PumpArgs, cancel_token: CancellationToken) -> Result<(), Error> {
-        if args.disable {
+impl WaterManager {
+    pub async fn new(args: WaterArgs) -> Result<Self, AppError> {
+        let controller = PumpController::new(args.pin_left, args.pin_right)?;
+
+        let sampler = match WaterLevelSampler::new(args.sampler_addr_left).await {
+            Ok(s) => Some(s),
+            Err(err) => {
+                log::warn!("failed to initialize water level sampler: {err}");
+                None
+            }
+        };
+
+        Ok(Self {
+            args,
+            controller,
+            sampler,
+        })
+    }
+
+    async fn run(mut self, cancel_token: CancellationToken) -> Result<(), AppError> {
+        if self.args.disable {
             log::info!("pump manager is disabled by configuration");
             return Ok(());
         }
 
-        let controller =
-            PumpController::new(args.pin_left, args.pin_right).map_err(Error::ControlError)?;
-
-        let sampler =
-            match WaterLevelSampler::new(args.sampler_addr_left, args.sampler_addr_right).await {
-                Ok(s) => Some(s),
-                Err(err) => {
-                    log::warn!("failed to initialize water level sampler: {err}");
-                    None
-                }
-            };
-
-        Self {
-            args,
-            controller,
-            sampler,
-        }
-        .run(cancel_token)
-        .await
-    }
-
-    async fn run(mut self, cancel_token: CancellationToken) -> Result<(), Error> {
         let sample_interval = Duration::from_secs(self.args.sample_interval_sec);
 
         loop {
@@ -110,18 +105,16 @@ impl PumpManager {
                 _ = tokio::time::sleep(sample_interval) => {
                     log::debug!("taking sample of water level");
                     if self.sampler.is_none() {
-                        match WaterLevelSampler::new(
-                                self.args.sampler_addr_left,
-                                self.args.sampler_addr_right).await {
+                        match WaterLevelSampler::new(self.args.sampler_addr_left).await {
                             Ok(sampler) => self.sampler = Some(sampler),
                             Err(err) => log::warn!("failed to initialize water level sampler: {err}"),
                         };
                     }
 
                     if let Some(ref mut sampler) = self.sampler {
-                        match sampler.measure_range().await {
-                            Ok(range) => {
-                                log::info!("range is: {range} mm");
+                        match sampler.measure().await {
+                            Ok(measurement) => {
+                                log::info!("distance is: {} mm", measurement.distance);
                             }
                             Err(err) => {
                                 log::warn!("could not sample water level: {err}");

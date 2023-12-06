@@ -1,104 +1,83 @@
-use chrono::{NaiveTime, Utc};
+use chrono::NaiveTime;
+use clap::{Parser, ValueEnum};
 use rppal::gpio::{Gpio, OutputPin};
-use tokio_util::sync::CancellationToken;
 
-use super::error::Error;
+use crate::error::AppError;
 
-pub struct LightController {
-    pin: OutputPin,
-    cancel_token: CancellationToken,
+#[derive(Debug, Clone, ValueEnum)]
+enum ControlMode {
+    /// Disabled
+    Disabled,
+    /// Time-based control
+    Time,
+}
+
+#[derive(Debug, Parser)]
+pub struct LightControlArgs {
+    /// The control mode
+    #[arg(
+        value_enum,
+        id = "light_control_mode",
+        long = "light-control-mode",
+        env = "GROW_AGENT_LIGHT_CONTROL_MODE",
+        default_value_t = ControlMode::Time
+    )]
+    mode: ControlMode,
+
+    /// The gpio pin used to disable the light
+    #[arg(
+        id = "light_control_pin",
+        long = "light-control-pin",
+        env = "GROW_AGENT_LIGHT_CONTROL_PIN",
+        default_value_t = 6
+    )]
+    pin: u8,
+
+    /// The time of the day when the light should be switched on. Only has an effect in time mode
+    #[arg(
+        id = "light_control_switch_on_hour",
+        long = "light-control-switch-on-hour",
+        env = "GROW_AGENT_LIGHT_CONTROL_SWITCH_ON_HOUR",
+        default_value_t = NaiveTime::from_hms_opt(10, 0, 0).unwrap()
+    )]
     activate_time: NaiveTime,
+
+    /// The time of the day when the light should be switched off. Only has an effect in time mode
+    #[arg(
+        id = "light_control_switch_off_hour",
+        long = "light-control-switch-off-hour",
+        env = "GROW_AGENT_LIGHT_CONTROL_SWITCH_OFF_HOUR",
+        default_value_t = NaiveTime::from_hms_opt(22, 0, 0).unwrap()
+    )]
     deactivate_time: NaiveTime,
 }
 
-impl LightController {
-    pub async fn start(
-        cancel_token: CancellationToken,
-        disable: bool,
-        pin: u8,
+pub enum LightController {
+    Disabled,
+    Time {
+        pin: OutputPin,
         activate_time: NaiveTime,
         deactivate_time: NaiveTime,
-    ) -> Result<(), Error> {
-        if disable {
-            log::info!("light controller is disabled by configuration");
-            return Ok(());
-        }
+    },
+}
 
-        if activate_time == deactivate_time {
-            return Err(Error::InvalidArgs(
-                "light".into(),
-                "activate time and deactivate time cannot be equal".into(),
-            ));
-        }
+impl LightController {
+    pub fn new(args: &LightControlArgs) -> Result<Self, AppError> {
+        match args.mode {
+            ControlMode::Disabled => Ok(Self::Disabled),
+            ControlMode::Time => {
+                let gpio = Gpio::new().map_err(AppError::InitGpioFailed)?;
+                let pin = gpio
+                    .get(args.pin)
+                    .map_err(AppError::GetGpioFailed)?
+                    .into_output();
 
-        let gpio = Gpio::new().map_err(Error::InitGpioFailed)?;
-        let pin = gpio.get(pin).map_err(Error::GetPinFailed)?.into_output();
-
-        Self {
-            pin,
-            cancel_token,
-            activate_time,
-            deactivate_time,
-        }
-        .run()
-        .await
-    }
-
-    pub async fn run(mut self) -> Result<(), Error> {
-        log::debug!("starting light controller");
-        let mut timeout = chrono::Duration::zero();
-
-        loop {
-            tokio::select! {
-                _ = tokio::time::sleep(timeout.to_std().unwrap()) => {
-                    timeout = self.control();
-                }
-                _ = self.cancel_token.cancelled() => {
-                    log::debug!("stopping light controller");
-                    return Ok(());
-                }
+                Ok(Self::Time {
+                    pin,
+                    activate_time: args.activate_time,
+                    deactivate_time: args.deactivate_time,
+                })
             }
-        }
-    }
-
-    fn control(&mut self) -> chrono::Duration {
-        let now = Utc::now().time();
-
-        let until_on = match self.activate_time.signed_duration_since(now) {
-            dur if dur < chrono::Duration::zero() => {
-                // should never be none
-                dur.checked_add(&chrono::Duration::days(1)).unwrap()
-            }
-            dur => dur,
-        };
-
-        let until_off = match self.deactivate_time.signed_duration_since(now) {
-            dur if dur < chrono::Duration::zero() => {
-                dur.checked_add(&chrono::Duration::days(1)).unwrap()
-            }
-            dur => dur,
-        };
-
-        if until_on < until_off {
-            log::debug!("deactivating light now");
-            self.pin.set_low();
-
-            log::info!(
-                "activating light in {:02}:{:02} h",
-                until_on.num_hours(),
-                until_on.num_minutes() % 60
-            );
-            until_on
-        } else {
-            log::debug!("activating light now");
-            self.pin.set_high();
-
-            log::info!(
-                "deactivating light in {:02}:{:02} h",
-                until_off.num_hours(),
-                until_off.num_minutes() % 60
-            );
-            until_off
         }
     }
 }

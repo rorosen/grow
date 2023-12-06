@@ -1,11 +1,13 @@
-pub mod air_pump;
+pub mod air;
 mod control;
-pub mod error;
-pub mod exhaust;
 pub mod fan;
 pub mod light;
-pub mod pump;
-mod sample;
+pub mod sample;
+pub mod water;
 
-pub use pump::PumpArgs;
-pub use pump::PumpManager;
+pub use control::air_pump::AirPumpControlArgs;
+pub use control::exhaust::ExhaustControlArgs;
+pub use control::fan::FanControlArgs;
+pub use control::light::LightControlArgs;
+pub use water::WaterArgs;
+pub use water::WaterManager;
