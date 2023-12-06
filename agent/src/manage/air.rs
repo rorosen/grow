@@ -1,8 +1,13 @@
-use super::{control::exhaust::ExhaustController, sample::air::AirSampler, ExhaustControlArgs};
-use crate::{error::AppError, manage::control::control_cyclic};
-use clap::{Parser, ValueEnum};
+use super::{
+    control::exhaust::ExhaustController,
+    sample::air::{AirSampleArgs, AirSampler},
+    ExhaustControlArgs,
+};
+
+use crate::error::AppError;
+use clap::Parser;
 use common::AirMeasurement;
-use std::time::Duration;
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 #[derive(Debug, Parser)]
@@ -15,37 +20,56 @@ pub struct AirArgs {
 }
 
 pub struct AirManager {
+    receiver: mpsc::Receiver<AirMeasurement>,
     controller: ExhaustController,
-    left_address: u8,
-    right_address: u8,
+    sampler: AirSampler,
 }
 
 impl AirManager {
     pub async fn new(args: &AirArgs) -> Result<Self, AppError> {
+        let (sender, receiver) = mpsc::channel(8);
+
         Ok(Self {
+            receiver,
             controller: ExhaustController::new(&args.control)?,
-            left_address: args.sample.left_sensor_address,
-            right_address: args.sample.right_sensor_address,
+            sampler: AirSampler::new(&args.sample, sender),
         })
     }
 
-    pub async fn run(self, cancel_token: CancellationToken) -> Result<(), AppError> {
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<(), AppError> {
         log::debug!("starting air manager");
 
-        let controller_handle = tokio::spawn(self.controller.run(cancel_token.clone()));
-        let mut left_sampler = AirSampler::new(self.left_address).await.ok();
-        let mut right_sampler = AirSampler::new(self.right_address).await.ok();
+        tokio::pin! {
+            let control_task = tokio::spawn(self.controller.run(cancel_token.clone()));
+            let sample_task = tokio::spawn(self.sampler.run(cancel_token));
+        };
 
         loop {
-            if left_sampler.is_none() {
-                left_sampler = AirSampler::new(self.left_address).await.ok();
-            }
-
-            if right_sampler.is_none() {
-                right_sampler = AirSampler::new(self.right_address).await.ok();
+            tokio::select! {
+                res = &mut control_task, if control_task.is_finished() => {
+                    match res {
+                        Ok(Ok(_)) => log::info!("exhaust controller task finished"),
+                        Ok(Err(err)) => {
+                            log::error!("exhaust controller aborted with an error: {err}");
+                            return Err(err);
+                        }
+                        Err(err) => {
+                            return Err(AppError::TaskPanicked{name:"exhaust controller",err,});
+                        }
+                    }
+                }
+                res = &mut sample_task, if sample_task.is_finished() => {
+                    match res {
+                        Ok(_) => log::info!("air sample task finished"),
+                        Err(err) => {
+                            return Err(AppError::TaskPanicked{name:"air sample",err,});
+                        }
+                    }
+                }
+                Some(measurement) = self.receiver.recv() => {
+                    log::info!("received air measurement: {measurement:?}");
+                }
             }
         }
-
-        Ok(())
     }
 }

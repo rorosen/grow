@@ -5,7 +5,7 @@ use crate::{
         air_pump::{AirPumpArgs, AirPumpManager},
         fan::{FanArgs, FanManager},
         light::{LightArgs, LightManager},
-        sample::{air::AirSampler, light::LightSampler, water_level::WaterLevelSampler},
+        sample::{air::AirSampler, light::LightSensor, water_level::WaterLevelSampler},
         water::WaterArgs,
         WaterManager,
     },
@@ -54,7 +54,7 @@ impl App {
         let air_measurement = air_sampler.measure(cancel_token.clone()).await?;
         println!("air: {air_measurement:?}");
 
-        let mut light_sampler = LightSampler::new(0x23).await?;
+        let mut light_sampler = LightSensor::new(0x23).await?;
         let light_measurement = light_sampler.measure(cancel_token.clone()).await?;
         println!("light: {light_measurement:?}");
 

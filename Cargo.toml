@@ -6,3 +6,6 @@ resolver = "2"
 version = "0.1.0"
 edition = "2021"
 authors = ["Robert Rose"]
+
+[workspace.dependencies]
+serde = "1.0.193"

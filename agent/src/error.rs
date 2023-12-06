@@ -32,4 +32,10 @@ pub enum AppError {
 
     #[error("invalid {0} controller arguments: {1}")]
     InvalidControllerArgs(String, String),
+
+    #[error("{name} task panicked: {err}")]
+    TaskPanicked {
+        name: &'static str,
+        err: tokio::task::JoinError,
+    },
 }
