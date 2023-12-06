@@ -16,7 +16,7 @@ pub struct WaterLevelSampleArgs {
         id = "water_level_sample_left_sensor_address",
         long = "water_level-sample-left-sensor-address",
         env = "GROW_AGENT_WATER_LEVEL_SAMPLE_LEFT_SENSOR_ADDRESS",
-        default_value_t = 0x52
+        default_value_t = 0x29
     )]
     left_address: u8,
 
@@ -25,7 +25,7 @@ pub struct WaterLevelSampleArgs {
         id = "water_level_sample_right_sensor_address",
         long = "water_level-sample-right-sensor-address",
         env = "GROW_AGENT_WATER_LEVEL_SAMPLE_RIGHT_SENSOR_ADDRESS",
-        default_value_t = 0x53
+        default_value_t = 0x28
     )]
     right_address: u8,
 
@@ -40,14 +40,17 @@ pub struct WaterLevelSampleArgs {
 }
 
 pub struct WaterLevelSampler {
-    sender: mpsc::Sender<WaterLevelMeasurement>,
+    sender: mpsc::Sender<(&'static str, WaterLevelMeasurement)>,
     left_address: u8,
     right_address: u8,
     sample_rate: Duration,
 }
 
 impl WaterLevelSampler {
-    pub fn new(args: &WaterLevelSampleArgs, sender: mpsc::Sender<WaterLevelMeasurement>) -> Self {
+    pub fn new(
+        args: &WaterLevelSampleArgs,
+        sender: mpsc::Sender<(&'static str, WaterLevelMeasurement)>,
+    ) -> Self {
         Self {
             sender,
             left_address: args.left_address,
@@ -75,7 +78,7 @@ impl WaterLevelSampler {
                         match sensor.measure().await {
                             Ok(light_measurement) => {
                                 self.sender
-                                    .send(light_measurement)
+                                    .send(("left", light_measurement))
                                     .await
                                     .expect("water level measurement channel is open");
                             }
@@ -90,7 +93,7 @@ impl WaterLevelSampler {
                         match sensor.measure().await {
                             Ok(light_measurement) => {
                                 self.sender
-                                    .send(light_measurement)
+                                    .send(("right", light_measurement))
                                     .await
                                     .expect("water level measurement channel is open");
                             }

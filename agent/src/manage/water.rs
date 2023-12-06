@@ -18,13 +18,13 @@ pub struct WaterArgs {
 }
 
 pub struct WaterManager {
-    receiver: mpsc::Receiver<WaterLevelMeasurement>,
+    receiver: mpsc::Receiver<(&'static str, WaterLevelMeasurement)>,
     controller: PumpController,
     sampler: WaterLevelSampler,
 }
 
 impl WaterManager {
-    pub async fn new(args: WaterArgs) -> Result<Self, AppError> {
+    pub fn new(args: &WaterArgs) -> Result<Self, AppError> {
         let (sender, receiver) = mpsc::channel(8);
 
         Ok(Self {
@@ -34,7 +34,7 @@ impl WaterManager {
         })
     }
 
-    async fn run(mut self, cancel_token: CancellationToken) -> Result<(), AppError> {
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<(), AppError> {
         log::debug!("starting water manager");
 
         tokio::pin! {
@@ -60,8 +60,8 @@ impl WaterManager {
                         }
                     }
                 }
-                Some(measurement) = self.receiver.recv() => {
-                    log::info!("received water level measurement: {measurement:?}");
+                Some((id, measurement)) = self.receiver.recv() => {
+                    log::info!("received {id} water level measurement: {measurement:?}");
                 }
             }
         }

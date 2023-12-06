@@ -42,14 +42,14 @@ pub struct AirSampleArgs {
 }
 
 pub struct AirSampler {
-    sender: mpsc::Sender<AirMeasurement>,
+    sender: mpsc::Sender<(&'static str, AirMeasurement)>,
     left_address: u8,
     right_address: u8,
     sample_rate: Duration,
 }
 
 impl AirSampler {
-    pub fn new(args: &AirSampleArgs, sender: mpsc::Sender<AirMeasurement>) -> Self {
+    pub fn new(args: &AirSampleArgs, sender: mpsc::Sender<(&'static str, AirMeasurement)>) -> Self {
         Self {
             sender,
             left_address: args.left_address,
@@ -77,7 +77,7 @@ impl AirSampler {
                         match sensor.measure(cancel_token.clone()).await {
                             Ok(air_measurement) => {
                                 self.sender
-                                    .send(air_measurement)
+                                    .send(("left", air_measurement))
                                     .await
                                     .expect("air measurement channel is open");
                             }
@@ -92,7 +92,7 @@ impl AirSampler {
                         match sensor.measure(cancel_token.clone()).await {
                             Ok(air_measurement) => {
                                 self.sender
-                                    .send(air_measurement)
+                                    .send(("right", air_measurement))
                                     .await
                                     .expect("air measurement channel is open");
                             }

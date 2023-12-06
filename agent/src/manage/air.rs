@@ -19,13 +19,13 @@ pub struct AirArgs {
 }
 
 pub struct AirManager {
-    receiver: mpsc::Receiver<AirMeasurement>,
+    receiver: mpsc::Receiver<(&'static str, AirMeasurement)>,
     controller: ExhaustController,
     sampler: AirSampler,
 }
 
 impl AirManager {
-    pub async fn new(args: &AirArgs) -> Result<Self, AppError> {
+    pub fn new(args: &AirArgs) -> Result<Self, AppError> {
         let (sender, receiver) = mpsc::channel(8);
 
         Ok(Self {
@@ -61,8 +61,8 @@ impl AirManager {
                         }
                     }
                 }
-                Some(measurement) = self.receiver.recv() => {
-                    log::info!("received air measurement: {measurement:?}");
+                Some((id, measurement)) = self.receiver.recv() => {
+                    log::info!("received {id} air measurement: {measurement:?}");
                 }
             }
         }

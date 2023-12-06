@@ -86,14 +86,17 @@ pub struct LightSampleArgs {
 }
 
 pub struct LightSampler {
-    sender: mpsc::Sender<LightMeasurement>,
+    sender: mpsc::Sender<(&'static str, LightMeasurement)>,
     left_address: u8,
     right_address: u8,
     sample_rate: Duration,
 }
 
 impl LightSampler {
-    pub fn new(args: &LightSampleArgs, sender: mpsc::Sender<LightMeasurement>) -> Self {
+    pub fn new(
+        args: &LightSampleArgs,
+        sender: mpsc::Sender<(&'static str, LightMeasurement)>,
+    ) -> Self {
         Self {
             sender,
             left_address: args.left_address,
@@ -121,7 +124,7 @@ impl LightSampler {
                         match sensor.measure(cancel_token.clone()).await {
                             Ok(light_measurement) => {
                                 self.sender
-                                    .send(light_measurement)
+                                    .send(("left", light_measurement))
                                     .await
                                     .expect("light measurement channel is open");
                             }
@@ -136,7 +139,7 @@ impl LightSampler {
                         match sensor.measure(cancel_token.clone()).await {
                             Ok(light_measurement) => {
                                 self.sender
-                                    .send(light_measurement)
+                                    .send(("right", light_measurement))
                                     .await
                                     .expect("light measurement channel is open");
                             }

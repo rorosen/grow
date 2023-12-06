@@ -18,13 +18,13 @@ pub struct LightArgs {
 }
 
 pub struct LightManager {
-    receiver: mpsc::Receiver<LightMeasurement>,
+    receiver: mpsc::Receiver<(&'static str, LightMeasurement)>,
     controller: LightController,
     sampler: LightSampler,
 }
 
 impl LightManager {
-    pub async fn new(args: &LightArgs) -> Result<Self, AppError> {
+    pub fn new(args: &LightArgs) -> Result<Self, AppError> {
         let (sender, receiver) = mpsc::channel(8);
 
         Ok(Self {
@@ -64,8 +64,8 @@ impl LightManager {
                         }
                     }
                 }
-                Some(measurement) = self.receiver.recv() => {
-                    log::info!("received light measurement: {measurement:?}");
+                Some((id, measurement)) = self.receiver.recv() => {
+                    log::info!("received {id} light measurement: {measurement:?}");
                 }
             }
         }

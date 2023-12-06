@@ -1,6 +1,6 @@
 use crate::error::AppError;
 use clap::Parser;
-use rppal::gpio::{Gpio, OutputPin};
+use rppal::gpio::Gpio;
 
 #[derive(Debug, Parser)]
 pub struct AirPumpControlArgs {
@@ -23,9 +23,7 @@ pub struct AirPumpControlArgs {
     pub pin: u8,
 }
 
-pub struct AirPumpController {
-    pin: OutputPin,
-}
+pub struct AirPumpController;
 
 impl AirPumpController {
     pub fn set(args: &AirPumpControlArgs) -> Result<(), AppError> {

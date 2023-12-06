@@ -38,4 +38,7 @@ pub enum AppError {
         name: &'static str,
         err: tokio::task::JoinError,
     },
+
+    #[error("terminating due to fatal error")]
+    Fatal,
 }

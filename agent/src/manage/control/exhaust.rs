@@ -58,11 +58,6 @@ pub struct ExhaustControlArgs {
     off_duration_secs: u64,
 }
 
-enum Message {
-    Activate,
-    Deactivate,
-}
-
 pub enum ExhaustController {
     Disabled,
     Cyclic {
