@@ -16,19 +16,19 @@ pub async fn control_cyclic(
     off_duration: Duration,
     cancel_token: CancellationToken,
     controller_name: &str,
-) -> Result<(), AppError> {
+) {
     if off_duration.is_zero() {
         log::info!("{controller_name} is always on");
         pin.set_reset_on_drop(false);
         pin.set_high();
-        return Ok(());
+        return;
     }
 
     if on_duration.is_zero() {
         log::info!("{controller_name} is always off");
         pin.set_reset_on_drop(false);
         pin.set_low();
-        return Ok(());
+        return;
     }
 
     pin.set_high();
@@ -50,7 +50,7 @@ pub async fn control_cyclic(
             }
             _ = cancel_token.cancelled() => {
                 log::debug!("stopping {controller_name} manager");
-                return Ok(());
+                return;
             }
         }
     }

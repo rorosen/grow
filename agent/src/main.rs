@@ -5,6 +5,7 @@ use grow_agent::app::App;
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    env_logger::init();
     let app = App::parse();
 
     match app.run().await {

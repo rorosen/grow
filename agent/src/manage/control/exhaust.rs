@@ -93,9 +93,9 @@ impl ExhaustController {
         }
     }
 
-    pub async fn run(self, cancel_token: CancellationToken) -> Result<(), AppError> {
+    pub async fn run(self, cancel_token: CancellationToken) {
         match self {
-            ExhaustController::Disabled => Ok(()),
+            ExhaustController::Disabled => (),
             ExhaustController::Cyclic {
                 mut pin,
                 on_duration,

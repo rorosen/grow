@@ -1,8 +1,11 @@
 use chrono::NaiveTime;
 use clap::{Parser, ValueEnum};
 use rppal::gpio::{Gpio, OutputPin};
+use tokio_util::sync::CancellationToken;
 
 use crate::error::AppError;
+
+use super::control_time_based;
 
 #[derive(Debug, Clone, ValueEnum)]
 enum ControlMode {
@@ -77,6 +80,26 @@ impl LightController {
                     activate_time: args.activate_time,
                     deactivate_time: args.deactivate_time,
                 })
+            }
+        }
+    }
+
+    pub async fn run(self, cancel_token: CancellationToken) -> Result<(), AppError> {
+        match self {
+            LightController::Disabled => Ok(()),
+            LightController::Time {
+                mut pin,
+                activate_time,
+                deactivate_time,
+            } => {
+                control_time_based(
+                    &mut pin,
+                    activate_time,
+                    deactivate_time,
+                    cancel_token,
+                    "light",
+                )
+                .await
             }
         }
     }

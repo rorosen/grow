@@ -1,17 +1,10 @@
 use crate::{
     error::AppError,
     manage::{
-        air::{AirArgs, AirManager},
-        air_pump::{AirPumpArgs, AirPumpManager},
-        fan::{FanArgs, FanManager},
-        light::{LightArgs, LightManager},
-        sample::{air::AirSampler, light::LightSensor, water_level::WaterLevelSampler},
-        water::WaterArgs,
-        WaterManager,
+        air::AirArgs, light::LightArgs, water::WaterArgs, AirPumpControlArgs, FanControlArgs,
     },
 };
 use clap::Parser;
-use log::LevelFilter;
 use tokio::{
     signal::unix::{signal, SignalKind},
     task::JoinSet,
@@ -20,9 +13,6 @@ use tokio_util::sync::CancellationToken;
 
 #[derive(Debug, Parser)]
 pub struct App {
-    #[arg(short, long, env = "RUST_LOG", default_value_t = LevelFilter::Info)]
-    pub log_level: LevelFilter,
-
     #[command(flatten)]
     light_args: LightArgs,
 
@@ -30,39 +20,34 @@ pub struct App {
     pump_args: WaterArgs,
 
     #[command(flatten)]
-    fan_args: FanArgs,
+    fan_args: FanControlArgs,
 
     #[command(flatten)]
     exhaust_args: AirArgs,
 
     #[command(flatten)]
-    air_pump_args: AirPumpArgs,
+    air_pump_args: AirPumpControlArgs,
 }
 
 impl App {
     pub async fn run(self) -> Result<(), AppError> {
-        env_logger::Builder::new()
-            .filter_level(self.log_level)
-            .init();
-        log::info!("initialized logger with log level {}", self.log_level);
-
         let mut sigint = signal(SignalKind::interrupt()).map_err(AppError::SignalHandlerError)?;
         let mut sigterm = signal(SignalKind::terminate()).map_err(AppError::SignalHandlerError)?;
         let cancel_token = CancellationToken::new();
 
-        let mut air_sampler = AirSampler::new(0x76).await?;
-        let air_measurement = air_sampler.measure(cancel_token.clone()).await?;
-        println!("air: {air_measurement:?}");
+        // let mut air_sampler = AirSampler::new(0x76).await?;
+        // let air_measurement = air_sampler.measure(cancel_token.clone()).await?;
+        // println!("air: {air_measurement:?}");
 
-        let mut light_sampler = LightSensor::new(0x23).await?;
-        let light_measurement = light_sampler.measure(cancel_token.clone()).await?;
-        println!("light: {light_measurement:?}");
+        // let mut light_sampler = LightSensor::new(0x23).await?;
+        // let light_measurement = light_sampler.measure(cancel_token.clone()).await?;
+        // println!("light: {light_measurement:?}");
 
-        let mut water_sampler = WaterLevelSampler::new(0x29).await?;
-        let water_measurement = water_sampler.measure().await?;
-        println!("water: {water_measurement:?}");
+        // let mut water_sampler = WaterLevelSampler::new(0x29).await?;
+        // let water_measurement = water_sampler.measure().await?;
+        // println!("water: {water_measurement:?}");
 
-        // let mut set = JoinSet::new();
+        let mut set = JoinSet::new();
 
         // let c = cancel_token.clone();
         // set.spawn(async move { ("light", LightManager::start(self.light_args, c).await) });

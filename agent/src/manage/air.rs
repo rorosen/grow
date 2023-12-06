@@ -1,7 +1,6 @@
 use super::{
-    control::exhaust::ExhaustController,
+    control::exhaust::{ExhaustControlArgs, ExhaustController},
     sample::air::{AirSampleArgs, AirSampler},
-    ExhaustControlArgs,
 };
 
 use crate::error::AppError;
@@ -48,11 +47,7 @@ impl AirManager {
             tokio::select! {
                 res = &mut control_task, if control_task.is_finished() => {
                     match res {
-                        Ok(Ok(_)) => log::info!("exhaust controller task finished"),
-                        Ok(Err(err)) => {
-                            log::error!("exhaust controller aborted with an error: {err}");
-                            return Err(err);
-                        }
+                        Ok(_) => log::info!("exhaust controller task finished"),
                         Err(err) => {
                             return Err(AppError::TaskPanicked{name:"exhaust controller",err,});
                         }

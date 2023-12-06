@@ -62,7 +62,7 @@ pub struct LightSampleArgs {
         id = "light_sample_left_sensor_address",
         long = "light-sample-left-sensor-address",
         env = "GROW_AGENT_LIGHT_SAMPLE_LEFT_SENSOR_ADDRESS",
-        default_value_t = 0x76
+        default_value_t = 0x5C
     )]
     left_address: u8,
 
@@ -71,7 +71,7 @@ pub struct LightSampleArgs {
         id = "light_sample_right_sensor_address",
         long = "light-sample-right-sensor-address",
         env = "GROW_AGENT_LIGHT_SAMPLE_RIGHT_SENSOR_ADDRESS",
-        default_value_t = 0x77
+        default_value_t = 0x23
     )]
     right_address: u8,
 

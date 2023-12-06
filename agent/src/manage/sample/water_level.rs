@@ -3,6 +3,9 @@ use std::time::Duration;
 use clap::Parser;
 use common::WaterLevelMeasurement;
 use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
+
+use self::sensor::WaterLevelSensor;
 
 mod sensor;
 
@@ -13,7 +16,7 @@ pub struct WaterLevelSampleArgs {
         id = "water_level_sample_left_sensor_address",
         long = "water_level-sample-left-sensor-address",
         env = "GROW_AGENT_WATER_LEVEL_SAMPLE_LEFT_SENSOR_ADDRESS",
-        default_value_t = 0x76
+        default_value_t = 0x52
     )]
     left_address: u8,
 
@@ -22,7 +25,7 @@ pub struct WaterLevelSampleArgs {
         id = "water_level_sample_right_sensor_address",
         long = "water_level-sample-right-sensor-address",
         env = "GROW_AGENT_WATER_LEVEL_SAMPLE_RIGHT_SENSOR_ADDRESS",
-        default_value_t = 0x77
+        default_value_t = 0x53
     )]
     right_address: u8,
 
@@ -50,6 +53,59 @@ impl WaterLevelSampler {
             left_address: args.left_address,
             right_address: args.right_address,
             sample_rate: Duration::from_secs(args.sample_rate_secs),
+        }
+    }
+
+    pub async fn run(self, cancel_token: CancellationToken) {
+        let mut left_sensor = WaterLevelSensor::new(self.left_address).await.ok();
+        let mut right_sensor = WaterLevelSensor::new(self.right_address).await.ok();
+
+        loop {
+            tokio::select! {
+                _ = tokio::time::sleep(self.sample_rate) => {
+                    if left_sensor.is_none() {
+                        left_sensor = WaterLevelSensor::new(self.left_address).await.ok();
+                    }
+
+                    if right_sensor.is_none() {
+                        right_sensor = WaterLevelSensor::new(self.right_address).await.ok();
+                    }
+
+                    if let Some(sensor) = left_sensor.as_mut() {
+                        match sensor.measure().await {
+                            Ok(light_measurement) => {
+                                self.sender
+                                    .send(light_measurement)
+                                    .await
+                                    .expect("water level measurement channel is open");
+                            }
+                            Err(err) => {
+                                log::warn!("could not take left water level measurement: {err}");
+                                left_sensor = WaterLevelSensor::new(self.left_address).await.ok();
+                            }
+                        }
+                    }
+
+                    if let Some(sensor) = right_sensor.as_mut() {
+                        match sensor.measure().await {
+                            Ok(light_measurement) => {
+                                self.sender
+                                    .send(light_measurement)
+                                    .await
+                                    .expect("water level measurement channel is open");
+                            }
+                            Err(err) => {
+                                log::warn!("could not take right water level measurement: {err}");
+                                right_sensor = WaterLevelSensor::new(self.right_address).await.ok();
+                            }
+                        }
+                    }
+                }
+                _ = cancel_token.cancelled() => {
+                    log::info!("shutting down water level sampler");
+                    return;
+                }
+            }
         }
     }
 }

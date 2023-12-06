@@ -1,46 +1,69 @@
-#![allow(dead_code)]
+use clap::Parser;
 use rppal::gpio::{Gpio, OutputPin};
+use tokio_util::sync::CancellationToken;
 
 use crate::error::AppError;
 
-pub struct PumpController {
-    left_pin: OutputPin,
-    right_pin: OutputPin,
+#[derive(Debug, Parser)]
+pub struct PumpControlArgs {
+    /// Whether to disable pump control
+    #[arg(
+        id = "pump_control_disable",
+        long = "pump-control-disable",
+        env = "GROW_AGENT_PUMP_CONTROL_DISABLE"
+    )]
+    disable: bool,
+
+    /// The gpio pin used to control the left pump
+    #[arg(
+        id = "pump_control_left_pin",
+        long = "pump-control-left-pin",
+        env = "GROW_AGENT_PUMP_CONTROL_LEFT_PIN",
+        default_value_t = 17
+    )]
+    left_pin: u8,
+
+    /// The gpio pin used to control the right pump
+    #[arg(
+        id = "pump_control_right_pin",
+        long = "pump-control-right-pin",
+        env = "GROW_AGENT_PUMP_CONTROL_RIGHT_PIN",
+        default_value_t = 22
+    )]
+    right_pin: u8,
+}
+
+pub enum PumpController {
+    Enabled {
+        left_pin: OutputPin,
+        right_pin: OutputPin,
+    },
+    Disabled,
 }
 
 impl PumpController {
-    pub fn new(pin_left: u8, pin_right: u8) -> Result<Self, AppError> {
-        let gpio = Gpio::new().map_err(AppError::InitGpioFailed)?;
+    pub fn new(args: &PumpControlArgs) -> Result<Self, AppError> {
+        if args.disable {
+            Ok(Self::Disabled)
+        } else {
+            let gpio = Gpio::new().map_err(AppError::InitGpioFailed)?;
 
-        let left_pin = gpio
-            .get(pin_left)
-            .map_err(AppError::GetGpioFailed)?
-            .into_output_low();
+            let left_pin = gpio
+                .get(args.left_pin)
+                .map_err(AppError::GetGpioFailed)?
+                .into_output_low();
 
-        let right_pin = gpio
-            .get(pin_right)
-            .map_err(AppError::GetGpioFailed)?
-            .into_output_low();
+            let right_pin = gpio
+                .get(args.right_pin)
+                .map_err(AppError::GetGpioFailed)?
+                .into_output_low();
 
-        Ok(Self {
-            left_pin,
-            right_pin,
-        })
+            Ok(Self::Enabled {
+                left_pin,
+                right_pin,
+            })
+        }
     }
 
-    pub fn activate_left(&mut self) {
-        self.left_pin.set_high();
-    }
-
-    pub fn activate_right(&mut self) {
-        self.right_pin.set_high();
-    }
-
-    pub fn deactivate_left(&mut self) {
-        self.left_pin.set_low();
-    }
-
-    pub fn deactivate_right(&mut self) {
-        self.right_pin.set_low();
-    }
+    pub async fn run(self, _: CancellationToken) {}
 }

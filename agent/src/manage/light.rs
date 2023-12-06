@@ -1,51 +1,72 @@
-use super::control::light::LightController;
-use crate::{error::AppError, manage::control::control_time_based};
-use chrono::NaiveTime;
-use clap::{Parser, ValueEnum};
+use super::{
+    control::light::{LightControlArgs, LightController},
+    sample::light::{LightSampleArgs, LightSampler},
+};
+use crate::error::AppError;
+use clap::Parser;
+use common::LightMeasurement;
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
-enum LightManager {
-    DisabledControl,
-    TimeControl {
-        controller: LightController,
-        activate_time: NaiveTime,
-        deactivate_time: NaiveTime,
-    },
+#[derive(Debug, Parser)]
+pub struct LightArgs {
+    #[command(flatten)]
+    control: LightControlArgs,
+
+    #[command(flatten)]
+    sample: LightSampleArgs,
+}
+
+pub struct LightManager {
+    receiver: mpsc::Receiver<LightMeasurement>,
+    controller: LightController,
+    sampler: LightSampler,
 }
 
 impl LightManager {
-    pub async fn new(args: LightArgs) -> Result<Self, AppError> {
-        match args.control_mode {
-            ControlMode::Disabled => Ok(Self::DisabledControl),
-            ControlMode::Time => Ok(Self::TimeControl {
-                controller: LightController::new(args.pin)?,
-                activate_time: args.activate_time,
-                deactivate_time: args.deactivate_time,
-            }),
-        }
+    pub async fn new(args: &LightArgs) -> Result<Self, AppError> {
+        let (sender, receiver) = mpsc::channel(8);
+
+        Ok(Self {
+            receiver,
+            controller: LightController::new(&args.control)?,
+            sampler: LightSampler::new(&args.sample, sender),
+        })
     }
 
-    pub async fn run(self, cancel_token: CancellationToken) -> Result<(), AppError> {
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<(), AppError> {
         log::debug!("starting light manager");
 
-        match self {
-            Self::DisabledControl => {
-                log::info!("light control is disabled");
-                Ok(())
-            }
-            Self::TimeControl {
-                controller,
-                activate_time,
-                deactivate_time,
-            } => {
-                control_time_based(
-                    controller,
-                    activate_time,
-                    deactivate_time,
-                    cancel_token,
-                    "light",
-                )
-                .await
+        tokio::pin! {
+            let control_task = tokio::spawn(self.controller.run(cancel_token.clone()));
+            let sample_task = tokio::spawn(self.sampler.run(cancel_token));
+        };
+
+        loop {
+            tokio::select! {
+                res = &mut control_task, if control_task.is_finished() => {
+                    match res {
+                        Ok(Ok(_)) => log::info!("light controller task finished"),
+                        Ok(Err(err)) => {
+                            log::error!("light controller aborted with an error: {err}");
+                            return Err(err);
+                        }
+                        Err(err) => {
+                            return Err(AppError::TaskPanicked{name:"light controller",err,});
+                        }
+                    }
+                }
+                res = &mut sample_task, if sample_task.is_finished() => {
+                    match res {
+                        Ok(_) => log::info!("light sample task finished"),
+                        Err(err) => {
+                            return Err(AppError::TaskPanicked{name:"light sample",err,});
+                        }
+                    }
+                }
+                Some(measurement) = self.receiver.recv() => {
+                    log::info!("received light measurement: {measurement:?}");
+                }
             }
         }
     }

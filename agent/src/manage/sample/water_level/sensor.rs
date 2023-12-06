@@ -21,6 +21,7 @@ const REG_RESULT_RANGE_STATUS: u8 = 0x14;
 const REG_MSRC_CONFIG_CONTROL: u8 = 0x60;
 const REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT: u8 = 0x44;
 
+// VL53L0X
 pub struct WaterLevelSensor {
     i2c: I2C,
     stop_variable: u8,
@@ -37,13 +38,10 @@ impl WaterLevelSensor {
         }
 
         log::debug!("identified {} sensor at 0x{:02x}", SENSOR_NAME, address);
-
         let stop_variable = WaterLevelSensor::init_data(&mut i2c).await?;
 
         WaterLevelSensor::init_static(&mut i2c).await?;
-
         WaterLevelSensor::perform_ref_calibration(&mut i2c).await?;
-
         log::debug!("initialized {} sensor", SENSOR_NAME);
 
         Ok(Self { i2c, stop_variable })
