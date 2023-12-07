@@ -17,7 +17,7 @@ pub struct AirPumpControlArgs {
     #[arg(
         id = "air_pump_pin",
         long = "air-pump-pin",
-        env = "GROW_AGENT_AIR_PUMP_PIN",
+        env = "GROW_AGENT_AIR_PUMP_CONTROL_PIN",
         default_value_t = 24
     )]
     pub pin: u8,

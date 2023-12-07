@@ -7,6 +7,8 @@ use tokio_util::sync::CancellationToken;
 
 use self::sensor::WaterLevelSensor;
 
+use super::parse_hex_u8;
+
 mod sensor;
 
 #[derive(Debug, Parser)]
@@ -16,7 +18,8 @@ pub struct WaterLevelSampleArgs {
         id = "water_level_sample_left_sensor_address",
         long = "water_level-sample-left-sensor-address",
         env = "GROW_AGENT_WATER_LEVEL_SAMPLE_LEFT_SENSOR_ADDRESS",
-        default_value_t = 0x29
+        value_parser=parse_hex_u8,
+        default_value = "0x29"
     )]
     left_address: u8,
 
@@ -25,7 +28,8 @@ pub struct WaterLevelSampleArgs {
         id = "water_level_sample_right_sensor_address",
         long = "water_level-sample-right-sensor-address",
         env = "GROW_AGENT_WATER_LEVEL_SAMPLE_RIGHT_SENSOR_ADDRESS",
-        default_value_t = 0x28
+        value_parser=parse_hex_u8,
+        default_value = "0x28"
     )]
     right_address: u8,
 
@@ -105,7 +109,7 @@ impl WaterLevelSampler {
                     }
                 }
                 _ = cancel_token.cancelled() => {
-                    log::info!("shutting down water level sampler");
+                    log::debug!("shutting down water level sampler");
                     return;
                 }
             }

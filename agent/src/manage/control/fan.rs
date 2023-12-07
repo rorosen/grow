@@ -85,21 +85,23 @@ impl FanController {
         }
     }
 
-    pub async fn run(self, cancel_token: CancellationToken) -> Result<(), AppError> {
+    pub async fn run(self, cancel_token: CancellationToken) {
         match self {
-            FanController::Disabled => Ok(()),
+            FanController::Disabled => (),
             FanController::Cyclic {
                 mut pin,
                 on_duration,
                 off_duration,
-            } => Ok(control_cyclic(
-                &mut pin,
-                on_duration,
-                off_duration,
-                cancel_token,
-                "circulation fan",
-            )
-            .await),
+            } => {
+                control_cyclic(
+                    &mut pin,
+                    on_duration,
+                    off_duration,
+                    cancel_token,
+                    "circulation fan",
+                )
+                .await
+            }
         }
     }
 }

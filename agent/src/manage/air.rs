@@ -7,7 +7,7 @@ use crate::error::AppError;
 use clap::Parser;
 use common::AirMeasurement;
 use tokio::sync::mpsc;
-use tokio_util::sync::CancellationToken;
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
 #[derive(Debug, Parser)]
 pub struct AirArgs {
@@ -35,31 +35,19 @@ impl AirManager {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<(), AppError> {
+    pub async fn run(mut self, cancel_token: CancellationToken) {
         log::debug!("starting air manager");
 
-        tokio::pin! {
-            let control_task = tokio::spawn(self.controller.run(cancel_token.clone()));
-            let sample_task = tokio::spawn(self.sampler.run(cancel_token));
-        };
+        let tracker = TaskTracker::new();
+        tracker.spawn(self.controller.run(cancel_token.clone()));
+        tracker.spawn(self.sampler.run(cancel_token));
+        tracker.close();
 
         loop {
             tokio::select! {
-                res = &mut control_task, if control_task.is_finished() => {
-                    match res {
-                        Ok(_) => log::info!("exhaust controller task finished"),
-                        Err(err) => {
-                            return Err(AppError::TaskPanicked{name:"exhaust controller",err,});
-                        }
-                    }
-                }
-                res = &mut sample_task, if sample_task.is_finished() => {
-                    match res {
-                        Ok(_) => log::info!("air sample task finished"),
-                        Err(err) => {
-                            return Err(AppError::TaskPanicked{name:"air sample",err,});
-                        }
-                    }
+                _ = tracker.wait() => {
+                    log::debug!("all air manager tasks finished");
+                    return;
                 }
                 Some((id, measurement)) = self.receiver.recv() => {
                     log::info!("received {id} air measurement: {measurement:?}");

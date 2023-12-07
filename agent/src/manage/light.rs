@@ -6,7 +6,7 @@ use crate::error::AppError;
 use clap::Parser;
 use common::LightMeasurement;
 use tokio::sync::mpsc;
-use tokio_util::sync::CancellationToken;
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
 #[derive(Debug, Parser)]
 pub struct LightArgs {
@@ -34,35 +34,19 @@ impl LightManager {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<(), AppError> {
+    pub async fn run(mut self, cancel_token: CancellationToken) {
         log::debug!("starting light manager");
 
-        tokio::pin! {
-            let control_task = tokio::spawn(self.controller.run(cancel_token.clone()));
-            let sample_task = tokio::spawn(self.sampler.run(cancel_token));
-        };
+        let tracker = TaskTracker::new();
+        tracker.spawn(self.controller.run(cancel_token.clone()));
+        tracker.spawn(self.sampler.run(cancel_token));
+        tracker.close();
 
         loop {
             tokio::select! {
-                res = &mut control_task, if control_task.is_finished() => {
-                    match res {
-                        Ok(Ok(_)) => log::info!("light controller task finished"),
-                        Ok(Err(err)) => {
-                            log::error!("light controller aborted with an error: {err}");
-                            return Err(err);
-                        }
-                        Err(err) => {
-                            return Err(AppError::TaskPanicked{name:"light controller",err,});
-                        }
-                    }
-                }
-                res = &mut sample_task, if sample_task.is_finished() => {
-                    match res {
-                        Ok(_) => log::info!("light sample task finished"),
-                        Err(err) => {
-                            return Err(AppError::TaskPanicked{name:"light sample",err,});
-                        }
-                    }
+                _ = tracker.wait() => {
+                    log::debug!("all light manager tasks finished");
+                    return;
                 }
                 Some((id, measurement)) = self.receiver.recv() => {
                     log::info!("received {id} light measurement: {measurement:?}");

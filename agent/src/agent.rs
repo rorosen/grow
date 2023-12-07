@@ -113,14 +113,13 @@ impl Agent {
                 }
                 res = set.join_next() => {
                     match res {
-                        Some(Ok((id, Ok(_)))) => log::debug!("{id} task terminated successfully"),
-                        Some(Ok((id, Err(err)))) => log::warn!("{id} task terminated with error: {err}"),
+                        Some(Ok((id, _))) => log::info!("{id} task terminated"),
                         Some(Err(err)) => {
                             log::error!("some task panicked: {err}");
                             break Err(AppError::Fatal);
                         }
                         None => {
-                            log::error!("all manager tasks terminated");
+                            log::info!("all manager tasks terminated");
                             break Ok(());
                         }
                     }

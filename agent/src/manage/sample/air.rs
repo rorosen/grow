@@ -7,6 +7,8 @@ use tokio_util::sync::CancellationToken;
 
 use self::air_sensor::AirSensor;
 
+use super::parse_hex_u8;
+
 mod air_sensor;
 mod params;
 mod sensor_data;
@@ -18,7 +20,8 @@ pub struct AirSampleArgs {
         id = "air_sample_left_sensor_address",
         long = "air-sample-left-sensor-address",
         env = "GROW_AGENT_AIR_SAMPLE_LEFT_SENSOR_ADDRESS",
-        default_value_t = 0x76
+        value_parser=parse_hex_u8,
+        default_value = "0x76"
     )]
     left_address: u8,
 
@@ -27,7 +30,8 @@ pub struct AirSampleArgs {
         id = "air_sample_right_sensor_address",
         long = "air-sample-right-sensor-address",
         env = "GROW_AGENT_AIR_SAMPLE_RIGHT_SENSOR_ADDRESS",
-        default_value_t = 0x77
+        value_parser=parse_hex_u8,
+        default_value = "0x77"
     )]
     right_address: u8,
 
@@ -104,7 +108,7 @@ impl AirSampler {
                     }
                 }
                 _ = cancel_token.cancelled() => {
-                    log::info!("shutting down air sampler");
+                    log::debug!("shutting down air sampler");
                     return;
                 }
             }

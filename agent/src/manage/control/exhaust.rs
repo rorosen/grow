@@ -23,7 +23,7 @@ pub struct ExhaustControlArgs {
         value_enum,
         id = "air_control_mode",
         long = "air-control-mode",
-        env = "GROW_AGENT_AIR_CONTROL_MODE",
+        env = "GROW_AGENT_EXHAUST_CONTROL_MODE",
         default_value_t = ControlMode::Cyclic
     )]
     mode: ControlMode,
@@ -32,7 +32,7 @@ pub struct ExhaustControlArgs {
     #[arg(
         id = "air_control_pin",
         long = "air-control-pin",
-        env = "GROW_AGENT_AIR_CONTROL_PIN",
+        env = "GROW_AGENT_EXHAUST_CONTROL_PIN",
         default_value_t = 25
     )]
     pin: u8,
@@ -42,7 +42,7 @@ pub struct ExhaustControlArgs {
     #[arg(
         id = "air_control_on_duration_secs",
         long = "air-control-on-duration-secs",
-        env = "GROW_AGENT_AIR_CONTROL_ON_DURATION_SECS",
+        env = "GROW_AGENT_EXHAUST_CONTROL_ON_DURATION_SECS",
         default_value_t = 1
     )]
     on_duration_secs: u64,
@@ -52,7 +52,7 @@ pub struct ExhaustControlArgs {
     #[arg(
         id = "air_control_off_duration_secs",
         long = "air-control-off-duration-secs",
-        env = "GROW_AGENT_AIR_CONTROL_OFF_DURATION_SECS",
+        env = "GROW_AGENT_EXHAUST_CONTROL_OFF_DURATION_SECS",
         default_value_t = 0
     )]
     off_duration_secs: u64,

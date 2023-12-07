@@ -6,7 +6,7 @@ use crate::error::AppError;
 use clap::Parser;
 use common::WaterLevelMeasurement;
 use tokio::sync::mpsc;
-use tokio_util::sync::CancellationToken;
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
 #[derive(Debug, Parser)]
 pub struct WaterArgs {
@@ -34,31 +34,19 @@ impl WaterManager {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<(), AppError> {
+    pub async fn run(mut self, cancel_token: CancellationToken) {
         log::debug!("starting water manager");
 
-        tokio::pin! {
-            let control_task = tokio::spawn(self.controller.run(cancel_token.clone()));
-            let sample_task = tokio::spawn(self.sampler.run(cancel_token));
-        };
+        let tracker = TaskTracker::new();
+        tracker.spawn(self.controller.run(cancel_token.clone()));
+        tracker.spawn(self.sampler.run(cancel_token));
+        tracker.close();
 
         loop {
             tokio::select! {
-                res = &mut control_task, if control_task.is_finished() => {
-                    match res {
-                        Ok(_) => log::info!("pump controller task finished"),
-                        Err(err) => {
-                            return Err(AppError::TaskPanicked{name:"pump controller",err,});
-                        }
-                    }
-                }
-                res = &mut sample_task, if sample_task.is_finished() => {
-                    match res {
-                        Ok(_) => log::info!("water level sample task finished"),
-                        Err(err) => {
-                            return Err(AppError::TaskPanicked{name:"water level sample",err,});
-                        }
-                    }
+                _ = tracker.wait() => {
+                    log::debug!("all water manager tasks finished");
+                    return;
                 }
                 Some((id, measurement)) = self.receiver.recv() => {
                     log::info!("received {id} water level measurement: {measurement:?}");

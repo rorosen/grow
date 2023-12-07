@@ -40,7 +40,7 @@ pub struct LightControlArgs {
     #[arg(
         id = "light_control_switch_on_hour",
         long = "light-control-switch-on-hour",
-        env = "GROW_AGENT_LIGHT_CONTROL_SWITCH_ON_HOUR",
+        env = "GROW_AGENT_LIGHT_CONTROL_SWITCH_ON_TIME",
         default_value_t = NaiveTime::from_hms_opt(10, 0, 0).unwrap()
     )]
     activate_time: NaiveTime,
@@ -49,7 +49,7 @@ pub struct LightControlArgs {
     #[arg(
         id = "light_control_switch_off_hour",
         long = "light-control-switch-off-hour",
-        env = "GROW_AGENT_LIGHT_CONTROL_SWITCH_OFF_HOUR",
+        env = "GROW_AGENT_LIGHT_CONTROL_SWITCH_OFF_TIME",
         default_value_t = NaiveTime::from_hms_opt(22, 0, 0).unwrap()
     )]
     deactivate_time: NaiveTime,
