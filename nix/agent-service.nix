@@ -23,7 +23,7 @@
     name = "grow-agent.service";
     text = generateService "grow-agent" {
       serviceConfig = {
-        Type = "simple";
+        Type = "exec";
         ExecStart = "${agent}/bin/grow-agent";
       };
       environment = {
@@ -57,15 +57,15 @@
         # sample
         GROW_AGENT_AIR_SAMPLE_LEFT_SENSOR_ADDRESS = "0x76";
         GROW_AGENT_AIR_SAMPLE_RIGHT_SENSOR_ADDRESS = "0x77";
-        GROW_AGENT_AIR_SAMPLE_RATE_SECS = "10";
+        GROW_AGENT_AIR_SAMPLE_RATE_SECS = "300";
 
         GROW_AGENT_LIGHT_SAMPLE_LEFT_SENSOR_ADDRESS = "0x5C";
         GROW_AGENT_LIGHT_SAMPLE_RIGHT_SENSOR_ADDRESS = "0x23";
-        GROW_AGENT_LIGHT_SAMPLE_RATE_SECS = "10";
+        GROW_AGENT_LIGHT_SAMPLE_RATE_SECS = "300";
 
         GROW_AGENT_WATER_LEVEL_SAMPLE_LEFT_SENSOR_ADDRESS = "0x29";
         GROW_AGENT_WATER_LEVEL_SAMPLE_RIGHT_SENSOR_ADDRESS = "0x2A";
-        GROW_AGENT_WATER_LEVEL_SAMPLE_RATE_SECS = "10";
+        GROW_AGENT_WATER_LEVEL_SAMPLE_RATE_SECS = "300";
       };
       wantedBy = ["multi-user.target"];
     };

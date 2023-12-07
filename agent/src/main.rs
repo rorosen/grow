@@ -7,7 +7,6 @@ use grow_agent::agent::Agent;
 async fn main() -> ExitCode {
     env_logger::init();
     let agent = Agent::parse();
-    println!("{agent:?}");
 
     match agent.run().await {
         Ok(_) => ExitCode::SUCCESS,

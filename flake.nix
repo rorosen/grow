@@ -57,7 +57,7 @@
     })
     // {
       deploy.nodes.growPi = {
-        hostname = "192.168.50.102";
+        hostname = "192.168.50.63";
         profiles.grow = {
           user = "root";
           sshUser = "rob";
