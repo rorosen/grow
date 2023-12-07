@@ -27,7 +27,7 @@
         ExecStart = "${agent}/bin/grow-agent";
       };
       environment = {
-        RUST_LOG = "debug";
+        RUST_LOG = "info";
 
         # control
         GROW_AGENT_AIR_PUMP_CONTROL_DISABLED = "false";
