@@ -71,8 +71,8 @@ impl Agent {
         };
 
         if let Err(err) = AirPumpController::set(&self.air_pump_args) {
-            log::error!("failed to sett air pump controller: {err}");
-            return Err(err);
+            log::error!("failed to set air pump: {err}");
+            return Err(AppError::Fatal);
         }
 
         let mut set = JoinSet::new();
