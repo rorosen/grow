@@ -38,18 +38,6 @@ impl Agent {
         let mut sigterm = signal(SignalKind::terminate()).map_err(AppError::SignalHandlerError)?;
         let cancel_token = CancellationToken::new();
 
-        // let mut air_sampler = AirSampler::new(0x76).await?;
-        // let air_measurement = air_sampler.measure(cancel_token.clone()).await?;
-        // println!("air: {air_measurement:?}");
-
-        // let mut light_sampler = LightSensor::new(0x23).await?;
-        // let light_measurement = light_sampler.measure(cancel_token.clone()).await?;
-        // println!("light: {light_measurement:?}");
-
-        // let mut water_sampler = WaterLevelSampler::new(0x29).await?;
-        // let water_measurement = water_sampler.measure().await?;
-        // println!("water: {water_measurement:?}");
-
         let fan_controller = match FanController::new(&self.fan_args) {
             Ok(controller) => controller,
             Err(err) => {
