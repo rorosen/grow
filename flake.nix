@@ -54,6 +54,10 @@
           pkgs = pkgs.pkgsBuildHost;
         };
       };
+
+      devShells.default = pkgs.mkShell {
+        nativeBuildInputs = with pkgs.pkgsBuildHost; [protobuf];
+      };
     })
     // {
       deploy.nodes.growPi = {

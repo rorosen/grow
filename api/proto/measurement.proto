@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package grow;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+service MeasurementService {
+    rpc DropAirMeasurement (AirMeasurement) returns (google.protobuf.Empty);
+    rpc DropLightMeasurement (LightMeasurement) returns (google.protobuf.Empty);
+}
+
+message AirMeasurement {
+    google.protobuf.Timestamp measure_time = 1;
+    double temperature = 2;
+    double humidity = 3;
+    double pressure = 4;
+    double resistance = 5;
+}
+
+message LightMeasurement {
+    google.protobuf.Timestamp measure_time = 1;
+    double lux = 2;
+}
