@@ -1,7 +1,7 @@
 [workspace]
-members = ["agent", "common", "api"]
-
+members = ["agent", "common", "api", "measurement-service"]
 resolver = "2"
+
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
@@ -9,3 +9,12 @@ authors = ["Robert Rose"]
 
 [workspace.dependencies]
 serde = "1.0.193"
+chrono = "0.4.31"
+clap = "4.4.4"
+env_logger = "0.10.0"
+log = "0.4.20"
+thiserror = "1.0.48"
+tokio = "1.32.0"
+tokio-util = "0.7.10"
+common = { path = "./common" }
+api = { path = "./api" }

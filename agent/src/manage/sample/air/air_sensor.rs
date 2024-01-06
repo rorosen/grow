@@ -1,5 +1,5 @@
-use common::AirMeasurement;
-use std::time::Duration;
+use api::gen::grow::AirMeasurement;
+use std::time::{Duration, SystemTime};
 use tokio_util::sync::CancellationToken;
 
 use crate::{error::AppError, i2c::I2C};
@@ -97,6 +97,7 @@ impl AirSensor {
         let (t_fine, temperature) = self.calc_temperature(data.temp_adc);
 
         Ok(AirMeasurement {
+            measure_time: Some(SystemTime::now().into()),
             temperature,
             humidity: self.calc_humidity(data.hum_adc, temperature),
             pressure: self.calc_pressure(data.press_adc, t_fine) / 100.,

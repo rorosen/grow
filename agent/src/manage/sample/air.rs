@@ -1,7 +1,7 @@
 use std::time::Duration;
 
+use api::gen::grow::AirMeasurement;
 use clap::Parser;
-use common::AirMeasurement;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 

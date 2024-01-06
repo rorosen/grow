@@ -477,6 +477,7 @@ checksum = "6fb8d784f27acf97159b40fc4db5ecd8aa23b9ad5ef69cdd136d3bc80665f0c0"
 name = "grow-agent"
 version = "0.1.0"
 dependencies = [
+ "api",
  "chrono",
  "clap",
  "common",
@@ -722,6 +723,10 @@ name = "matchit"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
+
+[[package]]
+name = "measurement-service"
+version = "0.1.0"
 
 [[package]]
 name = "memchr"

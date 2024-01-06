@@ -32,31 +32,39 @@
     ...
   }:
     flake-utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (localSystem: let
-      crossSystem = "aarch64-linux";
-
       pkgs = import nixpkgs {
-        inherit crossSystem localSystem;
+        inherit localSystem;
+        overlays = [(import rust-overlay)];
+      };
+      toolchain = pkgs.rust-bin.stable.latest.default;
+      craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
+
+      piPkgs = import nixpkgs {
+        inherit localSystem;
+        crossSystem = "aarch64-linux";
         overlays = [(import rust-overlay)];
       };
 
-      rustToolchain = pkgs.pkgsBuildHost.rust-bin.stable.latest.default.override {
+      piToolchain = pkgs.rust-bin.stable.latest.default.override {
         targets = ["aarch64-unknown-linux-gnu"];
       };
 
-      craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
-      agent = pkgs.callPackage ./nix/agent.nix {inherit craneLib;};
+      agent = piPkgs.callPackage ./nix/agent.nix {
+        craneLib = (crane.mkLib piPkgs).overrideToolchain piToolchain;
+      };
+
+      measurement-service = pkgs.callPackage ./nix/measurement-service.nix {inherit craneLib;};
     in {
       packages = {
-        inherit agent;
+        inherit pkgs agent measurement-service;
         agent-service = import ./nix/agent-service.nix {
           inherit agent;
           inherit (nixpkgs.lib) nixosSystem;
-          pkgs = pkgs.pkgsBuildHost;
         };
       };
 
       devShells.default = pkgs.mkShell {
-        nativeBuildInputs = with pkgs.pkgsBuildHost; [protobuf];
+        nativeBuildInputs = [pkgs.protobuf];
       };
     })
     // {

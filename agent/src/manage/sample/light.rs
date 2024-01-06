@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
 use crate::{error::AppError, i2c::I2C};
+use api::gen::grow::LightMeasurement;
 use clap::Parser;
-use common::LightMeasurement;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
@@ -51,7 +51,10 @@ impl LightSensor {
             _ = tokio::time::sleep(WAIT_DURATION) => {
                 let mut buf = [0; 2];
                 self.i2c.read_bytes(&mut buf[..]).await?;
-                return Ok(LightMeasurement {lux: ((((buf[0] as u32) << 8) | (buf[1] as u32)) as f64) / 1.2 * ((MT_REG_DEFAULT as f64) / (MT_REG_MAX as f64))})
+                return Ok(LightMeasurement {
+                    measure_time: Some(SystemTime::now().into()),
+                    lux: ((((buf[0] as u32) << 8) | (buf[1] as u32)) as f64) / 1.2 * ((MT_REG_DEFAULT as f64) / (MT_REG_MAX as f64))
+                })
             }
         }
     }
