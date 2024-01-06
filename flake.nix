@@ -48,7 +48,7 @@
     in {
       packages = {
         inherit agent;
-        service = import ./nix/agent-service.nix {
+        agent-service = import ./nix/agent-service.nix {
           inherit agent;
           inherit (nixpkgs.lib) nixosSystem;
           pkgs = pkgs.pkgsBuildHost;
