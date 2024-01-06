@@ -1,10 +1,9 @@
 use super::{
     control::light::{LightControlArgs, LightController},
-    sample::light::{LightSampleArgs, LightSampler},
+    sample::light::{LightMeasurements, LightSampleArgs, LightSampler},
 };
 use crate::error::AppError;
 use clap::Parser;
-use common::LightMeasurement;
 use tokio::sync::mpsc;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
@@ -18,19 +17,19 @@ pub struct LightArgs {
 }
 
 pub struct LightManager {
-    receiver: mpsc::Receiver<(&'static str, LightMeasurement)>,
+    receiver: mpsc::Receiver<LightMeasurements>,
     controller: LightController,
     sampler: LightSampler,
 }
 
 impl LightManager {
-    pub fn new(args: &LightArgs) -> Result<Self, AppError> {
+    pub async fn new(args: &LightArgs) -> Result<Self, AppError> {
         let (sender, receiver) = mpsc::channel(8);
 
         Ok(Self {
             receiver,
             controller: LightController::new(&args.control)?,
-            sampler: LightSampler::new(&args.sample, sender),
+            sampler: LightSampler::new(&args.sample, sender).await?,
         })
     }
 
@@ -48,8 +47,9 @@ impl LightManager {
                     log::debug!("all light manager tasks finished");
                     return;
                 }
-                Some((id, measurement)) = self.receiver.recv() => {
-                    log::info!("received {id} light measurement: {measurement:?}");
+                Some(LightMeasurements(left, right)) = self.receiver.recv() => {
+                    log::info!("left light measurement: {left:?}");
+                    log::info!("right light measurement: {right:?}");
                 }
             }
         }

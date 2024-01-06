@@ -54,7 +54,7 @@ impl Agent {
             }
         };
 
-        let light_manager = match LightManager::new(&self.light_args) {
+        let light_manager = match LightManager::new(&self.light_args).await {
             Ok(manager) => manager,
             Err(err) => {
                 log::error!("failed to initialize light manager: {err}");

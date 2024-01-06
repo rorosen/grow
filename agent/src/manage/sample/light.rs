@@ -89,58 +89,52 @@ pub struct LightSampleArgs {
     sample_rate_secs: u64,
 }
 
+pub struct LightMeasurements(pub Option<LightMeasurement>, pub Option<LightMeasurement>);
+
 pub struct LightSampler {
-    sender: mpsc::Sender<(&'static str, LightMeasurement)>,
-    left_address: u8,
-    right_address: u8,
+    sender: mpsc::Sender<LightMeasurements>,
+    left_sensor: LightSensor,
+    right_sensor: LightSensor,
     sample_rate: Duration,
 }
 
 impl LightSampler {
-    pub fn new(
+    pub async fn new(
         args: &LightSampleArgs,
-        sender: mpsc::Sender<(&'static str, LightMeasurement)>,
-    ) -> Self {
-        Self {
+        sender: mpsc::Sender<LightMeasurements>,
+    ) -> Result<Self, AppError> {
+        Ok(Self {
             sender,
-            left_address: args.left_address,
-            right_address: args.right_address,
+            left_sensor: LightSensor::new(args.left_address).await?,
+            right_sensor: LightSensor::new(args.right_address).await?,
             sample_rate: Duration::from_secs(args.sample_rate_secs),
-        }
+        })
     }
 
-    pub async fn run(self, cancel_token: CancellationToken) {
-        let mut left_sensor = LightSensor::new(self.left_address).await.ok();
-        let mut right_sensor = LightSensor::new(self.right_address).await.ok();
-
+    pub async fn run(mut self, cancel_token: CancellationToken) {
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
-                    if left_sensor.is_none() {
-                        left_sensor = LightSensor::new(self.left_address).await.ok();
-                    }
-
-                    if right_sensor.is_none() {
-                        right_sensor = LightSensor::new(self.right_address).await.ok();
-                    }
-
-                    if let Some(sensor) = left_sensor.as_mut() {
-                        if let Ok(measurement) = sensor.measure(cancel_token.clone()).await {
-                            self.sender
-                                .send(("left", measurement))
-                                .await
-                                .expect("light measurement channel is open");
+                    let left_measurement = match self.left_sensor.measure(cancel_token.clone()).await {
+                        Ok(m) => Some(m),
+                        Err(err) => {
+                            log::warn!("could not take left light measurement: {err}");
+                            None
                         }
-                    }
+                    };
 
-                    if let Some(sensor) = right_sensor.as_mut() {
-                        if let Ok(measurement) = sensor.measure(cancel_token.clone()).await {
-                            self.sender
-                                .send(("right", measurement))
-                                .await
-                                .expect("light measurement channel is open");
+                    let right_measurement = match self.right_sensor.measure(cancel_token.clone()).await {
+                        Ok(m) => Some(m),
+                        Err(err) => {
+                            log::warn!("could not take right light measurement: {err}");
+                            None
                         }
-                    }
+                    };
+
+                    self.sender
+                        .send(LightMeasurements(left_measurement, right_measurement))
+                        .await
+                        .expect("light measurements channel is open");
                 }
                 _ = cancel_token.cancelled() => {
                     log::debug!("shutting down light sampler");

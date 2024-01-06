@@ -1,11 +1,10 @@
 use super::{
     control::exhaust::{ExhaustControlArgs, ExhaustController},
-    sample::air::{AirSampleArgs, AirSampler},
+    sample::air::{AirMeasurements, AirSampleArgs, AirSampler},
 };
 
 use crate::error::AppError;
 use clap::Parser;
-use common::AirMeasurement;
 use tokio::sync::mpsc;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
@@ -19,7 +18,7 @@ pub struct AirArgs {
 }
 
 pub struct AirManager {
-    receiver: mpsc::Receiver<(&'static str, AirMeasurement)>,
+    receiver: mpsc::Receiver<AirMeasurements>,
     controller: ExhaustController,
     sampler: AirSampler,
 }
@@ -49,8 +48,9 @@ impl AirManager {
                     log::debug!("all air manager tasks finished");
                     return;
                 }
-                Some((id, measurement)) = self.receiver.recv() => {
-                    log::info!("received {id} air measurement: {measurement:?}");
+                Some(AirMeasurements(left, right)) = self.receiver.recv() => {
+                    log::info!("left air measurement: {left:?}");
+                    log::info!("right air measurement: {right:?}");
                 }
             }
         }

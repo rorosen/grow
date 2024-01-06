@@ -12,7 +12,6 @@ use super::parse_hex_u8;
 mod air_sensor;
 mod params;
 mod sensor_data;
-
 #[derive(Debug, Parser)]
 pub struct AirSampleArgs {
     /// The I2C address of the left air sensor
@@ -45,15 +44,17 @@ pub struct AirSampleArgs {
     sample_rate_secs: u64,
 }
 
+pub struct AirMeasurements(pub Option<AirMeasurement>, pub Option<AirMeasurement>);
+
 pub struct AirSampler {
-    sender: mpsc::Sender<(&'static str, AirMeasurement)>,
+    sender: mpsc::Sender<AirMeasurements>,
     left_address: u8,
     right_address: u8,
     sample_rate: Duration,
 }
 
 impl AirSampler {
-    pub fn new(args: &AirSampleArgs, sender: mpsc::Sender<(&'static str, AirMeasurement)>) -> Self {
+    pub fn new(args: &AirSampleArgs, sender: mpsc::Sender<AirMeasurements>) -> Self {
         Self {
             sender,
             left_address: args.left_address,
@@ -63,49 +64,48 @@ impl AirSampler {
     }
 
     pub async fn run(self, cancel_token: CancellationToken) {
-        let mut left_sensor = AirSensor::new(self.left_address).await.ok();
-        let mut right_sensor = AirSensor::new(self.right_address).await.ok();
+        let mut left_sensor = AirSensor::new_opt(self.left_address).await;
+        let mut right_sensor = AirSensor::new_opt(self.right_address).await;
 
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
                     if left_sensor.is_none() {
-                        left_sensor = AirSensor::new(self.left_address).await.ok();
+                        left_sensor = AirSensor::new_opt(self.left_address).await;
                     }
 
                     if right_sensor.is_none() {
-                        right_sensor = AirSensor::new(self.right_address).await.ok();
+                        right_sensor = AirSensor::new_opt(self.right_address).await;
                     }
 
-                    if let Some(sensor) = left_sensor.as_mut() {
-                        match sensor.measure(cancel_token.clone()).await {
-                            Ok(air_measurement) => {
-                                self.sender
-                                    .send(("left", air_measurement))
-                                    .await
-                                    .expect("air measurement channel is open");
-                            }
+                    let left_measurement = match left_sensor.as_mut() {
+                        Some(s) => match s.measure(cancel_token.clone()).await {
+                            Ok(m) => Some(m),
                             Err(err) => {
                                 log::warn!("could not take left air measurement: {err}");
-                                left_sensor = AirSensor::new(self.left_address).await.ok();
+                                left_sensor = None;
+                                None
                             }
-                        }
-                    }
+                        },
+                        None => None,
+                    };
 
-                    if let Some(sensor) = right_sensor.as_mut() {
-                        match sensor.measure(cancel_token.clone()).await {
-                            Ok(air_measurement) => {
-                                self.sender
-                                    .send(("right", air_measurement))
-                                    .await
-                                    .expect("air measurement channel is open");
-                            }
+                    let right_measurement = match right_sensor.as_mut() {
+                        Some(s) => match s.measure(cancel_token.clone()).await {
+                            Ok(m) => Some(m),
                             Err(err) => {
                                 log::warn!("could not take right air measurement: {err}");
-                                right_sensor = AirSensor::new(self.right_address).await.ok();
+                                right_sensor = None;
+                                None
                             }
-                        }
-                    }
+                        },
+                        None => None,
+                    };
+
+                    self.sender
+                        .send(AirMeasurements(left_measurement, right_measurement))
+                        .await
+                        .expect("air measurements channel is open");
                 }
                 _ = cancel_token.cancelled() => {
                     log::debug!("shutting down air sampler");

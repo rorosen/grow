@@ -74,6 +74,16 @@ impl AirSensor {
         })
     }
 
+    pub async fn new_opt(address: u8) -> Option<Self> {
+        match Self::new(address).await {
+            Ok(sensor) => Some(sensor),
+            Err(err) => {
+                log::warn!("failed to initialize air sensor at address 0x{address:02x}: {err}");
+                None
+            }
+        }
+    }
+
     pub async fn measure(
         &mut self,
         cancel_token: CancellationToken,
