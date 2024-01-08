@@ -37,28 +37,29 @@
         overlays = [(import rust-overlay)];
       };
       toolchain = pkgs.rust-bin.stable.latest.default;
-      craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
 
-      piPkgs = import nixpkgs {
+      crossPkgs = import nixpkgs {
         inherit localSystem;
         crossSystem = "aarch64-linux";
         overlays = [(import rust-overlay)];
       };
 
-      piToolchain = pkgs.rust-bin.stable.latest.default.override {
+      crossToolchain = crossPkgs.pkgsBuildHost.rust-bin.stable.latest.default.override {
         targets = ["aarch64-unknown-linux-gnu"];
       };
 
-      agent = piPkgs.callPackage ./nix/agent.nix {
-        craneLib = (crane.mkLib piPkgs).overrideToolchain piToolchain;
+      agent = crossPkgs.callPackage ./nix/agent.nix {
+        craneLib = (crane.mkLib crossPkgs).overrideToolchain crossToolchain;
       };
 
-      measurement-service = pkgs.callPackage ./nix/measurement-service.nix {inherit craneLib;};
+      measurement-service = pkgs.callPackage ./nix/measurement-service.nix {
+        craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
+      };
     in {
       packages = {
-        inherit pkgs agent measurement-service;
+        inherit agent measurement-service;
         agent-service = import ./nix/agent-service.nix {
-          inherit agent;
+          inherit pkgs agent;
           inherit (nixpkgs.lib) nixosSystem;
         };
       };
