@@ -1,6 +1,6 @@
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
-use api::gen::grow::AirMeasurement;
+use api::gen::grow::AirMeasurements;
 use clap::Parser;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -46,8 +46,6 @@ pub struct AirSampleArgs {
     sample_rate_secs: u64,
 }
 
-pub struct AirMeasurements(pub Option<AirMeasurement>, pub Option<AirMeasurement>);
-
 pub struct AirSampler {
     sender: mpsc::Sender<AirMeasurements>,
     left_sensor: AirSensor,
@@ -89,7 +87,11 @@ impl AirSampler {
                     };
 
                     self.sender
-                        .send(AirMeasurements(left_measurement, right_measurement))
+                        .send(AirMeasurements{
+                            measure_time: Some(SystemTime::now().into()),
+                            left: left_measurement,
+                            right: right_measurement
+                        })
                         .await
                         .expect("air measurements channel is open");
                 }

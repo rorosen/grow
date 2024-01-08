@@ -26,7 +26,7 @@ message AirMeasurement {
 message LightMeasurements {
     google.protobuf.Timestamp measure_time = 1;
     LightMeasurement left = 2;
-    LightMeasurement rgiht= 2;
+    LightMeasurement right= 3;
 }
 
 message LightMeasurement {

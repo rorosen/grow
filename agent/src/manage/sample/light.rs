@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::{error::AppError, i2c::I2C};
-use api::gen::grow::LightMeasurement;
+use api::gen::grow::{LightMeasurement, LightMeasurements};
 use clap::Parser;
 use std::time::{Duration, SystemTime};
 use tokio::sync::mpsc;
@@ -52,7 +52,6 @@ impl LightSensor {
                 let mut buf = [0; 2];
                 self.i2c.read_bytes(&mut buf[..]).await?;
                 return Ok(LightMeasurement {
-                    measure_time: Some(SystemTime::now().into()),
                     lux: ((((buf[0] as u32) << 8) | (buf[1] as u32)) as f64) / 1.2 * ((MT_REG_DEFAULT as f64) / (MT_REG_MAX as f64))
                 })
             }
@@ -91,8 +90,6 @@ pub struct LightSampleArgs {
     )]
     sample_rate_secs: u64,
 }
-
-pub struct LightMeasurements(pub Option<LightMeasurement>, pub Option<LightMeasurement>);
 
 pub struct LightSampler {
     sender: mpsc::Sender<LightMeasurements>,
@@ -135,7 +132,10 @@ impl LightSampler {
                     };
 
                     self.sender
-                        .send(LightMeasurements(left_measurement, right_measurement))
+                        .send(LightMeasurements{
+                            measure_time: Some(SystemTime::now().into()),
+                            left: left_measurement,
+                            right: right_measurement})
                         .await
                         .expect("light measurements channel is open");
                 }

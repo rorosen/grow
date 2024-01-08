@@ -1,8 +1,9 @@
 use super::{
     control::light::{LightControlArgs, LightController},
-    sample::light::{LightMeasurements, LightSampleArgs, LightSampler},
+    sample::light::{LightSampleArgs, LightSampler},
 };
 use crate::error::AppError;
+use api::gen::grow::LightMeasurements;
 use clap::Parser;
 use tokio::sync::mpsc;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
@@ -47,7 +48,7 @@ impl LightManager {
                     log::debug!("all light manager tasks finished");
                     return;
                 }
-                Some(LightMeasurements(left, right)) = self.receiver.recv() => {
+                Some(LightMeasurements{left, right, ..}) = self.receiver.recv() => {
                     log::info!("left light measurement: {left:?}");
                     log::info!("right light measurement: {right:?}");
                 }

@@ -1,5 +1,5 @@
 use api::gen::grow::{
-    measurement_service_server::MeasurementService, AirMeasurement, LightMeasurement,
+    measurement_service_server::MeasurementService, AirMeasurements, LightMeasurements,
 };
 use tonic::{Request, Response, Status};
 
@@ -15,16 +15,16 @@ impl Service {
 
 #[tonic::async_trait]
 impl MeasurementService for Service {
-    async fn create_air_measurement(
+    async fn create_air_measurements(
         &self,
-        request: Request<AirMeasurement>,
+        request: Request<AirMeasurements>,
     ) -> Result<Response<()>, Status> {
         Err(Status::unimplemented(""))
     }
 
-    async fn create_light_measurement(
+    async fn create_light_measurements(
         &self,
-        request: Request<LightMeasurement>,
+        request: Request<LightMeasurements>,
     ) -> Result<Response<()>, Status> {
         Err(Status::unimplemented("message"))
     }
