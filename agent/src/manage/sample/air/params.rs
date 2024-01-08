@@ -1,3 +1,7 @@
+const TEMPERATURE_MAX: u16 = 400;
+const GAS_WAIT_MS_MAX: u16 = 4032;
+const GAS_WAIT_VALUE_MAX: u8 = 0xFF;
+
 const OFFSET_T1_LSB: usize = 31;
 const OFFSET_T1_MSB: usize = 32;
 const OFFSET_T2_LSB: usize = 0;
@@ -130,5 +134,102 @@ impl Params {
                     >> 4) as i8,
             },
         }
+    }
+
+    pub fn calc_heat_resistance(&self, ambient_temperature: i8, mut temperature: u16) -> u8 {
+        if temperature > TEMPERATURE_MAX {
+            temperature = TEMPERATURE_MAX;
+        }
+
+        let var1 = ((self.gas.gh1 as f64) / 16.) + 49.;
+        let var2 = (((self.gas.gh2 as f64) / 32768.) * 0.00005) + 0.00235;
+        let var3 = (self.gas.gh3 as f64) / 1024.;
+        let var4 = var1 * (1. + (var2 * (temperature as f64)));
+        let var5 = var4 + (var3 * (ambient_temperature as f64));
+        (3.4 * (var5
+            * (4.
+                / (4.
+                    + (self.gas.heat_range as f64)
+                        * (1. / 1. + (self.gas.heat_val as f64) * 0.002)))
+            - 25.)) as u8
+    }
+
+    pub fn calc_gas_wait(&self, mut duration: u16) -> u8 {
+        if duration > GAS_WAIT_MS_MAX {
+            return GAS_WAIT_VALUE_MAX;
+        }
+
+        let mut factor: u8 = 0;
+        while duration > 0x3F {
+            duration /= 4;
+            factor += 1;
+        }
+
+        (duration as u8) + (factor * 64)
+    }
+
+    pub fn calc_temperature(&self, temp_adc: u32) -> (f64, f64) {
+        let var1 = (((temp_adc as f64) / 16384.) - ((self.temp.t1 as f64) / 1024.))
+            * (self.temp.t2 as f64);
+        let var2 = ((((temp_adc as f64) / 131072.) - ((self.temp.t1 as f64) / 8192.))
+            * (((temp_adc as f64) / 131072.) - ((self.temp.t1 as f64) / 8192.)))
+            * ((self.temp.t3 as f64) * 16.);
+        let t_fine = var1 + var2;
+
+        (t_fine, t_fine / 5120.)
+    }
+
+    pub fn calc_humidity(&self, hum_adc: u32, temperature: f64) -> f64 {
+        let var1 = (hum_adc as f64)
+            - (((self.humidity.h1 as f64) * 16.)
+                + (((self.humidity.h3 as f64) / 2.) * temperature));
+        let var2 = var1
+            * (((self.humidity.h2 as f64) / 262144.)
+                * (1.
+                    + (((self.humidity.h4 as f64) / 16384.) * temperature)
+                    + (((self.humidity.h5 as f64) / 1048576.) * temperature * temperature)));
+        let var3 = (self.humidity.h6 as f64) / 16384.;
+        let var4 = (self.humidity.h7 as f64) / 2097152.;
+
+        var2 + ((var3 + (var4 * temperature)) * var2 * var2)
+    }
+
+    pub fn calc_pressure(&self, press_adc: u32, t_fine: f64) -> f64 {
+        let mut var1 = (t_fine / 2.) - 64000.;
+        let mut var2 = var1 * var1 * ((self.pressure.p6 as f64) / 131072.);
+        var2 = var2 + (var1 * (self.pressure.p5 as f64) * 2.);
+        var2 = (var2 / 4.) + ((self.pressure.p4 as f64) * 65536.);
+        var1 = ((((self.pressure.p3 as f64) * var1 * var1) / 16384.)
+            + ((self.pressure.p2 as f64) * var1))
+            / 524288.;
+        var1 = (1. + (var1 / 32768.)) * (self.pressure.p1 as f64);
+        let mut press_comp = 1048576. - (press_adc as f64);
+        press_comp = ((press_comp - (var2 / 4096.)) * 6250.) / var1;
+        var1 = ((self.pressure.p9 as f64) * press_comp * press_comp) / 2147483648.;
+        var2 = press_comp * ((self.pressure.p8 as f64) / 32768.);
+        let var3 = (press_comp / 256.)
+            * (press_comp / 256.)
+            * (press_comp / 256.)
+            * ((self.pressure.p10 as f64) / 131072.);
+
+        press_comp + (var1 + var2 + var3 + ((self.pressure.p7 as f64) * 128.)) / 16.
+    }
+
+    pub fn compute_resistance(&self, gas_adc: u32, gas_range: usize) -> f64 {
+        const LOOKUP_K1_RANGE: &[f64; 16] = &[
+            0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -0.8, 0.0, 0.0, -0.2, -0.5, 0.0, -1.0, 0.0, 0.0,
+        ];
+        const LOOKUP_K2_RANGE: &[f64; 16] = &[
+            0.0, 0.0, 0.0, 0.0, 0.1, 0.7, 0.0, -0.8, -0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        ];
+
+        let var1 = 1340. + 5. * (self.gas.range_switching_error as f64);
+        let var2 = var1 * (1. + LOOKUP_K1_RANGE[gas_range] / 100.);
+        let var3 = 1. + (LOOKUP_K2_RANGE[gas_range] / 100.);
+
+        1. / (var3
+            * 0.000000125
+            * ((1 << gas_range) as f64)
+            * ((((gas_adc as f64) - 512.) / var2) + 1.))
     }
 }

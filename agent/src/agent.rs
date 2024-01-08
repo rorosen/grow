@@ -46,7 +46,7 @@ impl Agent {
             }
         };
 
-        let air_manager = match AirManager::new(&self.air_args) {
+        let air_manager = match AirManager::new(&self.air_args).await {
             Ok(manager) => manager,
             Err(err) => {
                 log::error!("failed to initialize air manager: {err}");

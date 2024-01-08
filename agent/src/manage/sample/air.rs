@@ -5,6 +5,8 @@ use clap::Parser;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
+use crate::error::AppError;
+
 use self::air_sensor::AirSensor;
 
 use super::parse_hex_u8;
@@ -48,58 +50,42 @@ pub struct AirMeasurements(pub Option<AirMeasurement>, pub Option<AirMeasurement
 
 pub struct AirSampler {
     sender: mpsc::Sender<AirMeasurements>,
-    left_address: u8,
-    right_address: u8,
+    left_sensor: AirSensor,
+    right_sensor: AirSensor,
     sample_rate: Duration,
 }
 
 impl AirSampler {
-    pub fn new(args: &AirSampleArgs, sender: mpsc::Sender<AirMeasurements>) -> Self {
-        Self {
+    pub async fn new(
+        args: &AirSampleArgs,
+        sender: mpsc::Sender<AirMeasurements>,
+    ) -> Result<Self, AppError> {
+        Ok(Self {
             sender,
-            left_address: args.left_address,
-            right_address: args.right_address,
+            left_sensor: AirSensor::new(args.left_address).await?,
+            right_sensor: AirSensor::new(args.right_address).await?,
             sample_rate: Duration::from_secs(args.sample_rate_secs),
-        }
+        })
     }
 
-    pub async fn run(self, cancel_token: CancellationToken) {
-        let mut left_sensor = AirSensor::new_opt(self.left_address).await;
-        let mut right_sensor = AirSensor::new_opt(self.right_address).await;
-
+    pub async fn run(mut self, cancel_token: CancellationToken) {
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
-                    if left_sensor.is_none() {
-                        left_sensor = AirSensor::new_opt(self.left_address).await;
-                    }
-
-                    if right_sensor.is_none() {
-                        right_sensor = AirSensor::new_opt(self.right_address).await;
-                    }
-
-                    let left_measurement = match left_sensor.as_mut() {
-                        Some(s) => match s.measure(cancel_token.clone()).await {
-                            Ok(m) => Some(m),
-                            Err(err) => {
-                                log::warn!("could not take left air measurement: {err}");
-                                left_sensor = None;
-                                None
-                            }
-                        },
-                        None => None,
+                    let left_measurement = match self.left_sensor.measure(cancel_token.clone()).await {
+                        Ok(m) => Some(m),
+                        Err(err) => {
+                            log::warn!("could not take left air measurement: {err}");
+                            None
+                        }
                     };
 
-                    let right_measurement = match right_sensor.as_mut() {
-                        Some(s) => match s.measure(cancel_token.clone()).await {
-                            Ok(m) => Some(m),
-                            Err(err) => {
-                                log::warn!("could not take right air measurement: {err}");
-                                right_sensor = None;
-                                None
-                            }
-                        },
-                        None => None,
+                    let right_measurement = match self.right_sensor.measure(cancel_token.clone()).await {
+                        Ok(m) => Some(m),
+                        Err(err) => {
+                            log::warn!("could not take right air measurement: {err}");
+                            None
+                        }
                     };
 
                     self.sender

@@ -21,6 +21,9 @@ pub enum AppError {
     #[error("failed to identify {0} sensor")]
     IdentifyFailed(String),
 
+    #[error("{0} is not initialized")]
+    NotInit(&'static str),
+
     #[error("measurement cancelled")]
     Cancelled,
 

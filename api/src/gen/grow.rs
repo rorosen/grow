@@ -105,7 +105,7 @@ pub mod measurement_service_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
-        pub async fn drop_air_measurement(
+        pub async fn create_air_measurement(
             &mut self,
             request: impl tonic::IntoRequest<super::AirMeasurement>,
         ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
@@ -120,16 +120,16 @@ pub mod measurement_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/grow.MeasurementService/DropAirMeasurement",
+                "/grow.MeasurementService/CreateAirMeasurement",
             );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(
-                    GrpcMethod::new("grow.MeasurementService", "DropAirMeasurement"),
+                    GrpcMethod::new("grow.MeasurementService", "CreateAirMeasurement"),
                 );
             self.inner.unary(req, path, codec).await
         }
-        pub async fn drop_light_measurement(
+        pub async fn create_light_measurement(
             &mut self,
             request: impl tonic::IntoRequest<super::LightMeasurement>,
         ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
@@ -144,12 +144,12 @@ pub mod measurement_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/grow.MeasurementService/DropLightMeasurement",
+                "/grow.MeasurementService/CreateLightMeasurement",
             );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(
-                    GrpcMethod::new("grow.MeasurementService", "DropLightMeasurement"),
+                    GrpcMethod::new("grow.MeasurementService", "CreateLightMeasurement"),
                 );
             self.inner.unary(req, path, codec).await
         }
@@ -162,11 +162,11 @@ pub mod measurement_service_server {
     /// Generated trait containing gRPC methods that should be implemented for use with MeasurementServiceServer.
     #[async_trait]
     pub trait MeasurementService: Send + Sync + 'static {
-        async fn drop_air_measurement(
+        async fn create_air_measurement(
             &self,
             request: tonic::Request<super::AirMeasurement>,
         ) -> std::result::Result<tonic::Response<()>, tonic::Status>;
-        async fn drop_light_measurement(
+        async fn create_light_measurement(
             &self,
             request: tonic::Request<super::LightMeasurement>,
         ) -> std::result::Result<tonic::Response<()>, tonic::Status>;
@@ -250,13 +250,13 @@ pub mod measurement_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/grow.MeasurementService/DropAirMeasurement" => {
+                "/grow.MeasurementService/CreateAirMeasurement" => {
                     #[allow(non_camel_case_types)]
-                    struct DropAirMeasurementSvc<T: MeasurementService>(pub Arc<T>);
+                    struct CreateAirMeasurementSvc<T: MeasurementService>(pub Arc<T>);
                     impl<
                         T: MeasurementService,
                     > tonic::server::UnaryService<super::AirMeasurement>
-                    for DropAirMeasurementSvc<T> {
+                    for CreateAirMeasurementSvc<T> {
                         type Response = ();
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
@@ -268,7 +268,7 @@ pub mod measurement_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MeasurementService>::drop_air_measurement(
+                                <T as MeasurementService>::create_air_measurement(
                                         &inner,
                                         request,
                                     )
@@ -284,7 +284,7 @@ pub mod measurement_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = DropAirMeasurementSvc(inner);
+                        let method = CreateAirMeasurementSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -300,13 +300,13 @@ pub mod measurement_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/grow.MeasurementService/DropLightMeasurement" => {
+                "/grow.MeasurementService/CreateLightMeasurement" => {
                     #[allow(non_camel_case_types)]
-                    struct DropLightMeasurementSvc<T: MeasurementService>(pub Arc<T>);
+                    struct CreateLightMeasurementSvc<T: MeasurementService>(pub Arc<T>);
                     impl<
                         T: MeasurementService,
                     > tonic::server::UnaryService<super::LightMeasurement>
-                    for DropLightMeasurementSvc<T> {
+                    for CreateLightMeasurementSvc<T> {
                         type Response = ();
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
@@ -318,7 +318,7 @@ pub mod measurement_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MeasurementService>::drop_light_measurement(
+                                <T as MeasurementService>::create_light_measurement(
                                         &inner,
                                         request,
                                     )
@@ -334,7 +334,7 @@ pub mod measurement_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = DropLightMeasurementSvc(inner);
+                        let method = CreateLightMeasurementSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

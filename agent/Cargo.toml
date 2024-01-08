@@ -5,10 +5,12 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
+# unique dependencies
 rppal = "0.14.1"
 nix = { version = "0.27.1", features = ["ioctl"] }
-chrono.workspace = true
+# shared dependencies
 clap = { workspace = true, features = ["derive", "env"] }
+chrono.workspace = true
 env_logger.workspace = true
 log.workspace = true
 thiserror.workspace = true

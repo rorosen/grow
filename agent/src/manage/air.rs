@@ -24,13 +24,13 @@ pub struct AirManager {
 }
 
 impl AirManager {
-    pub fn new(args: &AirArgs) -> Result<Self, AppError> {
+    pub async fn new(args: &AirArgs) -> Result<Self, AppError> {
         let (sender, receiver) = mpsc::channel(8);
 
         Ok(Self {
             receiver,
             controller: ExhaustController::new(&args.control)?,
-            sampler: AirSampler::new(&args.sample, sender),
+            sampler: AirSampler::new(&args.sample, sender).await?,
         })
     }
 

@@ -6,19 +6,29 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
 service MeasurementService {
-    rpc DropAirMeasurement (AirMeasurement) returns (google.protobuf.Empty);
-    rpc DropLightMeasurement (LightMeasurement) returns (google.protobuf.Empty);
+    rpc CreateAirMeasurements (AirMeasurements) returns (google.protobuf.Empty);
+    rpc CreateLightMeasurements (LightMeasurements) returns (google.protobuf.Empty);
+}
+
+message AirMeasurements {
+    google.protobuf.Timestamp measure_time = 1;
+    AirMeasurement left = 2;
+    AirMeasurement right = 3;
 }
 
 message AirMeasurement {
+    double temperature = 1;
+    double humidity = 2;
+    double pressure = 3;
+    double resistance = 4;
+}
+
+message LightMeasurements {
     google.protobuf.Timestamp measure_time = 1;
-    double temperature = 2;
-    double humidity = 3;
-    double pressure = 4;
-    double resistance = 5;
+    LightMeasurement left = 2;
+    LightMeasurement rgiht= 2;
 }
 
 message LightMeasurement {
-    google.protobuf.Timestamp measure_time = 1;
-    double lux = 2;
+    double lux = 1;
 }

@@ -5,3 +5,17 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
+api.workspace = true
+env_logger.workspace = true
+log.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = [
+    "macros",
+    "rt-multi-thread",
+    "sync",
+    "signal",
+    "rt",
+] }
+tonic.workspace = true
+
+mongodb = "2.8.0"
