@@ -1074,6 +1074,7 @@ name = "measurement-service"
 version = "0.1.0"
 dependencies = [
  "api",
+ "clap",
  "env_logger",
  "log",
  "mongodb",
