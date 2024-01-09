@@ -74,7 +74,7 @@
         profiles.grow = {
           user = "root";
           sshUser = "rob";
-          path = deploy-rs.lib.aarch64-linux.activate.custom self.packages.x86_64-linux.service "./bin/activate";
+          path = deploy-rs.lib.aarch64-linux.activate.custom self.packages.x86_64-linux.agent-service "./bin/activate";
         };
       };
     };
