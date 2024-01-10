@@ -18,6 +18,7 @@
     "serokell",
     "sysrange",
     "thiserror",
+    "Timeseries",
     "TMASK",
     "udisksctl",
     "unxz",

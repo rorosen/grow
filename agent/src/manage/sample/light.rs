@@ -2,8 +2,9 @@
 
 use crate::{error::AppError, i2c::I2C};
 use api::gen::grow::{LightMeasurement, LightMeasurements};
+use chrono::Utc;
 use clap::Parser;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
@@ -133,7 +134,7 @@ impl LightSampler {
 
                     self.sender
                         .send(LightMeasurements{
-                            measure_time: Some(SystemTime::now().into()),
+                            measure_time: Utc::now().timestamp_millis(),
                             left: left_measurement,
                             right: right_measurement})
                         .await

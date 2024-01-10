@@ -120,6 +120,7 @@ version = "0.1.0"
 dependencies = [
  "prost",
  "prost-types",
+ "serde",
  "tonic",
  "tonic-build",
 ]
@@ -1074,10 +1075,13 @@ name = "measurement-service"
 version = "0.1.0"
 dependencies = [
  "api",
+ "bson",
+ "chrono",
  "clap",
  "env_logger",
  "log",
  "mongodb",
+ "serde",
  "thiserror",
  "tokio",
  "tonic",

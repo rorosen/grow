@@ -18,5 +18,8 @@ tokio = { workspace = true, features = [
 ] }
 tonic.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
+serde = { workspace = true, features = ["derive"] }
 
 mongodb = "2.8.0"
+chrono.workspace = true
+bson = "2.8.1"

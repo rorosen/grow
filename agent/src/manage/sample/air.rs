@@ -1,6 +1,7 @@
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 use api::gen::grow::AirMeasurements;
+use chrono::Utc;
 use clap::Parser;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -88,7 +89,7 @@ impl AirSampler {
 
                     self.sender
                         .send(AirMeasurements{
-                            measure_time: Some(SystemTime::now().into()),
+                            measure_time: Utc::now().timestamp_millis(),
                             left: left_measurement,
                             right: right_measurement
                         })

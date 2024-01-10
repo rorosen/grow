@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package grow;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
 service MeasurementService {
@@ -11,7 +10,7 @@ service MeasurementService {
 }
 
 message AirMeasurements {
-    google.protobuf.Timestamp measure_time = 1;
+    int64 measure_time = 1;
     AirMeasurement left = 2;
     AirMeasurement right = 3;
 }
@@ -24,7 +23,7 @@ message AirMeasurement {
 }
 
 message LightMeasurements {
-    google.protobuf.Timestamp measure_time = 1;
+    int64 measure_time = 1;
     LightMeasurement left = 2;
     LightMeasurement right= 3;
 }

@@ -1,13 +1,15 @@
+#[derive(serde::Serialize, serde::Deserialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AirMeasurements {
-    #[prost(message, optional, tag = "1")]
-    pub measure_time: ::core::option::Option<::prost_types::Timestamp>,
+    #[prost(int64, tag = "1")]
+    pub measure_time: i64,
     #[prost(message, optional, tag = "2")]
     pub left: ::core::option::Option<AirMeasurement>,
     #[prost(message, optional, tag = "3")]
     pub right: ::core::option::Option<AirMeasurement>,
 }
+#[derive(serde::Serialize, serde::Deserialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AirMeasurement {
@@ -20,16 +22,18 @@ pub struct AirMeasurement {
     #[prost(double, tag = "4")]
     pub resistance: f64,
 }
+#[derive(serde::Serialize, serde::Deserialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LightMeasurements {
-    #[prost(message, optional, tag = "1")]
-    pub measure_time: ::core::option::Option<::prost_types::Timestamp>,
+    #[prost(int64, tag = "1")]
+    pub measure_time: i64,
     #[prost(message, optional, tag = "2")]
     pub left: ::core::option::Option<LightMeasurement>,
     #[prost(message, optional, tag = "3")]
     pub right: ::core::option::Option<LightMeasurement>,
 }
+#[derive(serde::Serialize, serde::Deserialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LightMeasurement {
