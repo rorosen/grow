@@ -115,17 +115,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "080e9890a082662b09c1ad45f567faeeb47f22b5fb23895fbe1e651e718e25ca"
 
 [[package]]
-name = "api"
-version = "0.1.0"
-dependencies = [
- "prost",
- "prost-types",
- "serde",
- "tonic",
- "tonic-build",
-]
-
-[[package]]
 name = "async-stream"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -278,6 +267,7 @@ dependencies = [
  "ahash",
  "base64 0.13.1",
  "bitvec",
+ "chrono",
  "hex",
  "indexmap 1.9.3",
  "js-sys",
@@ -376,13 +366,6 @@ name = "colorchoice"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
-
-[[package]]
-name = "common"
-version = "0.1.0"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "convert_case"
@@ -630,6 +613,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a44623e20b9681a318efdd71c299b6b222ed6f231972bfe2f224ebad6311f0c1"
 
 [[package]]
+name = "futures-lite"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "445ba825b27408685aaecefd65178908c36c6e96aaf6d8599419d46e624192ba"
+dependencies = [
+ "fastrand",
+ "futures-core",
+ "futures-io",
+ "parking",
+ "pin-project-lite",
+]
+
+[[package]]
 name = "futures-macro"
 version = "0.3.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -699,17 +695,28 @@ checksum = "6fb8d784f27acf97159b40fc4db5ecd8aa23b9ad5ef69cdd136d3bc80665f0c0"
 name = "grow-agent"
 version = "0.1.0"
 dependencies = [
- "api",
  "chrono",
  "clap",
- "common",
  "env_logger",
+ "grow-utils",
  "log",
  "nix",
  "rppal",
  "thiserror",
  "tokio",
  "tokio-util",
+]
+
+[[package]]
+name = "grow-utils"
+version = "0.1.0"
+dependencies = [
+ "bson",
+ "prost",
+ "prost-types",
+ "serde",
+ "tonic",
+ "tonic-build",
 ]
 
 [[package]]
@@ -1074,11 +1081,12 @@ dependencies = [
 name = "measurement-service"
 version = "0.1.0"
 dependencies = [
- "api",
  "bson",
  "chrono",
  "clap",
  "env_logger",
+ "futures-lite",
+ "grow-utils",
  "log",
  "mongodb",
  "serde",
@@ -1216,6 +1224,12 @@ name = "once_cell"
 version = "1.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
+
+[[package]]
+name = "parking"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb813b8af86854136c6922af0598d719255ecb2179515e6e7730d468f05c9cae"
 
 [[package]]
 name = "parking_lot"

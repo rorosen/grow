@@ -1,5 +1,5 @@
-use api::gen::grow::measurement_service_server::MeasurementServiceServer;
 use clap::Parser;
+use grow_utils::api::grow::measurement_service_server::MeasurementServiceServer;
 use tonic::transport::Server;
 
 use crate::{

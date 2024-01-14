@@ -1,8 +1,7 @@
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
-use api::gen::grow::AirMeasurements;
-use chrono::Utc;
 use clap::Parser;
+use grow_utils::api::grow::AirMeasurement;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
@@ -48,7 +47,7 @@ pub struct AirSampleArgs {
 }
 
 pub struct AirSampler {
-    sender: mpsc::Sender<AirMeasurements>,
+    sender: mpsc::Sender<AirMeasurement>,
     left_sensor: AirSensor,
     right_sensor: AirSensor,
     sample_rate: Duration,
@@ -57,7 +56,7 @@ pub struct AirSampler {
 impl AirSampler {
     pub async fn new(
         args: &AirSampleArgs,
-        sender: mpsc::Sender<AirMeasurements>,
+        sender: mpsc::Sender<AirMeasurement>,
     ) -> Result<Self, AppError> {
         Ok(Self {
             sender,
@@ -88,8 +87,8 @@ impl AirSampler {
                     };
 
                     self.sender
-                        .send(AirMeasurements{
-                            measure_time: Utc::now().timestamp_millis(),
+                        .send(AirMeasurement{
+                            measure_time: Some(SystemTime::now().into()),
                             left: left_measurement,
                             right: right_measurement
                         })

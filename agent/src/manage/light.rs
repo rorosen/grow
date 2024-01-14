@@ -3,8 +3,8 @@ use super::{
     sample::light::{LightSampleArgs, LightSampler},
 };
 use crate::error::AppError;
-use api::gen::grow::LightMeasurements;
 use clap::Parser;
+use grow_utils::api::grow::LightMeasurement;
 use tokio::sync::mpsc;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
@@ -18,7 +18,7 @@ pub struct LightArgs {
 }
 
 pub struct LightManager {
-    receiver: mpsc::Receiver<LightMeasurements>,
+    receiver: mpsc::Receiver<LightMeasurement>,
     controller: LightController,
     sampler: LightSampler,
 }
@@ -48,7 +48,7 @@ impl LightManager {
                     log::debug!("all light manager tasks finished");
                     return;
                 }
-                Some(LightMeasurements{left, right, ..}) = self.receiver.recv() => {
+                Some(LightMeasurement{left, right, ..}) = self.receiver.recv() => {
                     log::info!("left light measurement: {left:?}");
                     log::info!("right light measurement: {right:?}");
                 }

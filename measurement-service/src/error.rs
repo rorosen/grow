@@ -15,6 +15,9 @@ pub enum AppError {
         err: mongodb::error::Error,
     },
 
+    #[error("failed to list mongo collections: {0}")]
+    ListCollection(mongodb::error::Error),
+
     #[error("failed to serve: {0}")]
     ServerError(tonic::transport::Error),
 }

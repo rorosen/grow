@@ -1,10 +1,9 @@
 #![allow(dead_code)]
 
 use crate::{error::AppError, i2c::I2C};
-use api::gen::grow::{LightMeasurement, LightMeasurements};
-use chrono::Utc;
 use clap::Parser;
-use std::time::Duration;
+use grow_utils::api::grow::{LightMeasurement, LightSample};
+use std::time::{Duration, SystemTime};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
@@ -33,7 +32,7 @@ impl LightSensor {
     pub async fn measure(
         &mut self,
         cancel_token: CancellationToken,
-    ) -> Result<LightMeasurement, AppError> {
+    ) -> Result<LightSample, AppError> {
         self.i2c
             .write_bytes(&[CMD_SET_MT_HIGH | (MT_REG_MAX >> 5)])
             .await?;
@@ -52,7 +51,7 @@ impl LightSensor {
             _ = tokio::time::sleep(WAIT_DURATION) => {
                 let mut buf = [0; 2];
                 self.i2c.read_bytes(&mut buf[..]).await?;
-                return Ok(LightMeasurement {
+                return Ok(LightSample {
                     lux: ((((buf[0] as u32) << 8) | (buf[1] as u32)) as f64) / 1.2 * ((MT_REG_DEFAULT as f64) / (MT_REG_MAX as f64))
                 })
             }
@@ -93,7 +92,7 @@ pub struct LightSampleArgs {
 }
 
 pub struct LightSampler {
-    sender: mpsc::Sender<LightMeasurements>,
+    sender: mpsc::Sender<LightMeasurement>,
     left_sensor: LightSensor,
     right_sensor: LightSensor,
     sample_rate: Duration,
@@ -102,7 +101,7 @@ pub struct LightSampler {
 impl LightSampler {
     pub async fn new(
         args: &LightSampleArgs,
-        sender: mpsc::Sender<LightMeasurements>,
+        sender: mpsc::Sender<LightMeasurement>,
     ) -> Result<Self, AppError> {
         Ok(Self {
             sender,
@@ -133,8 +132,8 @@ impl LightSampler {
                     };
 
                     self.sender
-                        .send(LightMeasurements{
-                            measure_time: Utc::now().timestamp_millis(),
+                        .send(LightMeasurement{
+                            measure_time: Some(SystemTime::now().into()),
                             left: left_measurement,
                             right: right_measurement})
                         .await

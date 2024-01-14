@@ -1,5 +1,5 @@
 [package]
-name = "api"
+name = "grow-utils"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,3 +12,4 @@ tonic-build = "0.10.2"
 # shared dependencies
 tonic.workspace = true
 serde = { workspace = true, features = ["derive"] }
+bson = { workspace = "2.8.1", features = ["chrono-0_4"] }

@@ -1,4 +1,4 @@
-use api::gen::grow::AirMeasurement;
+use grow_utils::api::grow::AirSample;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
@@ -59,7 +59,7 @@ impl AirSensor {
     pub async fn measure(
         &mut self,
         cancel_token: CancellationToken,
-    ) -> Result<AirMeasurement, AppError> {
+    ) -> Result<AirSample, AppError> {
         if self.params.is_none() {
             self.params = Self::init_params(&mut self.i2c).await.ok();
         }
@@ -77,7 +77,7 @@ impl AirSensor {
 
         let (t_fine, temperature) = params.calc_temperature(data.temp_adc);
 
-        Ok(AirMeasurement {
+        Ok(AirSample {
             temperature,
             humidity: params.calc_humidity(data.hum_adc, temperature),
             pressure: params.calc_pressure(data.press_adc, t_fine) / 100.,

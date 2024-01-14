@@ -1,20 +1,22 @@
-use api::gen::grow::{
-    measurement_service_server::MeasurementService, AirMeasurement, AirMeasurements,
-    LightMeasurements,
-};
-use bson::DateTime;
 use clap::Parser;
+use grow_utils::{
+    api::grow::{
+        measurement_service_server::MeasurementService, AirMeasurement, LightMeasurement,
+        WaterLevelMeasurement,
+    },
+    StorageAirMeasurement, StorageLightMeasurement, StorageWaterLevelMeasurement,
+};
 use mongodb::{
     options::{CreateCollectionOptions, TimeseriesGranularity, TimeseriesOptions},
-    Client, Collection,
+    Client, Collection, Database,
 };
-use serde::{Deserialize, Serialize};
 use tonic::{Request, Response, Status};
 
 use crate::error::AppError;
 
 const AIR_MEASUREMENTS_COLLECTION: &str = "air_measurements";
 const LIGHT_MEASUREMENTS_COLLECTION: &str = "light_measurements";
+const WATER_LEVEL_MEASUREMENTS_COLLECTION: &str = "water_level_measurements";
 const TIME_FIELD: &str = "measure_time";
 
 #[derive(Debug, Parser)]
@@ -32,26 +34,10 @@ pub struct ServiceArgs {
     database: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct AirM {
-    measure_time: DateTime,
-    left: Option<AirMeasurement>,
-    right: Option<AirMeasurement>,
-}
-
-impl From<AirMeasurements> for AirM {
-    fn from(value: AirMeasurements) -> Self {
-        AirM {
-            measure_time: DateTime::from_millis(value.measure_time),
-            left: value.left,
-            right: value.right,
-        }
-    }
-}
-
 pub struct Service {
-    air_measurements: Collection<AirM>,
-    light_measurements: Collection<LightMeasurements>,
+    air_measurements: Collection<StorageAirMeasurement>,
+    light_measurements: Collection<StorageLightMeasurement>,
+    water_level_measurements: Collection<StorageWaterLevelMeasurement>,
 }
 
 impl Service {
@@ -61,7 +47,44 @@ impl Service {
             .map_err(AppError::GetMongoClient)?;
 
         let db = client.database(&args.database);
-        let ts_options = CreateCollectionOptions::builder()
+        let collection_names = db
+            .list_collection_names(None)
+            .await
+            .map_err(AppError::ListCollection)?;
+
+        if !collection_names
+            .iter()
+            .any(|c| c == AIR_MEASUREMENTS_COLLECTION)
+        {
+            Service::create_timeseries(&db, AIR_MEASUREMENTS_COLLECTION).await?;
+        }
+
+        if !collection_names
+            .iter()
+            .any(|c| c == LIGHT_MEASUREMENTS_COLLECTION)
+        {
+            Service::create_timeseries(&db, LIGHT_MEASUREMENTS_COLLECTION).await?;
+        }
+
+        if !collection_names
+            .iter()
+            .any(|c| c == WATER_LEVEL_MEASUREMENTS_COLLECTION)
+        {
+            Service::create_timeseries(&db, WATER_LEVEL_MEASUREMENTS_COLLECTION).await?;
+        }
+
+        Ok(Service {
+            air_measurements: db.collection::<StorageAirMeasurement>(AIR_MEASUREMENTS_COLLECTION),
+            light_measurements: db
+                .collection::<StorageLightMeasurement>(LIGHT_MEASUREMENTS_COLLECTION),
+
+            water_level_measurements: db
+                .collection::<StorageWaterLevelMeasurement>(WATER_LEVEL_MEASUREMENTS_COLLECTION),
+        })
+    }
+
+    async fn create_timeseries(db: &Database, name: &str) -> Result<(), AppError> {
+        let options = CreateCollectionOptions::builder()
             .timeseries(
                 TimeseriesOptions::builder()
                     .time_field(TIME_FIELD.into())
@@ -70,32 +93,27 @@ impl Service {
             )
             .build();
 
-        db.create_collection(AIR_MEASUREMENTS_COLLECTION, ts_options.clone())
+        db.create_collection(name, options)
             .await
-            .map_err(AppError::CreateCollection)?;
-
-        db.create_collection(LIGHT_MEASUREMENTS_COLLECTION, ts_options)
-            .await
-            .map_err(AppError::CreateCollection)?;
-
-        Ok(Service {
-            air_measurements: db.collection::<AirM>(AIR_MEASUREMENTS_COLLECTION),
-            light_measurements: db.collection::<LightMeasurements>(LIGHT_MEASUREMENTS_COLLECTION),
-        })
+            .map_err(AppError::CreateCollection)
     }
 }
 
 #[tonic::async_trait]
 impl MeasurementService for Service {
-    async fn create_air_measurements(
+    async fn create_air_measurement(
         &self,
-        request: Request<AirMeasurements>,
+        request: Request<AirMeasurement>,
     ) -> Result<Response<()>, Status> {
-        if let Err(err) = self
-            .air_measurements
-            .insert_one(AirM::from(request.into_inner()), None)
-            .await
-        {
+        let measurement = match StorageAirMeasurement::try_from(request.into_inner()) {
+            Ok(m) => m,
+            Err(err) => {
+                log::error!("could not convert air measurement to storage format: {err}");
+                return Err(Status::invalid_argument("invalid measurement"));
+            }
+        };
+
+        if let Err(err) = self.air_measurements.insert_one(measurement, None).await {
             let msg = format!("failed to insert air measurement: {err}");
             log::error!("{msg}");
             return Err(Status::unavailable(msg));
@@ -104,16 +122,56 @@ impl MeasurementService for Service {
         Ok(Response::new(()))
     }
 
-    async fn create_light_measurements(
+    async fn create_light_measurement(
         &self,
-        request: Request<LightMeasurements>,
+        request: Request<LightMeasurement>,
     ) -> Result<Response<()>, Status> {
+        let measurement = match StorageLightMeasurement::try_from(request.into_inner()) {
+            Ok(m) => m,
+            Err(err) => {
+                log::error!("could not convert light measurement to storage format: {err}");
+                return Err(Status::invalid_argument("invalid measurement"));
+            }
+        };
+
+        if let Err(err) = self.light_measurements.insert_one(measurement, None).await {
+            let msg = format!("failed to insert light measurement: {err}");
+            log::error!("{msg}");
+            return Err(Status::unavailable(msg));
+        }
+
+        // let t = "2024-01-11T21:02:27.866Z"
+        //     .parse::<chrono::DateTime<chrono::Utc>>()
+        //     .unwrap();
+        // let t = DateTime::from_chrono(t);
+        // let f = doc! {"measure_time": {"$gte": t}};
+        // let mut cursor = self.air_measurements.find(f, None).await.unwrap();
+
+        // while let Some(doc) = cursor.try_next().await.unwrap() {
+        //     println!("{:?}", doc)
+        // }
+
+        Ok(Response::new(()))
+    }
+
+    async fn create_water_level_measurement(
+        &self,
+        request: Request<WaterLevelMeasurement>,
+    ) -> Result<Response<()>, Status> {
+        let measurement = match StorageWaterLevelMeasurement::try_from(request.into_inner()) {
+            Ok(m) => m,
+            Err(err) => {
+                log::error!("could not convert water level measurement to storage format: {err}");
+                return Err(Status::invalid_argument("invalid measurement"));
+            }
+        };
+
         if let Err(err) = self
-            .light_measurements
-            .insert_one(request.into_inner(), None)
+            .water_level_measurements
+            .insert_one(measurement, None)
             .await
         {
-            let msg = format!("failed to insert light measurement: {err}");
+            let msg = format!("failed to insert water level measurement: {err}");
             log::error!("{msg}");
             return Err(Status::unavailable(msg));
         }

@@ -1,4 +1,6 @@
-use common::WaterLevelMeasurement;
+use std::time::SystemTime;
+
+use grow_utils::api::grow::WaterLevelMeasurement;
 
 use crate::{error::AppError, i2c::I2C};
 
@@ -67,13 +69,21 @@ impl WaterLevelSensor {
         }
 
         // read measurement result
-        let distance = self.i2c.read_reg_u16(REG_RESULT_RANGE_STATUS + 10).await?;
+        let distance = self
+            .i2c
+            .read_reg_u16(REG_RESULT_RANGE_STATUS + 10)
+            .await?
+            .into();
+
         // clear interrupt
         self.i2c
             .write_reg_byte(REG_SYSTEM_INTERRUPT_CLEAR, 0x01)
             .await?;
 
-        Ok(WaterLevelMeasurement { distance })
+        Ok(WaterLevelMeasurement {
+            measure_time: Some(SystemTime::now().into()),
+            distance,
+        })
     }
 
     async fn stop_measurement(&mut self) -> Result<(), AppError> {

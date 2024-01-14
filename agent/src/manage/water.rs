@@ -4,7 +4,7 @@ use super::{
 };
 use crate::error::AppError;
 use clap::Parser;
-use common::WaterLevelMeasurement;
+use grow_utils::api::grow::WaterLevelMeasurement;
 use tokio::sync::mpsc;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 

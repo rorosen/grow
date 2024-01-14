@@ -25,5 +25,4 @@ tokio = { workspace = true, features = [
     "io-util",
 ] }
 tokio-util = { workspace = true, features = ["rt"] }
-common.workspace = true
-api.workspace = true
+grow-utils.workspace = true

@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package grow;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service MeasurementService {
+    rpc CreateAirMeasurement (AirMeasurement) returns (google.protobuf.Empty);
+    rpc CreateLightMeasurement (LightMeasurement) returns (google.protobuf.Empty);
+    rpc CreateWaterLevelMeasurement (WaterLevelMeasurement) returns (google.protobuf.Empty);
+}
+
+message AirMeasurement {
+    google.protobuf.Timestamp measure_time = 1;
+    AirSample left = 2;
+    AirSample right = 3;
+}
+
+message AirSample {
+    double temperature = 1;
+    double humidity = 2;
+    double pressure = 3;
+    double resistance = 4;
+}
+
+message LightMeasurement {
+    google.protobuf.Timestamp measure_time = 1;
+    LightSample left = 2;
+    LightSample right= 3;
+}
+
+message LightSample {
+    double lux = 1;
+}
+
+message WaterLevelMeasurement {
+    google.protobuf.Timestamp measure_time = 1;
+    uint32 distance = 2;
+}

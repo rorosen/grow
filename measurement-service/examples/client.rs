@@ -1,23 +1,23 @@
-use api::gen::grow::{
-    measurement_service_client::MeasurementServiceClient, AirMeasurement, AirMeasurements,
-    LightMeasurement, LightMeasurements,
+use std::time::SystemTime;
+
+use grow_utils::api::grow::{
+    measurement_service_client::MeasurementServiceClient, AirMeasurement, AirSample,
+    LightMeasurement, LightSample, WaterLevelMeasurement,
 };
-use chrono::Utc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut client = MeasurementServiceClient::connect("http://[::1]:10001").await?;
 
-    let measure_time = Utc::now().timestamp_millis();
-    let air_request = tonic::Request::new(AirMeasurements {
-        measure_time: measure_time.clone(),
-        left: Some(AirMeasurement {
+    let air_request = tonic::Request::new(AirMeasurement {
+        measure_time: Some(SystemTime::now().into()),
+        left: Some(AirSample {
             temperature: 12.12,
             humidity: 13.13,
             pressure: 14.14,
             resistance: 15.15,
         }),
-        right: Some(AirMeasurement {
+        right: Some(AirSample {
             temperature: 1.1,
             humidity: 2.2,
             pressure: 3.3,
@@ -25,14 +25,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }),
     });
 
-    let light_request = tonic::Request::new(LightMeasurements {
-        measure_time,
-        left: Some(LightMeasurement { lux: 69.69 }),
-        right: Some(LightMeasurement { lux: 0.1 }),
+    let light_request = tonic::Request::new(LightMeasurement {
+        measure_time: Some(SystemTime::now().into()),
+        left: Some(LightSample { lux: 69.69 }),
+        right: None,
     });
 
-    client.create_air_measurements(air_request).await?;
-    client.create_light_measurements(light_request).await?;
+    let water_level_request = tonic::Request::new(WaterLevelMeasurement {
+        measure_time: Some(SystemTime::now().into()),
+        distance: 666,
+    });
+
+    client.create_air_measurement(air_request).await?;
+    client.create_light_measurement(light_request).await?;
+    client
+        .create_water_level_measurement(water_level_request)
+        .await?;
 
     Ok(())
 }
