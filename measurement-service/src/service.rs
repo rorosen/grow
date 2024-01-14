@@ -52,26 +52,10 @@ impl Service {
             .await
             .map_err(AppError::ListCollection)?;
 
-        if !collection_names
-            .iter()
-            .any(|c| c == AIR_MEASUREMENTS_COLLECTION)
-        {
-            Service::create_timeseries(&db, AIR_MEASUREMENTS_COLLECTION).await?;
-        }
-
-        if !collection_names
-            .iter()
-            .any(|c| c == LIGHT_MEASUREMENTS_COLLECTION)
-        {
-            Service::create_timeseries(&db, LIGHT_MEASUREMENTS_COLLECTION).await?;
-        }
-
-        if !collection_names
-            .iter()
-            .any(|c| c == WATER_LEVEL_MEASUREMENTS_COLLECTION)
-        {
-            Service::create_timeseries(&db, WATER_LEVEL_MEASUREMENTS_COLLECTION).await?;
-        }
+        Service::ensure_timeseries(&db, &collection_names, AIR_MEASUREMENTS_COLLECTION).await?;
+        Service::ensure_timeseries(&db, &collection_names, LIGHT_MEASUREMENTS_COLLECTION).await?;
+        Service::ensure_timeseries(&db, &collection_names, WATER_LEVEL_MEASUREMENTS_COLLECTION)
+            .await?;
 
         Ok(Service {
             air_measurements: db.collection::<StorageAirMeasurement>(AIR_MEASUREMENTS_COLLECTION),
@@ -83,19 +67,27 @@ impl Service {
         })
     }
 
-    async fn create_timeseries(db: &Database, name: &str) -> Result<(), AppError> {
-        let options = CreateCollectionOptions::builder()
-            .timeseries(
-                TimeseriesOptions::builder()
-                    .time_field(TIME_FIELD.into())
-                    .granularity(Some(TimeseriesGranularity::Minutes))
-                    .build(),
-            )
-            .build();
+    async fn ensure_timeseries(
+        db: &Database,
+        collection_names: &Vec<String>,
+        name: &str,
+    ) -> Result<(), AppError> {
+        if !collection_names.iter().any(|c| c == name) {
+            let options = CreateCollectionOptions::builder()
+                .timeseries(
+                    TimeseriesOptions::builder()
+                        .time_field(TIME_FIELD.into())
+                        .granularity(Some(TimeseriesGranularity::Minutes))
+                        .build(),
+                )
+                .build();
 
-        db.create_collection(name, options)
-            .await
-            .map_err(AppError::CreateCollection)
+            db.create_collection(name, options)
+                .await
+                .map_err(AppError::CreateCollection)?;
+        }
+
+        Ok(())
     }
 }
 
