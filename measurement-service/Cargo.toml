@@ -23,4 +23,6 @@ serde = { workspace = true, features = ["derive"] }
 mongodb = "2.8.0"
 chrono.workspace = true
 bson = { version = "2.8.1", features = ["chrono-0_4"] }
-futures-lite = "2.2.0"
+axum = "0.7.4"
+rand = "0.8.5"
+futures = "0.3.30"

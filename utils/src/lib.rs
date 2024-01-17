@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use api::grow::{AirMeasurement, AirSample, LightMeasurement, LightSample, WaterLevelMeasurement};
+use api::grow::{AirMeasurement, AirSample, LightMeasurement, WaterLevelMeasurement};
 use bson::DateTime;
 use serde::{Deserialize, Serialize};
 
@@ -8,9 +8,9 @@ pub mod api;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StorageAirMeasurement {
-    measure_time: DateTime,
-    left: Option<AirSample>,
-    right: Option<AirSample>,
+    pub measure_time: DateTime,
+    pub left: Option<AirSample>,
+    pub right: Option<AirSample>,
 }
 
 impl TryFrom<AirMeasurement> for StorageAirMeasurement {
@@ -21,7 +21,7 @@ impl TryFrom<AirMeasurement> for StorageAirMeasurement {
             return Err(String::from("message has no measure time"));
         };
 
-        let t = match SystemTime::try_from(time) {
+        let time = match SystemTime::try_from(time) {
             Ok(time) => time,
             Err(err) => {
                 return Err(format!(
@@ -31,7 +31,7 @@ impl TryFrom<AirMeasurement> for StorageAirMeasurement {
         };
 
         Ok(Self {
-            measure_time: DateTime::from_system_time(t),
+            measure_time: DateTime::from_system_time(time),
             left: value.left,
             right: value.right,
         })
@@ -41,8 +41,8 @@ impl TryFrom<AirMeasurement> for StorageAirMeasurement {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StorageLightMeasurement {
     measure_time: DateTime,
-    left: Option<LightSample>,
-    right: Option<LightSample>,
+    left: f64,
+    right: f64,
 }
 
 impl TryFrom<LightMeasurement> for StorageLightMeasurement {
@@ -53,7 +53,7 @@ impl TryFrom<LightMeasurement> for StorageLightMeasurement {
             return Err(String::from("message has no measure time"));
         };
 
-        let t = match SystemTime::try_from(time) {
+        let time = match SystemTime::try_from(time) {
             Ok(time) => time,
             Err(err) => {
                 return Err(format!(
@@ -63,7 +63,7 @@ impl TryFrom<LightMeasurement> for StorageLightMeasurement {
         };
 
         Ok(Self {
-            measure_time: DateTime::from_system_time(t),
+            measure_time: DateTime::from_system_time(time),
             left: value.left,
             right: value.right,
         })
@@ -84,7 +84,7 @@ impl TryFrom<WaterLevelMeasurement> for StorageWaterLevelMeasurement {
             return Err(String::from("message has no measure time"));
         };
 
-        let t = match SystemTime::try_from(time) {
+        let time = match SystemTime::try_from(time) {
             Ok(time) => time,
             Err(err) => {
                 return Err(format!(
@@ -94,7 +94,7 @@ impl TryFrom<WaterLevelMeasurement> for StorageWaterLevelMeasurement {
         };
 
         Ok(Self {
-            measure_time: DateTime::from_system_time(t),
+            measure_time: DateTime::from_system_time(time),
             distance: value.distance,
         })
     }

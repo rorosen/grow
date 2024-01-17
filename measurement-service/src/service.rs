@@ -1,38 +1,20 @@
-use clap::Parser;
 use grow_utils::{
     api::grow::{
-        measurement_service_server::MeasurementService, AirMeasurement, LightMeasurement,
-        WaterLevelMeasurement,
+        measurement_service_server::{MeasurementService, MeasurementServiceServer},
+        AirMeasurement, LightMeasurement, WaterLevelMeasurement,
     },
     StorageAirMeasurement, StorageLightMeasurement, StorageWaterLevelMeasurement,
 };
-use mongodb::{
-    options::{CreateCollectionOptions, TimeseriesGranularity, TimeseriesOptions},
-    Client, Collection, Database,
+use mongodb::{Collection, Database};
+use tonic::{transport::Server, Request, Response, Status};
+
+use crate::{
+    app::{
+        AIR_MEASUREMENTS_COLLECTION, LIGHT_MEASUREMENTS_COLLECTION,
+        WATER_LEVEL_MEASUREMENTS_COLLECTION,
+    },
+    error::AppError,
 };
-use tonic::{Request, Response, Status};
-
-use crate::error::AppError;
-
-const AIR_MEASUREMENTS_COLLECTION: &str = "air_measurements";
-const LIGHT_MEASUREMENTS_COLLECTION: &str = "light_measurements";
-const WATER_LEVEL_MEASUREMENTS_COLLECTION: &str = "water_level_measurements";
-const TIME_FIELD: &str = "measure_time";
-
-#[derive(Debug, Parser)]
-pub struct ServiceArgs {
-    /// The MongoDB connection string
-    #[arg(
-        long,
-        env = "GROW_MONGODB_URI",
-        default_value_t = String::from("mongodb://localhost:27017/measurements")
-    )]
-    mongodb_uri: String,
-
-    /// The database to use
-    #[arg(long, env = "GROW_DATABASE")]
-    database: String,
-}
 
 pub struct Service {
     air_measurements: Collection<StorageAirMeasurement>,
@@ -41,53 +23,26 @@ pub struct Service {
 }
 
 impl Service {
-    pub async fn new(args: ServiceArgs) -> Result<Self, AppError> {
-        let client = Client::with_uri_str(&args.mongodb_uri)
-            .await
-            .map_err(AppError::GetMongoClient)?;
-
-        let db = client.database(&args.database);
-        let collection_names = db
-            .list_collection_names(None)
-            .await
-            .map_err(AppError::ListCollection)?;
-
-        Service::ensure_timeseries(&db, &collection_names, AIR_MEASUREMENTS_COLLECTION).await?;
-        Service::ensure_timeseries(&db, &collection_names, LIGHT_MEASUREMENTS_COLLECTION).await?;
-        Service::ensure_timeseries(&db, &collection_names, WATER_LEVEL_MEASUREMENTS_COLLECTION)
-            .await?;
-
-        Ok(Service {
+    pub async fn new(db: &Database) -> Result<Self, AppError> {
+        Ok(Self {
             air_measurements: db.collection::<StorageAirMeasurement>(AIR_MEASUREMENTS_COLLECTION),
             light_measurements: db
                 .collection::<StorageLightMeasurement>(LIGHT_MEASUREMENTS_COLLECTION),
-
             water_level_measurements: db
                 .collection::<StorageWaterLevelMeasurement>(WATER_LEVEL_MEASUREMENTS_COLLECTION),
         })
     }
 
-    async fn ensure_timeseries(
-        db: &Database,
-        collection_names: &Vec<String>,
-        name: &str,
-    ) -> Result<(), AppError> {
-        if !collection_names.iter().any(|c| c == name) {
-            let options = CreateCollectionOptions::builder()
-                .timeseries(
-                    TimeseriesOptions::builder()
-                        .time_field(TIME_FIELD.into())
-                        .granularity(Some(TimeseriesGranularity::Minutes))
-                        .build(),
-                )
-                .build();
+    pub async fn run(self, address: String, port: u16) -> Result<(), AppError> {
+        let addr = format!("{}:{}", address, port)
+            .parse()
+            .map_err(AppError::AddrParse)?;
 
-            db.create_collection(name, options)
-                .await
-                .map_err(AppError::CreateCollection)?;
-        }
-
-        Ok(())
+        Server::builder()
+            .add_service(MeasurementServiceServer::new(self))
+            .serve(addr)
+            .await
+            .map_err(AppError::ServerError)
     }
 }
 

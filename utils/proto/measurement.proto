@@ -26,12 +26,8 @@ message AirSample {
 
 message LightMeasurement {
     google.protobuf.Timestamp measure_time = 1;
-    LightSample left = 2;
-    LightSample right= 3;
-}
-
-message LightSample {
-    double lux = 1;
+    double left = 2;
+    double right = 3;
 }
 
 message WaterLevelMeasurement {

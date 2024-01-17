@@ -18,6 +18,12 @@ pub enum AppError {
     #[error("failed to list mongo collections: {0}")]
     ListCollection(mongodb::error::Error),
 
-    #[error("failed to serve: {0}")]
+    #[error("failed to run server: {0}")]
     ServerError(tonic::transport::Error),
+
+    #[error("failed to run datasource: {0}")]
+    DatasourceError(std::io::Error),
+
+    #[error("task panicked: {0}")]
+    TaskPanic(tokio::task::JoinError),
 }

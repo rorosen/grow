@@ -2,7 +2,7 @@
 
 use crate::{error::AppError, i2c::I2C};
 use clap::Parser;
-use grow_utils::api::grow::{LightMeasurement, LightSample};
+use grow_utils::api::grow::LightMeasurement;
 use std::time::{Duration, SystemTime};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -29,10 +29,7 @@ impl LightSensor {
         Ok(Self { i2c })
     }
 
-    pub async fn measure(
-        &mut self,
-        cancel_token: CancellationToken,
-    ) -> Result<LightSample, AppError> {
+    pub async fn measure(&mut self, cancel_token: CancellationToken) -> Result<f64, AppError> {
         self.i2c
             .write_bytes(&[CMD_SET_MT_HIGH | (MT_REG_MAX >> 5)])
             .await?;
@@ -51,9 +48,7 @@ impl LightSensor {
             _ = tokio::time::sleep(WAIT_DURATION) => {
                 let mut buf = [0; 2];
                 self.i2c.read_bytes(&mut buf[..]).await?;
-                return Ok(LightSample {
-                    lux: ((((buf[0] as u32) << 8) | (buf[1] as u32)) as f64) / 1.2 * ((MT_REG_DEFAULT as f64) / (MT_REG_MAX as f64))
-                })
+                return Ok(((((buf[0] as u32) << 8) | (buf[1] as u32)) as f64) / 1.2 * ((MT_REG_DEFAULT as f64) / (MT_REG_MAX as f64)))
             }
         }
     }
@@ -116,18 +111,18 @@ impl LightSampler {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
                     let left_measurement = match self.left_sensor.measure(cancel_token.clone()).await {
-                        Ok(m) => Some(m),
+                        Ok(m) => m,
                         Err(err) => {
                             log::warn!("could not take left light measurement: {err}");
-                            None
+                            0.0
                         }
                     };
 
                     let right_measurement = match self.right_sensor.measure(cancel_token.clone()).await {
-                        Ok(m) => Some(m),
+                        Ok(m) => m,
                         Err(err) => {
                             log::warn!("could not take right light measurement: {err}");
-                            None
+                            0.0
                         }
                     };
 

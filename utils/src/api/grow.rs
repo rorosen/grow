@@ -26,17 +26,10 @@ pub struct AirSample {
 pub struct LightMeasurement {
     #[prost(message, optional, tag = "1")]
     pub measure_time: ::core::option::Option<::prost_types::Timestamp>,
-    #[prost(message, optional, tag = "2")]
-    pub left: ::core::option::Option<LightSample>,
-    #[prost(message, optional, tag = "3")]
-    pub right: ::core::option::Option<LightSample>,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct LightSample {
-    #[prost(double, tag = "1")]
-    pub lux: f64,
+    #[prost(double, tag = "2")]
+    pub left: f64,
+    #[prost(double, tag = "3")]
+    pub right: f64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use grow_utils::api::grow::{
     measurement_service_client::MeasurementServiceClient, AirMeasurement, AirSample,
-    LightMeasurement, LightSample, WaterLevelMeasurement,
+    LightMeasurement, WaterLevelMeasurement,
 };
 
 #[tokio::main]
@@ -27,8 +27,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let light_request = tonic::Request::new(LightMeasurement {
         measure_time: Some(SystemTime::now().into()),
-        left: Some(LightSample { lux: 69.69 }),
-        right: None,
+        left: 69.69,
+        right: 0.0,
     });
 
     let water_level_request = tonic::Request::new(WaterLevelMeasurement {
