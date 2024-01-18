@@ -12,4 +12,4 @@ tonic-build = "0.10.2"
 # shared dependencies
 tonic.workspace = true
 serde = { workspace = true, features = ["derive"] }
-bson = { workspace = "2.8.1", features = ["chrono-0_4"] }
+bson = { workspace = true, features = ["chrono-0_4"] }

@@ -40,9 +40,9 @@ impl TryFrom<AirMeasurement> for StorageAirMeasurement {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StorageLightMeasurement {
-    measure_time: DateTime,
-    left: f64,
-    right: f64,
+    pub measure_time: DateTime,
+    pub left: f64,
+    pub right: f64,
 }
 
 impl TryFrom<LightMeasurement> for StorageLightMeasurement {
@@ -72,8 +72,8 @@ impl TryFrom<LightMeasurement> for StorageLightMeasurement {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StorageWaterLevelMeasurement {
-    measure_time: DateTime,
-    distance: u32,
+    pub measure_time: DateTime,
+    pub distance: u32,
 }
 
 impl TryFrom<WaterLevelMeasurement> for StorageWaterLevelMeasurement {

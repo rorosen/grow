@@ -7,8 +7,11 @@ import "google/protobuf/timestamp.proto";
 
 service MeasurementService {
     rpc CreateAirMeasurement (AirMeasurement) returns (google.protobuf.Empty);
+    rpc BatchCreateAirMeasurements (BatchCreateAirMeasurementsRequest) returns (google.protobuf.Empty);
     rpc CreateLightMeasurement (LightMeasurement) returns (google.protobuf.Empty);
+    rpc BatchCreateLightMeasurements (BatchCreateLightMeasurementsRequest) returns (google.protobuf.Empty);
     rpc CreateWaterLevelMeasurement (WaterLevelMeasurement) returns (google.protobuf.Empty);
+    rpc BatchCreateWaterLevelMeasurements (BatchCreateWaterLevelMeasurementsRequest) returns (google.protobuf.Empty);
 }
 
 message AirMeasurement {
@@ -24,13 +27,25 @@ message AirSample {
     double resistance = 4;
 }
 
+message BatchCreateAirMeasurementsRequest {
+    repeated AirMeasurement air_measurements = 1;
+}
+
 message LightMeasurement {
     google.protobuf.Timestamp measure_time = 1;
     double left = 2;
     double right = 3;
 }
 
+message BatchCreateLightMeasurementsRequest {
+    repeated LightMeasurement light_measurements = 1;
+}
+
 message WaterLevelMeasurement {
     google.protobuf.Timestamp measure_time = 1;
     uint32 distance = 2;
+}
+
+message BatchCreateWaterLevelMeasurementsRequest {
+    repeated WaterLevelMeasurement water_level_measurement = 1;
 }

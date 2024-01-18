@@ -29,7 +29,7 @@ use self::types::{JsonLightMeasurement, JsonWaterLevelMeasurement};
 mod types;
 
 // parse-json
-// | project "time", "l-temp"="left.temperature", "left humidity"="left.humidity", "left pressure"="left.pressure", "left air resistance"="left.resistance", "right temperature"="right.temperature", "right humidity"="right.humidity", "right pressure"="right.pressure", "right air resistance"="right.resistance"
+// | project "time", "ltemp"="left.temperature", "left humidity"="left.humidity", "left pressure"="left.pressure", "left air resistance"="left.resistance", "right temperature"="right.temperature", "right humidity"="right.humidity", "right pressure"="right.pressure", "right air resistance"="right.resistance"
 
 pub struct Datasource {
     db: Database,
@@ -38,7 +38,7 @@ pub struct Datasource {
 impl Datasource {
     pub async fn new(db: Database) -> Self {
         let t = DateTime::now().timestamp_millis();
-        let c = (0..4000i64).rev().map(|n| StorageAirMeasurement {
+        let c = (0..3000i64).rev().map(|n| StorageAirMeasurement {
             measure_time: DateTime::from_millis(t - n * 300_000),
             left: Some(AirSample {
                 temperature: rand::thread_rng().gen_range(16.0..21.0),
@@ -55,6 +55,29 @@ impl Datasource {
         });
 
         db.collection::<StorageAirMeasurement>(AIR_MEASUREMENTS_COLLECTION)
+            .insert_many(c, None)
+            .await
+            .unwrap();
+
+        let t = DateTime::now().timestamp_millis();
+        let c = (0..3000i64).rev().map(|n| StorageLightMeasurement {
+            measure_time: DateTime::from_millis(t - n * 300_000),
+            left: rand::thread_rng().gen_range(10000.0..20000.0),
+            right: rand::thread_rng().gen_range(10000.0..20000.0),
+        });
+
+        db.collection::<StorageLightMeasurement>(LIGHT_MEASUREMENTS_COLLECTION)
+            .insert_many(c, None)
+            .await
+            .unwrap();
+
+        let t = DateTime::now().timestamp_millis();
+        let c = (0..3000i64).rev().map(|n| StorageWaterLevelMeasurement {
+            measure_time: DateTime::from_millis(t - n * 300_000),
+            distance: rand::thread_rng().gen_range(100..150),
+        });
+
+        db.collection::<StorageWaterLevelMeasurement>(WATER_LEVEL_MEASUREMENTS_COLLECTION)
             .insert_many(c, None)
             .await
             .unwrap();

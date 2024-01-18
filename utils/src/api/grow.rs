@@ -23,6 +23,12 @@ pub struct AirSample {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BatchCreateAirMeasurementsRequest {
+    #[prost(message, repeated, tag = "1")]
+    pub air_measurements: ::prost::alloc::vec::Vec<AirMeasurement>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LightMeasurement {
     #[prost(message, optional, tag = "1")]
     pub measure_time: ::core::option::Option<::prost_types::Timestamp>,
@@ -33,11 +39,23 @@ pub struct LightMeasurement {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BatchCreateLightMeasurementsRequest {
+    #[prost(message, repeated, tag = "1")]
+    pub light_measurements: ::prost::alloc::vec::Vec<LightMeasurement>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct WaterLevelMeasurement {
     #[prost(message, optional, tag = "1")]
     pub measure_time: ::core::option::Option<::prost_types::Timestamp>,
     #[prost(uint32, tag = "2")]
     pub distance: u32,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BatchCreateWaterLevelMeasurementsRequest {
+    #[prost(message, repeated, tag = "1")]
+    pub water_level_measurement: ::prost::alloc::vec::Vec<WaterLevelMeasurement>,
 }
 /// Generated client implementations.
 pub mod measurement_service_client {
@@ -148,6 +166,33 @@ pub mod measurement_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
+        pub async fn batch_create_air_measurements(
+            &mut self,
+            request: impl tonic::IntoRequest<super::BatchCreateAirMeasurementsRequest>,
+        ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/grow.MeasurementService/BatchCreateAirMeasurements",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "grow.MeasurementService",
+                        "BatchCreateAirMeasurements",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
         pub async fn create_light_measurement(
             &mut self,
             request: impl tonic::IntoRequest<super::LightMeasurement>,
@@ -169,6 +214,33 @@ pub mod measurement_service_client {
             req.extensions_mut()
                 .insert(
                     GrpcMethod::new("grow.MeasurementService", "CreateLightMeasurement"),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn batch_create_light_measurements(
+            &mut self,
+            request: impl tonic::IntoRequest<super::BatchCreateLightMeasurementsRequest>,
+        ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/grow.MeasurementService/BatchCreateLightMeasurements",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "grow.MeasurementService",
+                        "BatchCreateLightMeasurements",
+                    ),
                 );
             self.inner.unary(req, path, codec).await
         }
@@ -199,6 +271,35 @@ pub mod measurement_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
+        pub async fn batch_create_water_level_measurements(
+            &mut self,
+            request: impl tonic::IntoRequest<
+                super::BatchCreateWaterLevelMeasurementsRequest,
+            >,
+        ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/grow.MeasurementService/BatchCreateWaterLevelMeasurements",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "grow.MeasurementService",
+                        "BatchCreateWaterLevelMeasurements",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -212,13 +313,25 @@ pub mod measurement_service_server {
             &self,
             request: tonic::Request<super::AirMeasurement>,
         ) -> std::result::Result<tonic::Response<()>, tonic::Status>;
+        async fn batch_create_air_measurements(
+            &self,
+            request: tonic::Request<super::BatchCreateAirMeasurementsRequest>,
+        ) -> std::result::Result<tonic::Response<()>, tonic::Status>;
         async fn create_light_measurement(
             &self,
             request: tonic::Request<super::LightMeasurement>,
         ) -> std::result::Result<tonic::Response<()>, tonic::Status>;
+        async fn batch_create_light_measurements(
+            &self,
+            request: tonic::Request<super::BatchCreateLightMeasurementsRequest>,
+        ) -> std::result::Result<tonic::Response<()>, tonic::Status>;
         async fn create_water_level_measurement(
             &self,
             request: tonic::Request<super::WaterLevelMeasurement>,
+        ) -> std::result::Result<tonic::Response<()>, tonic::Status>;
+        async fn batch_create_water_level_measurements(
+            &self,
+            request: tonic::Request<super::BatchCreateWaterLevelMeasurementsRequest>,
         ) -> std::result::Result<tonic::Response<()>, tonic::Status>;
     }
     #[derive(Debug)]
@@ -350,6 +463,61 @@ pub mod measurement_service_server {
                     };
                     Box::pin(fut)
                 }
+                "/grow.MeasurementService/BatchCreateAirMeasurements" => {
+                    #[allow(non_camel_case_types)]
+                    struct BatchCreateAirMeasurementsSvc<T: MeasurementService>(
+                        pub Arc<T>,
+                    );
+                    impl<
+                        T: MeasurementService,
+                    > tonic::server::UnaryService<
+                        super::BatchCreateAirMeasurementsRequest,
+                    > for BatchCreateAirMeasurementsSvc<T> {
+                        type Response = ();
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<
+                                super::BatchCreateAirMeasurementsRequest,
+                            >,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MeasurementService>::batch_create_air_measurements(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = BatchCreateAirMeasurementsSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
                 "/grow.MeasurementService/CreateLightMeasurement" => {
                     #[allow(non_camel_case_types)]
                     struct CreateLightMeasurementSvc<T: MeasurementService>(pub Arc<T>);
@@ -385,6 +553,61 @@ pub mod measurement_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = CreateLightMeasurementSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/grow.MeasurementService/BatchCreateLightMeasurements" => {
+                    #[allow(non_camel_case_types)]
+                    struct BatchCreateLightMeasurementsSvc<T: MeasurementService>(
+                        pub Arc<T>,
+                    );
+                    impl<
+                        T: MeasurementService,
+                    > tonic::server::UnaryService<
+                        super::BatchCreateLightMeasurementsRequest,
+                    > for BatchCreateLightMeasurementsSvc<T> {
+                        type Response = ();
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<
+                                super::BatchCreateLightMeasurementsRequest,
+                            >,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MeasurementService>::batch_create_light_measurements(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = BatchCreateLightMeasurementsSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -437,6 +660,61 @@ pub mod measurement_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = CreateWaterLevelMeasurementSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/grow.MeasurementService/BatchCreateWaterLevelMeasurements" => {
+                    #[allow(non_camel_case_types)]
+                    struct BatchCreateWaterLevelMeasurementsSvc<T: MeasurementService>(
+                        pub Arc<T>,
+                    );
+                    impl<
+                        T: MeasurementService,
+                    > tonic::server::UnaryService<
+                        super::BatchCreateWaterLevelMeasurementsRequest,
+                    > for BatchCreateWaterLevelMeasurementsSvc<T> {
+                        type Response = ();
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<
+                                super::BatchCreateWaterLevelMeasurementsRequest,
+                            >,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MeasurementService>::batch_create_water_level_measurements(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = BatchCreateWaterLevelMeasurementsSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

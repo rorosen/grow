@@ -1,7 +1,8 @@
 use grow_utils::{
     api::grow::{
         measurement_service_server::{MeasurementService, MeasurementServiceServer},
-        AirMeasurement, LightMeasurement, WaterLevelMeasurement,
+        AirMeasurement, BatchCreateAirMeasurementsRequest, BatchCreateLightMeasurementsRequest,
+        BatchCreateWaterLevelMeasurementsRequest, LightMeasurement, WaterLevelMeasurement,
     },
     StorageAirMeasurement, StorageLightMeasurement, StorageWaterLevelMeasurement,
 };
@@ -69,6 +70,27 @@ impl MeasurementService for Service {
         Ok(Response::new(()))
     }
 
+    async fn batch_create_air_measurements(
+        &self,
+        request: Request<BatchCreateAirMeasurementsRequest>,
+    ) -> Result<Response<()>, Status> {
+        let measurements = request
+            .into_inner()
+            .air_measurements
+            .into_iter()
+            .map(|m| m.try_into())
+            .collect::<Result<Vec<StorageAirMeasurement>, String>>()
+            .map_err(|e| Status::invalid_argument(e))?;
+
+        if let Err(err) = self.air_measurements.insert_many(measurements, None).await {
+            let msg = format!("failed to insert air measurements: {err}");
+            log::error!("{msg}");
+            return Err(Status::unavailable(msg));
+        }
+
+        Ok(Response::new(()))
+    }
+
     async fn create_light_measurement(
         &self,
         request: Request<LightMeasurement>,
@@ -101,6 +123,31 @@ impl MeasurementService for Service {
         Ok(Response::new(()))
     }
 
+    async fn batch_create_light_measurements(
+        &self,
+        request: Request<BatchCreateLightMeasurementsRequest>,
+    ) -> Result<Response<()>, Status> {
+        let measurements = request
+            .into_inner()
+            .light_measurements
+            .into_iter()
+            .map(|m| m.try_into())
+            .collect::<Result<Vec<StorageLightMeasurement>, String>>()
+            .map_err(|e| Status::invalid_argument(e))?;
+
+        if let Err(err) = self
+            .light_measurements
+            .insert_many(measurements, None)
+            .await
+        {
+            let msg = format!("failed to insert light measurements: {err}");
+            log::error!("{msg}");
+            return Err(Status::unavailable(msg));
+        }
+
+        Ok(Response::new(()))
+    }
+
     async fn create_water_level_measurement(
         &self,
         request: Request<WaterLevelMeasurement>,
@@ -119,6 +166,31 @@ impl MeasurementService for Service {
             .await
         {
             let msg = format!("failed to insert water level measurement: {err}");
+            log::error!("{msg}");
+            return Err(Status::unavailable(msg));
+        }
+
+        Ok(Response::new(()))
+    }
+
+    async fn batch_create_water_level_measurements(
+        &self,
+        request: Request<BatchCreateWaterLevelMeasurementsRequest>,
+    ) -> Result<Response<()>, Status> {
+        let measurements = request
+            .into_inner()
+            .water_level_measurement
+            .into_iter()
+            .map(|m| m.try_into())
+            .collect::<Result<Vec<StorageWaterLevelMeasurement>, String>>()
+            .map_err(|e| Status::invalid_argument(e))?;
+
+        if let Err(err) = self
+            .water_level_measurements
+            .insert_many(measurements, None)
+            .await
+        {
+            let msg = format!("failed to insert water level measurements: {err}");
             log::error!("{msg}");
             return Err(Status::unavailable(msg));
         }
