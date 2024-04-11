@@ -9,7 +9,7 @@ use self::sensor::WaterLevelSensor;
 
 use super::parse_hex_u8;
 
-mod sensor;
+pub mod sensor;
 
 #[derive(Debug, Parser)]
 pub struct WaterLevelSampleArgs {

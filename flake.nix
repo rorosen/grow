@@ -1,7 +1,6 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
-    falke-utils.url = "github:numtide/flake-utils";
 
     crane = {
       url = "github:ipetkov/crane";
@@ -17,35 +16,38 @@
       url = "github:oxalica/rust-overlay";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
       };
     };
   };
 
-  outputs = {
-    self,
-    nixpkgs,
-    flake-utils,
-    crane,
-    deploy-rs,
-    rust-overlay,
-    ...
-  }:
-    flake-utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (localSystem: let
+  outputs =
+    { self
+    , nixpkgs
+    , crane
+    , deploy-rs
+    , rust-overlay
+    , ...
+    }:
+    let
+      system = "x86_64-linux";
       pkgs = import nixpkgs {
-        inherit localSystem;
-        overlays = [(import rust-overlay)];
+        inherit system;
+        overlays = [ (import rust-overlay) ];
       };
       toolchain = pkgs.rust-bin.stable.latest.default;
 
       crossPkgs = import nixpkgs {
-        inherit localSystem;
+        localSystem = system;
         crossSystem = "aarch64-linux";
-        overlays = [(import rust-overlay)];
+        overlays = [ (import rust-overlay) ];
       };
 
       crossToolchain = crossPkgs.pkgsBuildHost.rust-bin.stable.latest.default.override {
-        targets = ["aarch64-unknown-linux-gnu"];
+        targets = [ "aarch64-unknown-linux-gnu" ];
+      };
+
+      sampler = crossPkgs.callPackage ./nix/sampler.nix {
+        craneLib = (crane.mkLib crossPkgs).overrideToolchain crossToolchain;
       };
 
       agent = crossPkgs.callPackage ./nix/agent.nix {
@@ -55,26 +57,34 @@
       measurement-service = pkgs.callPackage ./nix/measurement-service.nix {
         craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
       };
-    in {
-      packages = {
-        inherit agent measurement-service;
+    in
+    {
+      packages.${system} = {
+        inherit sampler agent measurement-service;
         agent-service = import ./nix/agent-service.nix {
           inherit pkgs agent;
           inherit (nixpkgs.lib) nixosSystem;
         };
+        install-sampler = import ./nix/install-sampler.nix {
+          inherit pkgs sampler;
+        };
       };
 
-      devShells.default = pkgs.mkShell {
-        nativeBuildInputs = [pkgs.protobuf];
+      devShells.${system}.default = pkgs.mkShell {
+        nativeBuildInputs = [ pkgs.protobuf ];
       };
-    })
-    // {
+
+      overlays.default = final: prev: {
+        inherit agent measurement-service;
+      };
+
       deploy.nodes.growPi = {
         hostname = "192.168.50.63";
         profiles.grow = {
           user = "root";
           sshUser = "rob";
-          path = deploy-rs.lib.aarch64-linux.activate.custom self.packages.x86_64-linux.agent-service "./bin/activate";
+          # path = deploy-rs.lib.aarch64-linux.activate.custom self.packages.${system}.agent-service "./bin/activate";
+          path = deploy-rs.lib.aarch64-linux.activate.custom self.packages.${system}.install-sampler "./bin/activate-sampler";
         };
       };
     };

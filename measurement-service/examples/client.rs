@@ -25,22 +25,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }),
     });
 
-    let light_request = tonic::Request::new(LightMeasurement {
-        measure_time: Some(SystemTime::now().into()),
-        left: 69.69,
-        right: 0.0,
-    });
+    // let light_request = tonic::Request::new(LightMeasurement {
+    //     measure_time: Some(SystemTime::now().into()),
+    //     left: 69.69,
+    //     right: 0.0,
+    // });
 
-    let water_level_request = tonic::Request::new(WaterLevelMeasurement {
-        measure_time: Some(SystemTime::now().into()),
-        distance: 666,
-    });
+    // let water_level_request = tonic::Request::new(WaterLevelMeasurement {
+    //     measure_time: Some(SystemTime::now().into()),
+    //     distance: 666,
+    // });
 
     client.create_air_measurement(air_request).await?;
-    client.create_light_measurement(light_request).await?;
-    client
-        .create_water_level_measurement(water_level_request)
-        .await?;
+    // client.create_light_measurement(light_request).await?;
+    // client
+    //     .create_water_level_measurement(water_level_request)
+    //     .await?;
 
     Ok(())
 }

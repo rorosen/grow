@@ -1,37 +1,35 @@
-use grow_utils::{
-    api::grow::{
-        measurement_service_server::{MeasurementService, MeasurementServiceServer},
-        AirMeasurement, BatchCreateAirMeasurementsRequest, BatchCreateLightMeasurementsRequest,
-        BatchCreateWaterLevelMeasurementsRequest, LightMeasurement, WaterLevelMeasurement,
-    },
-    StorageAirMeasurement, StorageLightMeasurement, StorageWaterLevelMeasurement,
+use diesel::Connection;
+use diesel_async::{
+    async_connection_wrapper::AsyncConnectionWrapper,
+    pooled_connection::{deadpool::Pool, AsyncDieselConnectionManager},
+    AsyncPgConnection, RunQueryDsl,
 };
-use mongodb::{Collection, Database};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use grow_utils::api::grow::{
+    measurement_service_server::{MeasurementService, MeasurementServiceServer},
+    AirMeasurement, BatchCreateAirMeasurementsRequest, BatchCreateLightMeasurementsRequest,
+    BatchCreateWaterLevelMeasurementsRequest, LightMeasurement, WaterLevelMeasurement,
+};
 use tonic::{transport::Server, Request, Response, Status};
 
-use crate::{
-    app::{
-        AIR_MEASUREMENTS_COLLECTION, LIGHT_MEASUREMENTS_COLLECTION,
-        WATER_LEVEL_MEASUREMENTS_COLLECTION,
-    },
-    error::AppError,
-};
+use crate::{error::AppError, models::StorageAirMeasurement, schema};
+
+const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
 pub struct Service {
-    air_measurements: Collection<StorageAirMeasurement>,
-    light_measurements: Collection<StorageLightMeasurement>,
-    water_level_measurements: Collection<StorageWaterLevelMeasurement>,
+    pool: Pool<AsyncPgConnection>,
 }
 
 impl Service {
-    pub async fn new(db: &Database) -> Result<Self, AppError> {
-        Ok(Self {
-            air_measurements: db.collection::<StorageAirMeasurement>(AIR_MEASUREMENTS_COLLECTION),
-            light_measurements: db
-                .collection::<StorageLightMeasurement>(LIGHT_MEASUREMENTS_COLLECTION),
-            water_level_measurements: db
-                .collection::<StorageWaterLevelMeasurement>(WATER_LEVEL_MEASUREMENTS_COLLECTION),
-        })
+    pub async fn new(postgres_uri: String) -> Result<Self, AppError> {
+        run_migrations(postgres_uri.clone(), MIGRATIONS).await?;
+
+        let pool_config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(postgres_uri);
+        let pool = Pool::builder(pool_config)
+            .build()
+            .map_err(AppError::BuildPoolFailed)?;
+
+        Ok(Self { pool })
     }
 
     pub async fn run(self, address: String, port: u16) -> Result<(), AppError> {
@@ -53,19 +51,24 @@ impl MeasurementService for Service {
         &self,
         request: Request<AirMeasurement>,
     ) -> Result<Response<()>, Status> {
-        let measurement = match StorageAirMeasurement::try_from(request.into_inner()) {
-            Ok(m) => m,
-            Err(err) => {
-                log::error!("could not convert air measurement to storage format: {err}");
-                return Err(Status::invalid_argument("invalid measurement"));
-            }
-        };
+        let m = StorageAirMeasurement::try_from(request.into_inner()).map_err(|e| {
+            log::error!("failed to convert measurement: {e}");
+            Status::invalid_argument("failed to convert measurement")
+        })?;
 
-        if let Err(err) = self.air_measurements.insert_one(measurement, None).await {
-            let msg = format!("failed to insert air measurement: {err}");
-            log::error!("{msg}");
-            return Err(Status::unavailable(msg));
-        }
+        let mut conn = self.pool.get().await.map_err(|e| {
+            log::error!("failed to get postgresql connection: {e}");
+            Status::unavailable("failed to get postgresql connection")
+        })?;
+
+        diesel::insert_into(schema::air_measurements::table)
+            .values(&m)
+            .execute(&mut conn)
+            .await
+            .map_err(|e| {
+                log::error!("failed to insert measurement: {e}");
+                Status::unavailable("failed to insert measurement")
+            })?;
 
         Ok(Response::new(()))
     }
@@ -74,20 +77,6 @@ impl MeasurementService for Service {
         &self,
         request: Request<BatchCreateAirMeasurementsRequest>,
     ) -> Result<Response<()>, Status> {
-        let measurements = request
-            .into_inner()
-            .air_measurements
-            .into_iter()
-            .map(|m| m.try_into())
-            .collect::<Result<Vec<StorageAirMeasurement>, String>>()
-            .map_err(|e| Status::invalid_argument(e))?;
-
-        if let Err(err) = self.air_measurements.insert_many(measurements, None).await {
-            let msg = format!("failed to insert air measurements: {err}");
-            log::error!("{msg}");
-            return Err(Status::unavailable(msg));
-        }
-
         Ok(Response::new(()))
     }
 
@@ -95,31 +84,6 @@ impl MeasurementService for Service {
         &self,
         request: Request<LightMeasurement>,
     ) -> Result<Response<()>, Status> {
-        let measurement = match StorageLightMeasurement::try_from(request.into_inner()) {
-            Ok(m) => m,
-            Err(err) => {
-                log::error!("could not convert light measurement to storage format: {err}");
-                return Err(Status::invalid_argument("invalid measurement"));
-            }
-        };
-
-        if let Err(err) = self.light_measurements.insert_one(measurement, None).await {
-            let msg = format!("failed to insert light measurement: {err}");
-            log::error!("{msg}");
-            return Err(Status::unavailable(msg));
-        }
-
-        // let t = "2024-01-11T21:02:27.866Z"
-        //     .parse::<chrono::DateTime<chrono::Utc>>()
-        //     .unwrap();
-        // let t = DateTime::from_chrono(t);
-        // let f = doc! {"measure_time": {"$gte": t}};
-        // let mut cursor = self.air_measurements.find(f, None).await.unwrap();
-
-        // while let Some(doc) = cursor.try_next().await.unwrap() {
-        //     println!("{:?}", doc)
-        // }
-
         Ok(Response::new(()))
     }
 
@@ -127,24 +91,6 @@ impl MeasurementService for Service {
         &self,
         request: Request<BatchCreateLightMeasurementsRequest>,
     ) -> Result<Response<()>, Status> {
-        let measurements = request
-            .into_inner()
-            .light_measurements
-            .into_iter()
-            .map(|m| m.try_into())
-            .collect::<Result<Vec<StorageLightMeasurement>, String>>()
-            .map_err(|e| Status::invalid_argument(e))?;
-
-        if let Err(err) = self
-            .light_measurements
-            .insert_many(measurements, None)
-            .await
-        {
-            let msg = format!("failed to insert light measurements: {err}");
-            log::error!("{msg}");
-            return Err(Status::unavailable(msg));
-        }
-
         Ok(Response::new(()))
     }
 
@@ -152,24 +98,6 @@ impl MeasurementService for Service {
         &self,
         request: Request<WaterLevelMeasurement>,
     ) -> Result<Response<()>, Status> {
-        let measurement = match StorageWaterLevelMeasurement::try_from(request.into_inner()) {
-            Ok(m) => m,
-            Err(err) => {
-                log::error!("could not convert water level measurement to storage format: {err}");
-                return Err(Status::invalid_argument("invalid measurement"));
-            }
-        };
-
-        if let Err(err) = self
-            .water_level_measurements
-            .insert_one(measurement, None)
-            .await
-        {
-            let msg = format!("failed to insert water level measurement: {err}");
-            log::error!("{msg}");
-            return Err(Status::unavailable(msg));
-        }
-
         Ok(Response::new(()))
     }
 
@@ -177,24 +105,29 @@ impl MeasurementService for Service {
         &self,
         request: Request<BatchCreateWaterLevelMeasurementsRequest>,
     ) -> Result<Response<()>, Status> {
-        let measurements = request
-            .into_inner()
-            .water_level_measurement
-            .into_iter()
-            .map(|m| m.try_into())
-            .collect::<Result<Vec<StorageWaterLevelMeasurement>, String>>()
-            .map_err(|e| Status::invalid_argument(e))?;
-
-        if let Err(err) = self
-            .water_level_measurements
-            .insert_many(measurements, None)
-            .await
-        {
-            let msg = format!("failed to insert water level measurements: {err}");
-            log::error!("{msg}");
-            return Err(Status::unavailable(msg));
-        }
-
         Ok(Response::new(()))
     }
+}
+
+async fn run_migrations(
+    postgres_uri: String,
+    migrations: EmbeddedMigrations,
+) -> Result<(), AppError> {
+    tokio::task::spawn_blocking(move || {
+        let mut conn = AsyncConnectionWrapper::<AsyncPgConnection>::establish(&postgres_uri)
+            .map_err(|e| AppError::MigrationFailed(format!("could not connect: {e}")))?;
+
+        match conn.run_pending_migrations(migrations) {
+            Ok(versions) => {
+                versions
+                    .iter()
+                    .for_each(|v| log::info!("run embedded migration \"{v}\" successfully"));
+
+                Ok(())
+            }
+            Err(err) => Err(AppError::MigrationFailed(err.to_string())),
+        }
+    })
+    .await
+    .unwrap()
 }

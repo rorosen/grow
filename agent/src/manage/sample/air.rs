@@ -11,7 +11,7 @@ use self::air_sensor::AirSensor;
 
 use super::parse_hex_u8;
 
-mod air_sensor;
+pub mod air_sensor;
 mod params;
 mod sensor_data;
 #[derive(Debug, Parser)]

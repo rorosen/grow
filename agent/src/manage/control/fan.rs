@@ -9,7 +9,7 @@ use super::control_cyclic;
 #[derive(Debug, Clone, ValueEnum)]
 enum ControlMode {
     /// Disabled control
-    Disabled,
+    Off,
     /// Cyclic control
     Cyclic,
 }
@@ -68,7 +68,7 @@ pub enum FanController {
 impl FanController {
     pub fn new(args: &FanControlArgs) -> Result<Self, AppError> {
         match args.mode {
-            ControlMode::Disabled => Ok(Self::Disabled),
+            ControlMode::Off => Ok(Self::Disabled),
             ControlMode::Cyclic => {
                 let gpio = Gpio::new().map_err(AppError::InitGpioFailed)?;
                 let pin = gpio

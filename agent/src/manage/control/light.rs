@@ -10,7 +10,7 @@ use super::control_time_based;
 #[derive(Debug, Clone, ValueEnum)]
 enum ControlMode {
     /// Disabled
-    Disabled,
+    Off,
     /// Time-based control
     Time,
 }
@@ -67,7 +67,7 @@ pub enum LightController {
 impl LightController {
     pub fn new(args: &LightControlArgs) -> Result<Self, AppError> {
         match args.mode {
-            ControlMode::Disabled => Ok(Self::Disabled),
+            ControlMode::Off => Ok(Self::Disabled),
             ControlMode::Time => {
                 let gpio = Gpio::new().map_err(AppError::InitGpioFailed)?;
                 let pin = gpio

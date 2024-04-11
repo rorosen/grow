@@ -8,14 +8,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tonic_build::configure()
         .out_dir(out_dir)
-        .message_attribute(
-            "AirSample",
-            "#[derive(serde::Serialize, serde::Deserialize)]",
-        )
-        .message_attribute(
-            "LightSample",
-            "#[derive(serde::Serialize, serde::Deserialize)]",
-        )
         .include_file("mod.rs")
         .compile(&[proto], &[includes])?;
 
