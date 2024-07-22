@@ -4,14 +4,8 @@ version.workspace = true
 authors.workspace = true
 edition.workspace = true
 
-[[bin]]
-name = "sampler"
-
 [dependencies]
-# unique dependencies
-rppal = "0.14.1"
-nix = { version = "0.27.1", features = ["ioctl"] }
-# shared dependencies
+rppal.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
 chrono.workspace = true
 env_logger.workspace = true
@@ -29,3 +23,4 @@ tokio = { workspace = true, features = [
 ] }
 tokio-util = { workspace = true, features = ["rt"] }
 grow-utils.workspace = true
+grow-measure.workspace = true

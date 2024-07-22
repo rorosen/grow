@@ -21,12 +21,13 @@
   };
 
   outputs =
-    { self
-    , nixpkgs
-    , crane
-    , deploy-rs
-    , rust-overlay
-    , ...
+    {
+      self,
+      nixpkgs,
+      crane,
+      deploy-rs,
+      rust-overlay,
+      ...
     }:
     let
       system = "x86_64-linux";
@@ -34,7 +35,6 @@
         inherit system;
         overlays = [ (import rust-overlay) ];
       };
-      toolchain = pkgs.rust-bin.stable.latest.default;
 
       crossPkgs = import nixpkgs {
         localSystem = system;
@@ -46,36 +46,33 @@
         targets = [ "aarch64-unknown-linux-gnu" ];
       };
 
-      sampler = crossPkgs.callPackage ./nix/sampler.nix {
-        craneLib = (crane.mkLib crossPkgs).overrideToolchain crossToolchain;
-      };
-
-      agent = crossPkgs.callPackage ./nix/agent.nix {
-        craneLib = (crane.mkLib crossPkgs).overrideToolchain crossToolchain;
-      };
-
-      measurement-service = pkgs.callPackage ./nix/measurement-service.nix {
-        craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
-      };
+      craneLib = (crane.mkLib crossPkgs).overrideToolchain crossToolchain;
+      sampler = crossPkgs.callPackage ./nix/sampler.nix { inherit craneLib; };
+      agent = crossPkgs.callPackage ./nix/agent.nix { inherit craneLib; };
+      sensortest = crossPkgs.callPackage ./nix/sensortest.nix { inherit craneLib; };
+      gpiotest = crossPkgs.callPackage ./nix/gpiotest.nix { inherit craneLib; };
     in
     {
       packages.${system} = {
-        inherit sampler agent measurement-service;
+        inherit
+          sampler
+          agent
+          sensortest
+          gpiotest
+          ;
         agent-service = import ./nix/agent-service.nix {
           inherit pkgs agent;
           inherit (nixpkgs.lib) nixosSystem;
         };
-        install-sampler = import ./nix/install-sampler.nix {
-          inherit pkgs sampler;
-        };
+        install-sampler = import ./nix/install-sampler.nix { inherit pkgs sampler; };
       };
 
-      devShells.${system}.default = pkgs.mkShell {
-        nativeBuildInputs = [ pkgs.protobuf ];
-      };
+      devShells.${system}.default = pkgs.mkShell { nativeBuildInputs = [ pkgs.protobuf ]; };
 
-      overlays.default = final: prev: {
-        inherit agent measurement-service;
+      overlays.default = _final: _prev: {
+        grow-agent = agent;
+        grow-sensortest = sensortest;
+        grow-gpiotest = gpiotest;
       };
 
       deploy.nodes.growPi = {
@@ -83,8 +80,10 @@
         profiles.grow = {
           user = "root";
           sshUser = "rob";
-          # path = deploy-rs.lib.aarch64-linux.activate.custom self.packages.${system}.agent-service "./bin/activate";
-          path = deploy-rs.lib.aarch64-linux.activate.custom self.packages.${system}.install-sampler "./bin/activate-sampler";
+          path =
+            deploy-rs.lib.aarch64-linux.activate.custom self.packages.${system}.agent-service
+              "./bin/activate";
+          # path = deploy-rs.lib.aarch64-linux.activate.custom self.packages.${system}.install-sampler "./bin/activate-sampler";
         };
       };
     };

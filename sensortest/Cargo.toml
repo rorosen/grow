@@ -1,0 +1,11 @@
+[package]
+name = "grow-sensortest"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+grow-measure.workspace = true
+tokio = { workspace = true, features = ["rt"] }
+tokio-util.workspace = true

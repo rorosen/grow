@@ -1,0 +1,13 @@
+[package]
+name = "grow-measure"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+grow-hardware.workspace = true
+tokio-util.workspace = true
+log.workspace = true
+tokio = { workspace = true, features = ["time", "macros"] }
+serde = { workspace = true, features = ["derive"] }

@@ -4,7 +4,7 @@ use super::{
 };
 use crate::error::AppError;
 use clap::Parser;
-use grow_utils::api::grow::WaterLevelMeasurement;
+use grow_measure::WaterLevelMeasurement;
 use tokio::sync::mpsc;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
@@ -18,7 +18,7 @@ pub struct WaterArgs {
 }
 
 pub struct WaterManager {
-    receiver: mpsc::Receiver<(&'static str, WaterLevelMeasurement)>,
+    receiver: mpsc::Receiver<WaterLevelMeasurement>,
     controller: PumpController,
     sampler: WaterLevelSampler,
 }
@@ -48,8 +48,8 @@ impl WaterManager {
                     log::debug!("all water manager tasks finished");
                     return;
                 }
-                Some((id, measurement)) = self.receiver.recv() => {
-                    log::info!("received {id} water level measurement: {measurement:?}");
+                Some(measurement) = self.receiver.recv() => {
+                    log::info!("water level measurement: {measurement:?}");
                 }
             }
         }

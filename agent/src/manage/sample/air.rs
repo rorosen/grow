@@ -1,19 +1,14 @@
 use std::time::{Duration, SystemTime};
 
 use clap::Parser;
-use grow_utils::api::grow::AirMeasurement;
+use grow_measure::{air::AirSensor, AirMeasurement};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 use crate::error::AppError;
 
-use self::air_sensor::AirSensor;
-
 use super::parse_hex_u8;
 
-pub mod air_sensor;
-mod params;
-mod sensor_data;
 #[derive(Debug, Parser)]
 pub struct AirSampleArgs {
     /// The I2C address of the left air sensor
@@ -46,8 +41,14 @@ pub struct AirSampleArgs {
     sample_rate_secs: u64,
 }
 
+pub struct AirSample {
+    pub measure_time: SystemTime,
+    pub left: Option<AirMeasurement>,
+    pub right: Option<AirMeasurement>,
+}
+
 pub struct AirSampler {
-    sender: mpsc::Sender<AirMeasurement>,
+    sender: mpsc::Sender<AirSample>,
     left_sensor: AirSensor,
     right_sensor: AirSensor,
     sample_rate: Duration,
@@ -56,7 +57,7 @@ pub struct AirSampler {
 impl AirSampler {
     pub async fn new(
         args: &AirSampleArgs,
-        sender: mpsc::Sender<AirMeasurement>,
+        sender: mpsc::Sender<AirSample>,
     ) -> Result<Self, AppError> {
         Ok(Self {
             sender,
@@ -86,14 +87,18 @@ impl AirSampler {
                         }
                     };
 
-                    self.sender
-                        .send(AirMeasurement{
-                            measure_time: Some(SystemTime::now().into()),
+                    if left_measurement.is_some() || right_measurement.is_some() {
+                        let sample = AirSample {
+                            measure_time: SystemTime::now(),
                             left: left_measurement,
-                            right: right_measurement
-                        })
-                        .await
-                        .expect("air measurements channel is open");
+                            right: right_measurement,
+                        };
+
+                        self.sender
+                            .send(sample)
+                            .await
+                            .expect("air measurements channel is open");
+                    }
                 }
                 _ = cancel_token.cancelled() => {
                     log::debug!("shutting down air sampler");

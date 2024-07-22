@@ -1,11 +1,11 @@
 [workspace]
-members = ["agent", "utils", "measurement-service"]
+members = ["agent", "measure", "hardware", "sensortest", "gpiotest"]
 resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-authors = ["Robert Rose"]
+authors = ["rorosen"]
 
 [workspace.dependencies]
 serde = "1.0.193"
@@ -18,4 +18,8 @@ tokio = "1.32.0"
 tokio-util = "0.7.10"
 tonic = "0.10.2"
 bson = "2.8.1"
+anyhow = "1.0.86"
+rppal = "0.18.0"
 grow-utils = { path = "./utils" }
+grow-hardware = { path = "./hardware" }
+grow-measure = { path = "./measure" }
