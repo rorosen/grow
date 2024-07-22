@@ -6,7 +6,7 @@ pub mod light;
 pub mod water_level;
 
 #[derive(Debug, thiserror::Error)]
-pub enum SensorError {
+pub enum Error {
     #[error("sensor transport error")]
     Transport(#[from] I2cError),
 

@@ -1,9 +1,8 @@
+use anyhow::{Context, Result};
 use chrono::NaiveTime;
 use clap::{Parser, ValueEnum};
 use rppal::gpio::{Gpio, OutputPin};
 use tokio_util::sync::CancellationToken;
-
-use crate::error::AppError;
 
 use super::control_time_based;
 
@@ -65,14 +64,14 @@ pub enum LightController {
 }
 
 impl LightController {
-    pub fn new(args: &LightControlArgs) -> Result<Self, AppError> {
+    pub fn new(args: &LightControlArgs) -> Result<Self> {
         match args.mode {
             ControlMode::Off => Ok(Self::Disabled),
             ControlMode::Time => {
-                let gpio = Gpio::new().map_err(AppError::InitGpioFailed)?;
+                let gpio = Gpio::new().context("failed to initialize GPIO")?;
                 let pin = gpio
                     .get(args.pin)
-                    .map_err(AppError::GetGpioFailed)?
+                    .with_context(|| format!("failed to get gpio pin {}", args.pin))?
                     .into_output();
 
                 Ok(Self::Time {
@@ -84,7 +83,7 @@ impl LightController {
         }
     }
 
-    pub async fn run(self, cancel_token: CancellationToken) -> Result<(), AppError> {
+    pub async fn run(self, cancel_token: CancellationToken) -> Result<()> {
         match self {
             LightController::Disabled => Ok(()),
             LightController::Time {

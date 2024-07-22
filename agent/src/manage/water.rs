@@ -2,7 +2,7 @@ use super::{
     control::pump::{PumpControlArgs, PumpController},
     sample::water_level::{WaterLevelSampleArgs, WaterLevelSampler},
 };
-use crate::error::AppError;
+use anyhow::{Context, Result};
 use clap::Parser;
 use grow_measure::WaterLevelMeasurement;
 use tokio::sync::mpsc;
@@ -24,12 +24,14 @@ pub struct WaterManager {
 }
 
 impl WaterManager {
-    pub fn new(args: &WaterArgs) -> Result<Self, AppError> {
+    pub fn new(args: &WaterArgs) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
+        let controller =
+            PumpController::new(&args.control).context("failed to initialize pump controller")?;
 
         Ok(Self {
             receiver,
-            controller: PumpController::new(&args.control)?,
+            controller,
             sampler: WaterLevelSampler::new(&args.sample, sender),
         })
     }

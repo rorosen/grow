@@ -3,7 +3,7 @@ use super::{
     sample::air::{AirSample, AirSampleArgs, AirSampler},
 };
 
-use crate::error::AppError;
+use anyhow::{Context, Result};
 use clap::Parser;
 use tokio::sync::mpsc;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
@@ -24,13 +24,16 @@ pub struct AirManager {
 }
 
 impl AirManager {
-    pub async fn new(args: &AirArgs) -> Result<Self, AppError> {
+    pub async fn new(args: &AirArgs) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
+        let controller = ExhaustController::new(&args.control)
+            .context("failed to initialize exhaust fan controller")?;
+        let sampler = AirSampler::new(&args.sample, sender).await?;
 
         Ok(Self {
             receiver,
-            controller: ExhaustController::new(&args.control)?,
-            sampler: AirSampler::new(&args.sample, sender).await?,
+            controller,
+            sampler,
         })
     }
 

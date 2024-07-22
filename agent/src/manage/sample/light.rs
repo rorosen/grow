@@ -1,11 +1,9 @@
-use std::time::{Duration, SystemTime};
-
+use anyhow::{Context, Result};
 use clap::Parser;
 use grow_measure::{light::LightSensor, LightMeasurement};
+use std::time::{Duration, SystemTime};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-
-use crate::error::AppError;
 
 use super::parse_hex_u8;
 
@@ -55,14 +53,18 @@ pub struct LightSampler {
 }
 
 impl LightSampler {
-    pub async fn new(
-        args: &LightSampleArgs,
-        sender: mpsc::Sender<LightSample>,
-    ) -> Result<Self, AppError> {
+    pub async fn new(args: &LightSampleArgs, sender: mpsc::Sender<LightSample>) -> Result<Self> {
+        let left_sensor = LightSensor::new(args.left_address)
+            .await
+            .context("failed to initialize left light sensor")?;
+        let right_sensor = LightSensor::new(args.right_address)
+            .await
+            .context("failed to initialize right air sensor")?;
+
         Ok(Self {
             sender,
-            left_sensor: LightSensor::new(args.left_address).await?,
-            right_sensor: LightSensor::new(args.right_address).await?,
+            left_sensor,
+            right_sensor,
             sample_rate: Duration::from_secs(args.sample_rate_secs),
         })
     }

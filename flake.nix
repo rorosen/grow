@@ -7,11 +7,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    deploy-rs = {
-      url = "github:serokell/deploy-rs";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
       inputs = {
@@ -22,10 +17,8 @@
 
   outputs =
     {
-      self,
       nixpkgs,
       crane,
-      deploy-rs,
       rust-overlay,
       ...
     }:
@@ -67,24 +60,10 @@
         install-sampler = import ./nix/install-sampler.nix { inherit pkgs sampler; };
       };
 
-      devShells.${system}.default = pkgs.mkShell { nativeBuildInputs = [ pkgs.protobuf ]; };
-
       overlays.default = _final: _prev: {
         grow-agent = agent;
         grow-sensortest = sensortest;
         grow-gpiotest = gpiotest;
-      };
-
-      deploy.nodes.growPi = {
-        hostname = "192.168.50.63";
-        profiles.grow = {
-          user = "root";
-          sshUser = "rob";
-          path =
-            deploy-rs.lib.aarch64-linux.activate.custom self.packages.${system}.agent-service
-              "./bin/activate";
-          # path = deploy-rs.lib.aarch64-linux.activate.custom self.packages.${system}.install-sampler "./bin/activate-sampler";
-        };
       };
     };
 }

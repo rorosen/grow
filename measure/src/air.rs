@@ -5,7 +5,7 @@ use params::Params;
 use sensor_data::SensorData;
 use tokio_util::sync::CancellationToken;
 
-use crate::{AirMeasurement, SensorError};
+use crate::{AirMeasurement, Error};
 
 mod params;
 mod sensor_data;
@@ -47,7 +47,7 @@ pub struct AirSensor {
 }
 
 impl AirSensor {
-    pub async fn new(address: u8) -> Result<Self, SensorError> {
+    pub async fn new(address: u8) -> Result<Self, Error> {
         let mut i2c = I2C::new(address).await?;
         let params = match Self::init_params(&mut i2c).await {
             Ok(params) => Some(params),
@@ -63,7 +63,7 @@ impl AirSensor {
     pub async fn measure(
         &mut self,
         cancel_token: CancellationToken,
-    ) -> Result<AirMeasurement, SensorError> {
+    ) -> Result<AirMeasurement, Error> {
         if self.params.is_none() {
             self.params = Self::init_params(&mut self.i2c).await.ok();
         }
@@ -75,8 +75,8 @@ impl AirSensor {
         self.set_op_mode(MODE_FORCED).await?;
         let data = self.read_sensor_data(cancel_token).await?;
 
-        let Some(params) = self.params.as_ref() else {
-            return Err(SensorError::NotInit("BME680"));
+        let Some(ref params) = self.params else {
+            return Err(Error::NotInit("BME680"));
         };
 
         let (t_fine, temperature) = params.calc_temperature(data.temp_adc);
@@ -92,7 +92,7 @@ impl AirSensor {
     async fn read_sensor_data(
         &mut self,
         cancel_token: CancellationToken,
-    ) -> Result<SensorData, SensorError> {
+    ) -> Result<SensorData, Error> {
         let mut buf = [0; DATA_SIZE];
         self.i2c.read_reg_bytes(REG_DATA0, &mut buf).await?;
 
@@ -103,7 +103,7 @@ impl AirSensor {
         loop {
             tokio::select! {
                 _ = cancel_token.cancelled() => {
-                    return Err(SensorError::Cancelled);
+                    return Err(Error::Cancelled);
                 },
                 _ = tokio::time::sleep(Duration::from_millis(10)) => {
                     self.i2c.read_reg_bytes(REG_DATA0, &mut buf).await?;
@@ -116,7 +116,7 @@ impl AirSensor {
         }
     }
 
-    async fn set_op_mode(&mut self, mode: u8) -> Result<(), SensorError> {
+    async fn set_op_mode(&mut self, mode: u8) -> Result<(), Error> {
         let ctr_meas = self.i2c.read_reg_byte(REG_CTRL_MEAS).await?;
         self.i2c
             .write_reg_byte(REG_CTRL_MEAS, (ctr_meas & !MODE_MASK) | mode)
@@ -130,7 +130,7 @@ impl AirSensor {
         humidity: u8,
         temperature: u8,
         pressure: u8,
-    ) -> Result<(), SensorError> {
+    ) -> Result<(), Error> {
         const OSRS_HMASK: u8 = 0x07;
         const OSRS_TMASK: u8 = 0xE0;
         const OSRS_PMASK: u8 = 0x1C;
@@ -159,9 +159,9 @@ impl AirSensor {
         ambient_temperature: i8,
         temperature: u16,
         duration: u16,
-    ) -> Result<(), SensorError> {
+    ) -> Result<(), Error> {
         let Some(ref params) = self.params else {
-            return Err(SensorError::NotInit("BME680"));
+            return Err(Error::NotInit("BME680"));
         };
 
         self.i2c
@@ -181,11 +181,11 @@ impl AirSensor {
         Ok(())
     }
 
-    async fn init_params(i2c: &mut I2C) -> Result<Params, SensorError> {
+    async fn init_params(i2c: &mut I2C) -> Result<Params, Error> {
         let id = i2c.read_reg_byte(REG_CHIP_ID).await?;
 
         if id != CHIP_ID {
-            return Err(SensorError::IdentifyFailed(String::from("air (BME680)")));
+            return Err(Error::IdentifyFailed(String::from("air (BME680)")));
         }
 
         i2c.write_reg_byte(REG_RESET, CMD_SOFT_RESET).await?;

@@ -1,15 +1,13 @@
-use std::time::Duration;
-
 use grow_hardware::i2c::I2C;
+use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
-use crate::{SensorError, WaterLevelMeasurement};
+use crate::{Error, WaterLevelMeasurement};
 
 const IDENTIFICATION_MODEL_ID: u8 = 0xEE;
 const RANGE_SEQUENCE_STEP_DSS: u8 = 0x28;
 const RANGE_SEQUENCE_STEP_PRE_RANGE: u8 = 0x40;
 const RANGE_SEQUENCE_STEP_FINAL_RANGE: u8 = 0x80;
-const SENSOR_NAME: &str = "water level (VL53L0X)";
 
 // register addresses
 const REG_IDENTIFICATION_MODEL_ID: u8 = 0xC0;
@@ -27,25 +25,20 @@ const REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT: u8 = 0x44;
 // VL53L0X
 pub struct WaterLevelSensor {
     i2c: I2C,
-    stop_variable: u8,
+    stop_variable: Option<u8>,
 }
 
 impl WaterLevelSensor {
-    pub async fn new(address: u8) -> Result<Self, SensorError> {
+    pub async fn new(address: u8) -> Result<Self, Error> {
         let mut i2c = I2C::new(address).await?;
 
-        let device_id = i2c.read_reg_byte(REG_IDENTIFICATION_MODEL_ID).await?;
-
-        if device_id != IDENTIFICATION_MODEL_ID {
-            return Err(SensorError::IdentifyFailed(SENSOR_NAME.into()));
-        }
-
-        log::debug!("identified {} sensor at 0x{:02x}", SENSOR_NAME, address);
-        let stop_variable = WaterLevelSensor::init_data(&mut i2c).await?;
-
-        WaterLevelSensor::init_static(&mut i2c).await?;
-        WaterLevelSensor::perform_ref_calibration(&mut i2c).await?;
-        log::debug!("initialized {} sensor", SENSOR_NAME);
+        let stop_variable = match Self::init(&mut i2c).await {
+            Ok(var) => Some(var),
+            Err(err) => {
+                log::warn!("failed to initialize water level sensor: {err:#}");
+                None
+            }
+        };
 
         Ok(Self { i2c, stop_variable })
     }
@@ -53,9 +46,10 @@ impl WaterLevelSensor {
     pub async fn measure(
         &mut self,
         cancel_token: CancellationToken,
-    ) -> Result<WaterLevelMeasurement, SensorError> {
+    ) -> Result<WaterLevelMeasurement, Error> {
+        let stop_variable = self.stop_variable.ok_or(Error::NotInit("water level"))?;
         // stop any ongoing measurement
-        self.stop_measurement().await?;
+        self.stop_measurement(stop_variable).await?;
         // trigger new range measurement
         self.i2c.write_reg_byte(REG_SYSRANGE_START, 0x01).await?;
 
@@ -63,7 +57,7 @@ impl WaterLevelSensor {
         loop {
             tokio::select! {
                 _ = cancel_token.cancelled() => {
-                    return Err(SensorError::Cancelled);
+                    return Err(Error::Cancelled);
                 },
                 _ = tokio::time::sleep(Duration::from_millis(10)) => {
                     let sysrange_start = self.i2c.read_reg_byte(REG_SYSRANGE_START).await?;
@@ -78,7 +72,7 @@ impl WaterLevelSensor {
         loop {
             tokio::select! {
                 _ = cancel_token.cancelled() => {
-                    return Err(SensorError::Cancelled);
+                    return Err(Error::Cancelled);
                 },
                 _ = tokio::time::sleep(Duration::from_millis(10)) => {
                     let interrupt_status = self.i2c.read_reg_byte(REG_RESULT_INTERRUPT_STATUS).await?;
@@ -104,11 +98,24 @@ impl WaterLevelSensor {
         Ok(WaterLevelMeasurement(distance))
     }
 
-    async fn stop_measurement(&mut self) -> Result<(), SensorError> {
+    async fn init(i2c: &mut I2C) -> Result<u8, Error> {
+        let device_id = i2c.read_reg_byte(REG_IDENTIFICATION_MODEL_ID).await?;
+        if device_id != IDENTIFICATION_MODEL_ID {
+            return Err(Error::IdentifyFailed("water level".into()));
+        }
+
+        let stop_variable = WaterLevelSensor::init_data(i2c).await?;
+        WaterLevelSensor::init_static(i2c).await?;
+        WaterLevelSensor::perform_ref_calibration(i2c).await?;
+
+        Ok(stop_variable)
+    }
+
+    async fn stop_measurement(&mut self, stop_variable: u8) -> Result<(), Error> {
         self.i2c.write_reg_byte(0x80, 0x01).await?;
         self.i2c.write_reg_byte(0xFF, 0x01).await?;
         self.i2c.write_reg_byte(0x00, 0x00).await?;
-        self.i2c.write_reg_byte(0x91, self.stop_variable).await?;
+        self.i2c.write_reg_byte(0x91, stop_variable).await?;
         self.i2c.write_reg_byte(0x00, 0x01).await?;
         self.i2c.write_reg_byte(0xFF, 0x00).await?;
         self.i2c.write_reg_byte(0x80, 0x00).await?;
@@ -116,7 +123,7 @@ impl WaterLevelSensor {
         Ok(())
     }
 
-    async fn init_data(i2c: &mut I2C) -> Result<u8, SensorError> {
+    async fn init_data(i2c: &mut I2C) -> Result<u8, Error> {
         // set 2v8 mode
         i2c.set_reg_bits(REG_VHV_CONFIG_PAD_SCL_SDA_EXTSUP_HV, 0x01)
             .await?;
@@ -143,7 +150,7 @@ impl WaterLevelSensor {
         Ok(stop_variable)
     }
 
-    async fn init_static(i2c: &mut I2C) -> Result<(), SensorError> {
+    async fn init_static(i2c: &mut I2C) -> Result<(), Error> {
         // load default tuning settings
         i2c.write_reg_byte(0xFF, 0x01).await?;
         i2c.write_reg_byte(0x00, 0x00).await?;
@@ -249,7 +256,7 @@ impl WaterLevelSensor {
         Ok(())
     }
 
-    async fn perform_ref_calibration(i2c: &mut I2C) -> Result<(), SensorError> {
+    async fn perform_ref_calibration(i2c: &mut I2C) -> Result<(), Error> {
         WaterLevelSensor::perform_single_ref_calibration(i2c, 0x01, 0x01 | 0x40).await?;
         WaterLevelSensor::perform_single_ref_calibration(i2c, 0x02, 0x01 | 0x00).await?;
 
@@ -269,7 +276,7 @@ impl WaterLevelSensor {
         i2c: &mut I2C,
         sequence_config: u8,
         sysrange_start: u8,
-    ) -> Result<(), SensorError> {
+    ) -> Result<(), Error> {
         i2c.write_reg_byte(REG_SYSTEM_SEQUENCE_CONFIG, sequence_config)
             .await?;
         i2c.write_reg_byte(REG_SYSRANGE_START, sysrange_start)
@@ -278,6 +285,7 @@ impl WaterLevelSensor {
         let mut interrupt_status = i2c.read_reg_byte(REG_RESULT_INTERRUPT_STATUS).await?;
 
         while (interrupt_status & 0x07) == 0 {
+            tokio::time::sleep(Duration::from_millis(10)).await;
             interrupt_status = i2c.read_reg_byte(REG_RESULT_INTERRUPT_STATUS).await?;
         }
 

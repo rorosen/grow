@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use anyhow::{Context, Result};
 use clap::Parser;
 use rppal::gpio::Gpio;
 
@@ -26,11 +26,11 @@ pub struct AirPumpControlArgs {
 pub struct AirPumpController;
 
 impl AirPumpController {
-    pub fn set(args: &AirPumpControlArgs) -> Result<(), AppError> {
-        let gpio = Gpio::new().map_err(AppError::InitGpioFailed)?;
+    pub fn set(args: &AirPumpControlArgs) -> Result<()> {
+        let gpio = Gpio::new().context("failed to initialize GPIO")?;
         let mut pin = gpio
             .get(args.pin)
-            .map_err(AppError::GetGpioFailed)?
+            .with_context(|| format!("failed to get gpio pin {}", args.pin))?
             .into_output();
 
         pin.set_reset_on_drop(false);

@@ -4,7 +4,7 @@ use grow_hardware::i2c::I2C;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
-use crate::{LightMeasurement, SensorError};
+use crate::{Error, LightMeasurement};
 
 const MODE_ONE_TIME_HIGH_RES: u8 = 0x20;
 const WAIT_DURATION: Duration = Duration::from_millis(200);
@@ -20,7 +20,7 @@ pub struct LightSensor {
 }
 
 impl LightSensor {
-    pub async fn new(address: u8) -> Result<Self, SensorError> {
+    pub async fn new(address: u8) -> Result<Self, Error> {
         let i2c = I2C::new(address).await?;
 
         Ok(Self { i2c })
@@ -29,7 +29,7 @@ impl LightSensor {
     pub async fn measure(
         &mut self,
         cancel_token: CancellationToken,
-    ) -> Result<LightMeasurement, SensorError> {
+    ) -> Result<LightMeasurement, Error> {
         self.i2c
             .write_bytes(&[CMD_SET_MT_HIGH | (MT_REG_MAX >> 5)])
             .await?;
@@ -43,7 +43,7 @@ impl LightSensor {
         tokio::select! {
             _ = cancel_token.cancelled() => {
                 log::debug!("aborting light measurement: token cancelled");
-                return Err(SensorError::Cancelled);
+                return Err(Error::Cancelled);
             }
             _ = tokio::time::sleep(WAIT_DURATION) => {
                 let mut buf = [0; 2];

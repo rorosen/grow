@@ -1,11 +1,9 @@
-use std::time::{Duration, SystemTime};
-
+use anyhow::{Context, Result};
 use clap::Parser;
 use grow_measure::{air::AirSensor, AirMeasurement};
+use std::time::{Duration, SystemTime};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-
-use crate::error::AppError;
 
 use super::parse_hex_u8;
 
@@ -55,14 +53,18 @@ pub struct AirSampler {
 }
 
 impl AirSampler {
-    pub async fn new(
-        args: &AirSampleArgs,
-        sender: mpsc::Sender<AirSample>,
-    ) -> Result<Self, AppError> {
+    pub async fn new(args: &AirSampleArgs, sender: mpsc::Sender<AirSample>) -> Result<Self> {
+        let left_sensor = AirSensor::new(args.left_address)
+            .await
+            .context("failed to initialize left air sensor")?;
+        let right_sensor = AirSensor::new(args.right_address)
+            .await
+            .context("failed to initialize right air sensor")?;
+
         Ok(Self {
             sender,
-            left_sensor: AirSensor::new(args.left_address).await?,
-            right_sensor: AirSensor::new(args.right_address).await?,
+            left_sensor,
+            right_sensor,
             sample_rate: Duration::from_secs(args.sample_rate_secs),
         })
     }

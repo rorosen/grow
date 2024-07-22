@@ -2,7 +2,7 @@ use super::{
     control::light::{LightControlArgs, LightController},
     sample::light::{LightSample, LightSampleArgs, LightSampler},
 };
-use crate::error::AppError;
+use anyhow::{Context, Result};
 use clap::Parser;
 use tokio::sync::mpsc;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
@@ -23,12 +23,14 @@ pub struct LightManager {
 }
 
 impl LightManager {
-    pub async fn new(args: &LightArgs) -> Result<Self, AppError> {
+    pub async fn new(args: &LightArgs) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
+        let controller =
+            LightController::new(&args.control).context("failed to initialize light controller")?;
 
         Ok(Self {
             receiver,
-            controller: LightController::new(&args.control)?,
+            controller,
             sampler: LightSampler::new(&args.sample, sender).await?,
         })
     }

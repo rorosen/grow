@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use anyhow::{bail, Result};
 use chrono::{NaiveTime, Utc};
 use rppal::gpio::OutputPin;
 use std::time::Duration;
@@ -62,12 +62,13 @@ pub async fn control_time_based(
     deactivate_time: NaiveTime,
     cancel_token: CancellationToken,
     controller_name: &str,
-) -> Result<(), AppError> {
+) -> Result<()> {
     if activate_time == deactivate_time {
-        return Err(AppError::InvalidControllerArgs(
-            controller_name.into(),
-            "activate time and deactivate time cannot be equal".into(),
-        ));
+        bail!("");
+        // return Err(Error::InvalidControllerArgs(
+        //     controller_name.into(),
+        //     "activate time and deactivate time cannot be equal".into(),
+        // ));
     }
 
     log::debug!("starting {controller_name} manager");

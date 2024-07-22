@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 use rppal::gpio::{Gpio, OutputPin};
 use std::time::Duration;
@@ -68,14 +68,14 @@ pub enum ExhaustController {
 }
 
 impl ExhaustController {
-    pub fn new(args: &ExhaustControlArgs) -> Result<Self, AppError> {
+    pub fn new(args: &ExhaustControlArgs) -> Result<Self> {
         match args.mode {
             ControlMode::Off => Ok(Self::Disabled),
             ControlMode::Cyclic => {
-                let gpio = Gpio::new().map_err(AppError::InitGpioFailed)?;
+                let gpio = Gpio::new().context("failed to initialize GPIO")?;
                 let pin = gpio
                     .get(args.pin)
-                    .map_err(AppError::GetGpioFailed)?
+                    .with_context(|| format!("failed to get gpio pin {}", args.pin))?
                     .into_output();
 
                 Ok(Self::Cyclic {

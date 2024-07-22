@@ -1,12 +1,10 @@
-use crate::{
-    error::AppError,
-    manage::{
-        air::{AirArgs, AirManager},
-        light::{LightArgs, LightManager},
-        water::{WaterArgs, WaterManager},
-        AirPumpControlArgs, AirPumpController, FanControlArgs, FanController,
-    },
+use crate::manage::{
+    air::{AirArgs, AirManager},
+    light::{LightArgs, LightManager},
+    water::{WaterArgs, WaterManager},
+    AirPumpControlArgs, AirPumpController, FanControlArgs, FanController,
 };
+use anyhow::{bail, Context, Result};
 use clap::Parser;
 use tokio::{
     signal::unix::{signal, SignalKind},
@@ -33,47 +31,28 @@ pub struct Agent {
 }
 
 impl Agent {
-    pub async fn run(self) -> Result<(), AppError> {
-        let mut sigint = signal(SignalKind::interrupt()).map_err(AppError::SignalHandlerError)?;
-        let mut sigterm = signal(SignalKind::terminate()).map_err(AppError::SignalHandlerError)?;
+    pub async fn run(self) -> Result<()> {
+        let mut sigint =
+            signal(SignalKind::interrupt()).context("failed to register SIGINT handler")?;
+        let mut sigterm =
+            signal(SignalKind::terminate()).context("failed to register SIGTERM handler")?;
         let cancel_token = CancellationToken::new();
 
-        let fan_controller = match FanController::new(&self.fan_args) {
-            Ok(controller) => controller,
-            Err(err) => {
-                log::error!("failed to initialize fan controller: {err}");
-                return Err(AppError::Fatal);
-            }
-        };
+        let fan_controller =
+            FanController::new(&self.fan_args).context("failed to initialize fan controller")?;
 
-        let air_manager = match AirManager::new(&self.air_args).await {
-            Ok(manager) => manager,
-            Err(err) => {
-                log::error!("failed to initialize air manager: {err}");
-                return Err(AppError::Fatal);
-            }
-        };
+        let air_manager = AirManager::new(&self.air_args)
+            .await
+            .context("failed to initialize air manager")?;
 
-        let light_manager = match LightManager::new(&self.light_args).await {
-            Ok(manager) => manager,
-            Err(err) => {
-                log::error!("failed to initialize light manager: {err}");
-                return Err(AppError::Fatal);
-            }
-        };
+        let light_manager = LightManager::new(&self.light_args)
+            .await
+            .context("failed to initialize light manager")?;
 
-        let water_manager = match WaterManager::new(&self.water_args) {
-            Ok(manager) => manager,
-            Err(err) => {
-                log::error!("failed to initialize water manager: {err}");
-                return Err(AppError::Fatal);
-            }
-        };
+        let water_manager =
+            WaterManager::new(&self.water_args).context("failed to initialize water manager")?;
 
-        if let Err(err) = AirPumpController::set(&self.air_pump_args) {
-            log::error!("failed to set air pump: {err}");
-            return Err(AppError::Fatal);
-        }
+        AirPumpController::set(&self.air_pump_args).context("failed to configure air pump")?;
 
         let mut set = JoinSet::new();
 
@@ -89,7 +68,7 @@ impl Agent {
         let cloned_token = cancel_token.clone();
         set.spawn(async move { ("water manager", water_manager.run(cloned_token).await) });
 
-        let res = loop {
+        loop {
             tokio::select! {
                 _ = sigint.recv() => {
                     log::info!("shutting down on sigint");
@@ -103,18 +82,15 @@ impl Agent {
                     match res {
                         Some(Ok((id, _))) => log::info!("{id} task terminated"),
                         Some(Err(err)) => {
-                            log::error!("some task panicked: {err}");
-                            break Err(AppError::Fatal);
+                            bail!("task panicked: {err:#}");
                         }
                         None => {
                             log::info!("all manager tasks terminated");
-                            break Ok(());
+                            return Ok(());
                         }
                     }
                 }
             }
-        };
-
-        res
+        }
     }
 }

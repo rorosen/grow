@@ -1,8 +1,7 @@
+use anyhow::{Context, Result};
 use clap::Parser;
 use rppal::gpio::{Gpio, OutputPin};
 use tokio_util::sync::CancellationToken;
-
-use crate::error::AppError;
 
 #[derive(Debug, Parser)]
 pub struct PumpControlArgs {
@@ -42,21 +41,19 @@ pub enum PumpController {
 }
 
 impl PumpController {
-    pub fn new(args: &PumpControlArgs) -> Result<Self, AppError> {
+    pub fn new(args: &PumpControlArgs) -> Result<Self> {
         if args.disable {
             Ok(Self::Disabled)
         } else {
-            let gpio = Gpio::new().map_err(AppError::InitGpioFailed)?;
-
+            let gpio = Gpio::new().context("failed to initialize GPIO")?;
             let left_pin = gpio
                 .get(args.left_pin)
-                .map_err(AppError::GetGpioFailed)?
-                .into_output_low();
-
+                .with_context(|| format!("failed to get gpio pin {} (left)", args.left_pin))?
+                .into_output();
             let right_pin = gpio
                 .get(args.right_pin)
-                .map_err(AppError::GetGpioFailed)?
-                .into_output_low();
+                .with_context(|| format!("failed to get gpio pin {} (right)", args.right_pin))?
+                .into_output();
 
             Ok(Self::Enabled {
                 left_pin,
