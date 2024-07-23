@@ -1,38 +1,27 @@
-use super::{
-    control::pump::{PumpControlArgs, PumpController},
-    sample::water_level::{WaterLevelSampleArgs, WaterLevelSampler},
-};
+use crate::config::water_level::WaterLevelConfig;
+
+use super::{control::pump::PumpController, sample::water_level::WaterLevelSampler};
 use anyhow::{Context, Result};
-use clap::Parser;
 use grow_measure::WaterLevelMeasurement;
 use tokio::sync::mpsc;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
-#[derive(Debug, Parser)]
-pub struct WaterArgs {
-    #[command(flatten)]
-    control: PumpControlArgs,
-
-    #[command(flatten)]
-    sample: WaterLevelSampleArgs,
-}
-
-pub struct WaterManager {
+pub struct WaterLevelManager {
     receiver: mpsc::Receiver<WaterLevelMeasurement>,
     controller: PumpController,
     sampler: WaterLevelSampler,
 }
 
-impl WaterManager {
-    pub fn new(args: &WaterArgs) -> Result<Self> {
+impl WaterLevelManager {
+    pub fn new(config: &WaterLevelConfig) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
         let controller =
-            PumpController::new(&args.control).context("failed to initialize pump controller")?;
+            PumpController::new(&config.control).context("failed to initialize pump controller")?;
 
         Ok(Self {
             receiver,
             controller,
-            sampler: WaterLevelSampler::new(&args.sample, sender),
+            sampler: WaterLevelSampler::new(&config.sample, sender),
         })
     }
 

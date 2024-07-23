@@ -1,60 +1,11 @@
 use anyhow::{Context, Result};
-use clap::{Parser, ValueEnum};
 use rppal::gpio::{Gpio, OutputPin};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
+use crate::config::fan::FanControlConfig;
+
 use super::control_cyclic;
-
-#[derive(Debug, Clone, ValueEnum)]
-enum ControlMode {
-    /// Disabled control
-    Off,
-    /// Cyclic control
-    Cyclic,
-}
-
-#[derive(Debug, Parser)]
-pub struct FanControlArgs {
-    /// The control mode
-    #[arg(
-        value_enum,
-        id = "fan_control_mode",
-        long = "fan-control-mode",
-        env = "GROW_AGENT_FAN_CONTROL_MODE",
-        default_value_t = ControlMode::Cyclic
-    )]
-    mode: ControlMode,
-
-    /// The gpio pin used to control the circulation fans
-    #[arg(
-        id = "fan_control_pin",
-        long = "fan-control-pin",
-        env = "GROW_AGENT_FAN_CONTROL_PIN",
-        default_value_t = 23
-    )]
-    pin: u8,
-
-    /// The duration in seconds for which the circulation fans should
-    /// run (0 means always stopped). Only has an effect in cyclic mode
-    #[arg(
-        id = "fan_control_on_duration_secs",
-        long = "fan-control-on-duration-secs",
-        env = "GROW_AGENT_FAN_CONTROL_ON_DURATION_SECS",
-        default_value_t = 1
-    )]
-    on_duration_secs: u64,
-
-    /// The duration in seconds for which the circulation fans should be
-    /// stopped (0 means always running). Only has an effect in cyclic mode
-    #[arg(
-        id = "fan_control_off_duration_secs",
-        long = "fan-control-off-duration-secs",
-        env = "GROW_AGENT_FAN_CONTROL_OFF_DURATION_SECS",
-        default_value_t = 0
-    )]
-    off_duration_secs: u64,
-}
 
 pub enum FanController {
     Disabled,
@@ -66,22 +17,21 @@ pub enum FanController {
 }
 
 impl FanController {
-    pub fn new(args: &FanControlArgs) -> Result<Self> {
-        match args.mode {
-            ControlMode::Off => Ok(Self::Disabled),
-            ControlMode::Cyclic => {
-                let gpio = Gpio::new().context("failed to initialize GPIO")?;
-                let pin = gpio
-                    .get(args.pin)
-                    .with_context(|| format!("failed to get gpio pin {}", args.pin))?
-                    .into_output();
+    pub fn new(config: &FanControlConfig) -> Result<Self> {
+        if config.enable {
+            let gpio = Gpio::new().context("failed to initialize GPIO")?;
+            let pin = gpio
+                .get(config.pin)
+                .with_context(|| format!("failed to get gpio pin {}", config.pin))?
+                .into_output();
 
-                Ok(Self::Cyclic {
-                    pin,
-                    on_duration: Duration::from_secs(args.on_duration_secs),
-                    off_duration: Duration::from_secs(args.off_duration_secs),
-                })
-            }
+            Ok(Self::Cyclic {
+                pin,
+                on_duration: Duration::from_secs(config.on_duration_secs),
+                off_duration: Duration::from_secs(config.off_duration_secs),
+            })
+        } else {
+            Ok(Self::Disabled)
         }
     }
 

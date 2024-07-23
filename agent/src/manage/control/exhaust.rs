@@ -1,62 +1,11 @@
 use anyhow::{Context, Result};
-use clap::{Parser, ValueEnum};
 use rppal::gpio::{Gpio, OutputPin};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
+use crate::config::air::{ExhaustControlConfig, ExhaustControlMode};
+
 use super::control_cyclic;
-
-#[derive(Debug, Clone, ValueEnum)]
-enum ControlMode {
-    /// Disabled control
-    Off,
-    /// Cyclic control
-    Cyclic,
-    /// Threshold control
-    Threshold,
-}
-
-#[derive(Debug, Parser)]
-pub struct ExhaustControlArgs {
-    /// The control mode
-    #[arg(
-        value_enum,
-        id = "air_control_mode",
-        long = "air-control-mode",
-        env = "GROW_AGENT_EXHAUST_CONTROL_MODE",
-        default_value_t = ControlMode::Cyclic
-    )]
-    mode: ControlMode,
-
-    /// The gpio pin used to enable the air fan
-    #[arg(
-        id = "air_control_pin",
-        long = "air-control-pin",
-        env = "GROW_AGENT_EXHAUST_CONTROL_PIN",
-        default_value_t = 25
-    )]
-    pin: u8,
-
-    /// The duration in seconds for which the air fan should
-    /// run (0 means always stopped). Only has an effect in cyclic mode
-    #[arg(
-        id = "air_control_on_duration_secs",
-        long = "air-control-on-duration-secs",
-        env = "GROW_AGENT_EXHAUST_CONTROL_ON_DURATION_SECS",
-        default_value_t = 1
-    )]
-    on_duration_secs: u64,
-
-    /// The duration in seconds for which the air fan should be
-    /// stopped (0 means always running). Only has an effect in cyclic mode
-    #[arg(
-        id = "air_control_off_duration_secs",
-        long = "air-control-off-duration-secs",
-        env = "GROW_AGENT_EXHAUST_CONTROL_OFF_DURATION_SECS",
-        default_value_t = 0
-    )]
-    off_duration_secs: u64,
-}
 
 pub enum ExhaustController {
     Disabled,
@@ -68,23 +17,23 @@ pub enum ExhaustController {
 }
 
 impl ExhaustController {
-    pub fn new(args: &ExhaustControlArgs) -> Result<Self> {
-        match args.mode {
-            ControlMode::Off => Ok(Self::Disabled),
-            ControlMode::Cyclic => {
+    pub fn new(config: &ExhaustControlConfig) -> Result<Self> {
+        match config.mode {
+            ExhaustControlMode::Off => Ok(Self::Disabled),
+            ExhaustControlMode::Cyclic => {
                 let gpio = Gpio::new().context("failed to initialize GPIO")?;
                 let pin = gpio
-                    .get(args.pin)
-                    .with_context(|| format!("failed to get gpio pin {}", args.pin))?
+                    .get(config.pin)
+                    .with_context(|| format!("failed to get gpio pin {}", config.pin))?
                     .into_output();
 
                 Ok(Self::Cyclic {
                     pin,
-                    on_duration: Duration::from_secs(args.on_duration_secs),
-                    off_duration: Duration::from_secs(args.off_duration_secs),
+                    on_duration: Duration::from_secs(config.on_duration_secs),
+                    off_duration: Duration::from_secs(config.off_duration_secs),
                 })
             }
-            ControlMode::Threshold => todo!(),
+            ExhaustControlMode::Threshold => todo!(),
         }
     }
 

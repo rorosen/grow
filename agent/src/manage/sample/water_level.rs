@@ -1,33 +1,9 @@
-use std::time::Duration;
-
-use clap::Parser;
 use grow_measure::{water_level::WaterLevelSensor, WaterLevelMeasurement};
+use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
-use super::parse_hex_u8;
-
-#[derive(Debug, Parser)]
-pub struct WaterLevelSampleArgs {
-    /// The I2C address of the water_level sensor
-    #[arg(
-        id = "water_level_sample_sensor_address",
-        long = "water_level-sample-right-sensor-address",
-        env = "GROW_AGENT_WATER_LEVEL_SAMPLE_RIGHT_SENSOR_ADDRESS",
-        value_parser=parse_hex_u8,
-        default_value = "0x28"
-    )]
-    sensor_address: u8,
-
-    /// The rate in which the water_level sensors take measurements in seconds
-    #[arg(
-        id = "water_level_sample_rate_secs",
-        long = "water_level-sample-rate-secs",
-        env = "GROW_AGENT_WATER_LEVEL_SAMPLE_RATE_SECS",
-        default_value_t = 300
-    )]
-    sample_rate_secs: u64,
-}
+use crate::config::water_level::WaterLevelSampleConfig;
 
 pub struct WaterLevelSampler {
     sender: mpsc::Sender<WaterLevelMeasurement>,
@@ -36,11 +12,14 @@ pub struct WaterLevelSampler {
 }
 
 impl WaterLevelSampler {
-    pub fn new(args: &WaterLevelSampleArgs, sender: mpsc::Sender<WaterLevelMeasurement>) -> Self {
+    pub fn new(
+        config: &WaterLevelSampleConfig,
+        sender: mpsc::Sender<WaterLevelMeasurement>,
+    ) -> Self {
         Self {
             sender,
-            sensor_address: args.sensor_address,
-            sample_rate: Duration::from_secs(args.sample_rate_secs),
+            sensor_address: config.sensor_address,
+            sample_rate: Duration::from_secs(config.sample_rate_secs),
         }
     }
 

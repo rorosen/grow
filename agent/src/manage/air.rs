@@ -1,21 +1,13 @@
+use crate::config::air::AirConfig;
+
 use super::{
-    control::exhaust::{ExhaustControlArgs, ExhaustController},
-    sample::air::{AirSample, AirSampleArgs, AirSampler},
+    control::exhaust::ExhaustController,
+    sample::air::{AirSample, AirSampler},
 };
 
 use anyhow::{Context, Result};
-use clap::Parser;
 use tokio::sync::mpsc;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
-
-#[derive(Debug, Parser)]
-pub struct AirArgs {
-    #[command(flatten)]
-    control: ExhaustControlArgs,
-
-    #[command(flatten)]
-    sample: AirSampleArgs,
-}
 
 pub struct AirManager {
     receiver: mpsc::Receiver<AirSample>,
@@ -24,11 +16,11 @@ pub struct AirManager {
 }
 
 impl AirManager {
-    pub async fn new(args: &AirArgs) -> Result<Self> {
+    pub async fn new(config: &AirConfig) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
-        let controller = ExhaustController::new(&args.control)
+        let controller = ExhaustController::new(&config.control)
             .context("failed to initialize exhaust fan controller")?;
-        let sampler = AirSampler::new(&args.sample, sender).await?;
+        let sampler = AirSampler::new(&config.sample, sender).await?;
 
         Ok(Self {
             receiver,

@@ -1,20 +1,12 @@
+use crate::config::light::LightConfig;
+
 use super::{
-    control::light::{LightControlArgs, LightController},
-    sample::light::{LightSample, LightSampleArgs, LightSampler},
+    control::light::LightController,
+    sample::light::{LightSample, LightSampler},
 };
 use anyhow::{Context, Result};
-use clap::Parser;
 use tokio::sync::mpsc;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
-
-#[derive(Debug, Parser)]
-pub struct LightArgs {
-    #[command(flatten)]
-    control: LightControlArgs,
-
-    #[command(flatten)]
-    sample: LightSampleArgs,
-}
 
 pub struct LightManager {
     receiver: mpsc::Receiver<LightSample>,
@@ -23,15 +15,15 @@ pub struct LightManager {
 }
 
 impl LightManager {
-    pub async fn new(args: &LightArgs) -> Result<Self> {
+    pub async fn new(config: &LightConfig) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
-        let controller =
-            LightController::new(&args.control).context("failed to initialize light controller")?;
+        let controller = LightController::new(&config.control)
+            .context("failed to initialize light controller")?;
 
         Ok(Self {
             receiver,
             controller,
-            sampler: LightSampler::new(&args.sample, sender).await?,
+            sampler: LightSampler::new(&config.sample, sender).await?,
         })
     }
 
