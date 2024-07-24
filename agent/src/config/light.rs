@@ -1,13 +1,13 @@
 use chrono::NaiveTime;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Deserialize)]
 pub struct LightConfig {
     pub control: LightControlConfig,
     pub sample: LightSampleConfig,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Deserialize)]
 pub struct LightControlConfig {
     /// Whether to enable time based light control.
     pub enable: bool,
@@ -21,7 +21,7 @@ pub struct LightControlConfig {
     pub deactivate_time: NaiveTime,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Deserialize)]
 pub struct LightSampleConfig {
     /// The I2C address of the left light sensor.
     #[serde(deserialize_with = "super::from_hex")]

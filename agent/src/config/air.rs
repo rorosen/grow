@@ -1,12 +1,12 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Deserialize)]
 pub struct AirConfig {
     pub control: ExhaustControlConfig,
     pub sample: AirSampleConfig,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Deserialize)]
 pub enum ExhaustControlMode {
     /// Disabled exhaust fan control.
     Off,
@@ -16,7 +16,7 @@ pub enum ExhaustControlMode {
     Threshold,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Deserialize)]
 pub struct ExhaustControlConfig {
     /// The control mode.
     pub mode: ExhaustControlMode,
@@ -30,7 +30,7 @@ pub struct ExhaustControlConfig {
     pub off_duration_secs: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Deserialize)]
 pub struct AirSampleConfig {
     /// The I2C address of the left air sensor.
     #[serde(deserialize_with = "super::from_hex")]

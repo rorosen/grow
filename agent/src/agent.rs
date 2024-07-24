@@ -21,7 +21,7 @@ pub struct Agent {
 
 impl Agent {
     pub fn new(config_path: impl AsRef<Path>) -> Result<Self> {
-        let config = Config::from_file(config_path)?;
+        let config = Config::from_path(config_path)?;
         Ok(Self { config })
     }
 

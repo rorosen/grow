@@ -1,22 +1,20 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Deserialize)]
 pub struct WaterLevelConfig {
     pub control: PumpControlConfig,
     pub sample: WaterLevelSampleConfig,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Deserialize)]
 pub struct PumpControlConfig {
     /// Whether to enable pump control.
     pub enable: bool,
-    /// The gpio pin used to control the right pump.
-    pub left_pin: u8,
-    /// The gpio pin used to control the right pump.
-    pub right_pin: u8,
+    /// The gpio pin used to control the pump.
+    pub pin: u8,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Deserialize)]
 pub struct WaterLevelSampleConfig {
     /// The I2C address of the water level sensor.
     #[serde(deserialize_with = "super::from_hex")]

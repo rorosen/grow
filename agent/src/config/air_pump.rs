@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Deserialize)]
 pub struct AirPumpControlConfig {
     /// Whether to enable the air pump controller.
     pub enable: bool,

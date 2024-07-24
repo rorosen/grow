@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Deserialize)]
 pub struct FanControlConfig {
     /// Whether to enable cyclic fan control
     pub enable: bool,

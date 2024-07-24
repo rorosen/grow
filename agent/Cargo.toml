@@ -25,3 +25,4 @@ tokio-util = { workspace = true, features = ["rt"] }
 grow-measure.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+tempfile = "3.10.1"
