@@ -1,19 +1,14 @@
 use anyhow::{Context, Result};
-use chrono::NaiveTime;
-use rppal::gpio::{Gpio, OutputPin};
+use rppal::gpio::Gpio;
 use tokio_util::sync::CancellationToken;
 
 use crate::config::light::LightControlConfig;
 
-use super::control_time_based;
+use super::TimeBasedController;
 
 pub enum LightController {
     Disabled,
-    Time {
-        pin: OutputPin,
-        activate_time: NaiveTime,
-        deactivate_time: NaiveTime,
-    },
+    Time { controller: TimeBasedController },
 }
 
 impl LightController {
@@ -24,34 +19,20 @@ impl LightController {
                 .get(config.pin)
                 .with_context(|| format!("failed to get gpio pin {}", config.pin))?
                 .into_output();
+            let controller =
+                TimeBasedController::new(pin, config.activate_time, config.deactivate_time)
+                    .context("failed to create time based controller")?;
 
-            Ok(Self::Time {
-                pin,
-                activate_time: config.activate_time,
-                deactivate_time: config.deactivate_time,
-            })
+            Ok(Self::Time { controller })
         } else {
             Ok(Self::Disabled)
         }
     }
 
-    pub async fn run(self, cancel_token: CancellationToken) -> Result<()> {
+    pub async fn run(self, cancel_token: CancellationToken) {
         match self {
-            LightController::Disabled => Ok(()),
-            LightController::Time {
-                mut pin,
-                activate_time,
-                deactivate_time,
-            } => {
-                control_time_based(
-                    &mut pin,
-                    activate_time,
-                    deactivate_time,
-                    cancel_token,
-                    "light",
-                )
-                .await
-            }
+            LightController::Disabled => (),
+            LightController::Time { mut controller } => controller.run(cancel_token, "light").await,
         }
     }
 }

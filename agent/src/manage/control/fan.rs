@@ -1,19 +1,15 @@
 use anyhow::{Context, Result};
-use rppal::gpio::{Gpio, OutputPin};
+use rppal::gpio::Gpio;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
 use crate::config::fan::FanControlConfig;
 
-use super::control_cyclic;
+use super::CyclicController;
 
 pub enum FanController {
     Disabled,
-    Cyclic {
-        pin: OutputPin,
-        on_duration: Duration,
-        off_duration: Duration,
-    },
+    Cyclic { controller: CyclicController },
 }
 
 impl FanController {
@@ -24,12 +20,13 @@ impl FanController {
                 .get(config.pin)
                 .with_context(|| format!("failed to get gpio pin {}", config.pin))?
                 .into_output();
-
-            Ok(Self::Cyclic {
+            let controller = CyclicController::new(
                 pin,
-                on_duration: Duration::from_secs(config.on_duration_secs),
-                off_duration: Duration::from_secs(config.off_duration_secs),
-            })
+                Duration::from_secs(config.on_duration_secs),
+                Duration::from_secs(config.off_duration_secs),
+            );
+
+            Ok(Self::Cyclic { controller })
         } else {
             Ok(Self::Disabled)
         }
@@ -38,19 +35,8 @@ impl FanController {
     pub async fn run(self, cancel_token: CancellationToken) {
         match self {
             FanController::Disabled => (),
-            FanController::Cyclic {
-                mut pin,
-                on_duration,
-                off_duration,
-            } => {
-                control_cyclic(
-                    &mut pin,
-                    on_duration,
-                    off_duration,
-                    cancel_token,
-                    "circulation fan",
-                )
-                .await
+            FanController::Cyclic { mut controller } => {
+                controller.run(cancel_token, "fan controller").await
             }
         }
     }
