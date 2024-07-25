@@ -20,7 +20,9 @@ impl AirManager {
         let (sender, receiver) = mpsc::channel(8);
         let controller = ExhaustController::new(&config.control)
             .context("failed to initialize exhaust fan controller")?;
-        let sampler = AirSampler::new(&config.sample, sender).await?;
+        let sampler = AirSampler::new(&config.sample, sender)
+            .await
+            .context("failed to initialize air sampler")?;
 
         Ok(Self {
             receiver,

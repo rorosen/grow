@@ -35,7 +35,6 @@ impl Agent {
             .context("failed to configure air pump")?;
         let fan_controller =
             FanController::new(&self.config.fan).context("failed to initialize fan controller")?;
-
         let air_manager = AirManager::new(&self.config.air)
             .await
             .context("failed to initialize air manager")?;
@@ -43,6 +42,7 @@ impl Agent {
             .await
             .context("failed to initialize light manager")?;
         let water_manager = WaterLevelManager::new(&self.config.water_level)
+            .await
             .context("failed to initialize water manager")?;
 
         let mut set = JoinSet::new();

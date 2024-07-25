@@ -13,15 +13,18 @@ pub struct WaterLevelManager {
 }
 
 impl WaterLevelManager {
-    pub fn new(config: &WaterLevelConfig) -> Result<Self> {
+    pub async fn new(config: &WaterLevelConfig) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
         let controller =
             PumpController::new(&config.control).context("failed to initialize pump controller")?;
+        let sampler = WaterLevelSampler::new(&config.sample, sender)
+            .await
+            .context("failed to initialize water level sampler")?;
 
         Ok(Self {
             receiver,
             controller,
-            sampler: WaterLevelSampler::new(&config.sample, sender),
+            sampler,
         })
     }
 

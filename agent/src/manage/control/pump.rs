@@ -24,6 +24,10 @@ impl PumpController {
         }
     }
 
-    // TODO: implement run
-    pub async fn run(self, _: CancellationToken) {}
+    pub async fn run(self, _: CancellationToken) {
+        match self {
+            PumpController::Enabled { .. } => todo!("implement pump controller run"),
+            PumpController::Disabled => (),
+        }
+    }
 }

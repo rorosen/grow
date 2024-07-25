@@ -7,13 +7,13 @@ pub mod water_level;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("sensor transport error")]
+    #[error("sensor transport error: {0}")]
     Transport(#[from] I2cError),
 
     #[error("failed to identify {0} sensor")]
     IdentifyFailed(String),
 
-    #[error("{0} is not initialized")]
+    #[error("{0} sensor is not initialized")]
     NotInit(&'static str),
 
     #[error("measurement cancelled")]

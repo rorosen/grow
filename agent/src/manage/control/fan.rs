@@ -35,9 +35,7 @@ impl FanController {
     pub async fn run(self, cancel_token: CancellationToken) {
         match self {
             FanController::Disabled => (),
-            FanController::Cyclic { mut controller } => {
-                controller.run(cancel_token, "fan controller").await
-            }
+            FanController::Cyclic { mut controller } => controller.run(cancel_token, "fan").await,
         }
     }
 }

@@ -37,13 +37,14 @@ impl AirSampler {
     }
 
     pub async fn run(mut self, cancel_token: CancellationToken) {
+        log::debug!("starting air sampler");
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
                     let left_measurement = match self.left_sensor.measure(cancel_token.clone()).await {
                         Ok(m) => Some(m),
                         Err(err) => {
-                            log::warn!("could not take left air measurement: {err}");
+                            log::trace!("could not take left air measurement: {err}");
                             None
                         }
                     };
@@ -51,7 +52,7 @@ impl AirSampler {
                     let right_measurement = match self.right_sensor.measure(cancel_token.clone()).await {
                         Ok(m) => Some(m),
                         Err(err) => {
-                            log::warn!("could not take right air measurement: {err}");
+                            log::trace!("could not take right air measurement: {err}");
                             None
                         }
                     };
@@ -70,7 +71,7 @@ impl AirSampler {
                     }
                 }
                 _ = cancel_token.cancelled() => {
-                    log::debug!("shutting down air sampler");
+                    log::debug!("stopping air sampler");
                     return;
                 }
             }

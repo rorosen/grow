@@ -74,11 +74,7 @@ impl AirSensor {
         self.set_heater_config(25, 300, 700).await?;
         self.set_op_mode(MODE_FORCED).await?;
         let data = self.read_sensor_data(cancel_token).await?;
-
-        let Some(ref params) = self.params else {
-            return Err(Error::NotInit("BME680"));
-        };
-
+        let params = self.params.as_ref().ok_or(Error::NotInit("air (BME680)"))?;
         let (t_fine, temperature) = params.calc_temperature(data.temp_adc);
 
         Ok(AirMeasurement {

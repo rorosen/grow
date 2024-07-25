@@ -47,7 +47,13 @@ impl WaterLevelSensor {
         &mut self,
         cancel_token: CancellationToken,
     ) -> Result<WaterLevelMeasurement, Error> {
-        let stop_variable = self.stop_variable.ok_or(Error::NotInit("water level"))?;
+        if self.stop_variable.is_none() {
+            self.stop_variable = Self::init(&mut self.i2c).await.ok();
+        }
+
+        let stop_variable = self
+            .stop_variable
+            .ok_or(Error::NotInit("water level (VL53L0X)"))?;
         // stop any ongoing measurement
         self.stop_measurement(stop_variable).await?;
         // trigger new range measurement

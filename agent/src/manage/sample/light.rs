@@ -40,13 +40,14 @@ impl LightSampler {
     }
 
     pub async fn run(mut self, cancel_token: CancellationToken) {
+        log::debug!("starting light sampler");
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
                     let left_measurement = match self.left_sensor.measure(cancel_token.clone()).await {
                         Ok(m) => Some(m),
                         Err(err) => {
-                            log::warn!("could not take left light measurement: {err}");
+                            log::trace!("could not take left light measurement: {err}");
                             None
                         }
                     };
@@ -54,7 +55,7 @@ impl LightSampler {
                     let right_measurement = match self.right_sensor.measure(cancel_token.clone()).await {
                         Ok(m) => Some(m),
                         Err(err) => {
-                            log::warn!("could not take right light measurement: {err}");
+                            log::trace!("could not take right light measurement: {err}");
                             None
                         }
                     };
@@ -73,7 +74,7 @@ impl LightSampler {
                     }
                 }
                 _ = cancel_token.cancelled() => {
-                    log::debug!("shutting down light sampler");
+                    log::debug!("stopping light sampler");
                     return;
                 }
             }

@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
     crane = {
       url = "github:ipetkov/crane";
@@ -39,7 +39,7 @@
         targets = [ "aarch64-unknown-linux-gnu" ];
       };
 
-      craneLib = (crane.mkLib crossPkgs).overrideToolchain crossToolchain;
+      craneLib = (crane.mkLib crossPkgs).overrideToolchain (_p: crossToolchain);
       sampler = crossPkgs.callPackage ./nix/sampler.nix { inherit craneLib; };
       agent = crossPkgs.callPackage ./nix/agent.nix { inherit craneLib; };
       sensortest = crossPkgs.callPackage ./nix/sensortest.nix { inherit craneLib; };

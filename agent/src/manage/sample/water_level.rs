@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use grow_measure::{water_level::WaterLevelSensor, WaterLevelMeasurement};
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -7,49 +8,44 @@ use crate::config::water_level::WaterLevelSampleConfig;
 
 pub struct WaterLevelSampler {
     sender: mpsc::Sender<WaterLevelMeasurement>,
-    sensor_address: u8,
+    sensor: WaterLevelSensor,
     sample_rate: Duration,
 }
 
 impl WaterLevelSampler {
-    pub fn new(
+    pub async fn new(
         config: &WaterLevelSampleConfig,
         sender: mpsc::Sender<WaterLevelMeasurement>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self> {
+        let sensor = WaterLevelSensor::new(config.sensor_address)
+            .await
+            .context("failed to initialize water level sensor")?;
+
+        Ok(Self {
             sender,
-            sensor_address: config.sensor_address,
+            sensor,
             sample_rate: Duration::from_secs(config.sample_rate_secs),
-        }
+        })
     }
 
-    pub async fn run(self, cancel_token: CancellationToken) {
-        let mut sensor = WaterLevelSensor::new(self.sensor_address).await.ok();
+    pub async fn run(mut self, cancel_token: CancellationToken) {
+        log::debug!("starting water level sampler");
 
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
-                    if sensor.is_none() {
-                        sensor = WaterLevelSensor::new(self.sensor_address).await.ok();
-                    }
-
-                    if let Some(s) = sensor.as_mut() {
-                        match s.measure(cancel_token.clone()).await {
-                            Ok(measurement) => {
-                                self.sender
-                                    .send(measurement)
-                                    .await
-                                    .expect("water level measurement channel is open");
-                            }
-                            Err(err) => {
-                                log::warn!("could not take water level measurement: {err}");
-                                sensor = None;
-                            }
+                    match self.sensor.measure(cancel_token.clone()).await {
+                        Ok(measurement) => {
+                            self.sender
+                                .send(measurement)
+                                .await
+                                .expect("water level measurement channel is open");
                         }
+                        Err(err) => log::trace!("could not take water level measurement: {err}"),
                     }
                 }
                 _ = cancel_token.cancelled() => {
-                    log::debug!("shutting down water level sampler");
+                    log::debug!("stopping water level sampler");
                     return;
                 }
             }

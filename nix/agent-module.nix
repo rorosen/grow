@@ -35,7 +35,7 @@ in
           };
           deactivate_time = lib.mkOption {
             type = lib.types.nonEmptyStr;
-            default = "04:00:00";
+            default = "22:00:00";
             description = "Time of the day to switch off the light.";
           };
         };

@@ -26,6 +26,7 @@ impl CyclicController {
     }
 
     async fn run(&mut self, cancel_token: CancellationToken, subject: &'static str) {
+        log::debug!("starting {subject} controller");
         if self.off_duration.is_zero() {
             log::info!("{subject} is always on");
             self.pin.set_reset_on_drop(false);
@@ -64,7 +65,7 @@ impl CyclicController {
                     }
                 }
                 _ = cancel_token.cancelled() => {
-                    log::debug!("stopping {subject}");
+                    log::debug!("stopping {subject} controller");
                     return;
                 }
             }
@@ -92,6 +93,7 @@ impl TimeBasedController {
     }
 
     async fn run(&mut self, cancel_token: CancellationToken, subject: &'static str) {
+        log::debug!("starting {subject} controller");
         let mut timeout = chrono::Duration::zero();
 
         loop {

@@ -38,7 +38,7 @@ impl ExhaustController {
         match self {
             ExhaustController::Disabled => (),
             ExhaustController::Cyclic { mut controller } => {
-                controller.run(cancel_token, "exhaust fan controller").await
+                controller.run(cancel_token, "exhaust fan").await
             }
         }
     }
