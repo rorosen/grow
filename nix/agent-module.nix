@@ -5,10 +5,10 @@
   ...
 }:
 let
-  cfg = config.grow.agent;
+  cfg = config.servies.grow-agent;
 in
 {
-  options.grow.agent = {
+  options.services.grow-agent = {
     enable = lib.mkEnableOption "the grow agent.";
     logLevel = lib.mkOption {
       type = lib.types.nonEmptyStr;
