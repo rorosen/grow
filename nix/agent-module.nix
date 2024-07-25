@@ -5,7 +5,7 @@
   ...
 }:
 let
-  cfg = config.servies.grow-agent;
+  cfg = config.services.grow-agent;
 in
 {
   options.services.grow-agent = {
@@ -24,57 +24,57 @@ in
             description = "Whether to enable the light controller.";
           };
           pin = lib.mkOption {
-            type = lib.types.int.u8;
+            type = lib.types.ints.u8;
             default = 6;
             description = "Gpio pin to control the light.";
           };
-          activateTime = lib.mkOption {
+          activate_time = lib.mkOption {
             type = lib.types.nonEmptyStr;
             default = "10:00:00";
             description = "Time of the day to switch on the light.";
           };
-          deactivateTime = lib.mkOption {
-            type = lib.tpes.nonEmptyStr;
+          deactivate_time = lib.mkOption {
+            type = lib.types.nonEmptyStr;
             default = "04:00:00";
             description = "Time of the day to switch off the light.";
           };
         };
         sample = {
-          leftAddress = lib.mkOption {
+          left_address = lib.mkOption {
             type = lib.types.nonEmptyStr;
             default = "0x23";
             description = "Address of the left light sensor.";
           };
-          rightAddress = lib.mkOption {
+          right_address = lib.mkOption {
             type = lib.types.nonEmptyStr;
             default = "0x5C";
             description = "Address of the right light sensor.";
           };
-          sampleRateSecs = lib.mkOption {
-            type = lib.types.int.unsigned;
+          sample_rate_secs = lib.mkOption {
+            type = lib.types.ints.unsigned;
             default = 1800;
             description = "Rate in which the light sensors will be sampled.";
           };
         };
       };
 
-      waterLevel = {
+      water_level = {
         control = {
           enable = lib.mkEnableOption "the pump controller.";
           pin = lib.mkOption {
-            type = lib.types.int.u8;
+            type = lib.types.ints.u8;
             default = 17;
             description = "Gpio pin to control the water pump.";
           };
         };
         sample = {
-          sensorAddress = lib.mkOption {
+          sensor_address = lib.mkOption {
             type = lib.types.nonEmptyStr;
             default = "0x29";
             description = "Address of the water level sensor.";
           };
-          sampleRateSecs = lib.mkOption {
-            type = lib.types.int.unsigned;
+          sample_rate_secs = lib.mkOption {
+            type = lib.types.ints.unsigned;
             default = 1800;
             description = "Rate in which the water level sensor will be sampled.";
           };
@@ -88,19 +88,19 @@ in
           description = "Whether to enable the fan controller.";
         };
         pin = lib.mkOption {
-          type = lib.types.int.u8;
+          type = lib.types.ints.u8;
           default = 23;
           description = "Gpio pin to control the fans.";
         };
-        onDurationSecs = lib.mkOption {
-          type = lib.types.int.unsigned;
+        on_duration_secs = lib.mkOption {
+          type = lib.types.ints.unsigned;
           default = 1;
           description = ''
             The duration in seconds for which the circulation fans should
             run (0 means never). Only has an effect if control is enabled.'';
         };
-        offDurationSecs = lib.mkOption {
-          type = lib.types.int.unsigned;
+        off_duration_secs = lib.mkOption {
+          type = lib.types.ints.unsigned;
           default = 0;
           description = ''
             The duration in seconds for which the circulation fans should be
@@ -121,20 +121,20 @@ in
             description = "Control mode of the exhaust fan controller.";
           };
           pin = lib.mkOption {
-            type = lib.types.int.u8;
+            type = lib.types.ints.u8;
             default = 25;
             description = "Gpio pin to control the exhaust fan.";
           };
-          onDurationSecs = lib.mkOption {
-            type = lib.types.int.unsigned;
+          on_duration_secs = lib.mkOption {
+            type = lib.types.ints.unsigned;
             default = 1;
             description = ''
               The duration in seconds for which the exhaust fan should
               run (0 means never). Only has an effect in cyclic mode.
             '';
           };
-          offDurationSecs = lib.mkOption {
-            type = lib.types.int.unsigned;
+          off_duration_secs = lib.mkOption {
+            type = lib.types.ints.unsigned;
             default = 0;
             description = ''
               The duration in seconds for which the exhaust fan should be
@@ -143,32 +143,32 @@ in
           };
         };
         sample = {
-          leftAddress = lib.mkOption {
+          left_address = lib.mkOption {
             type = lib.types.nonEmptyStr;
             default = "0x77";
             description = "Address of the left air sensor.";
           };
-          rightAddress = lib.mkOption {
+          right_address = lib.mkOption {
             type = lib.types.nonEmptyStr;
             default = "0x76";
             description = "Address of the right air sensor.";
           };
-          sampleRateSecs = lib.mkOption {
-            type = lib.types.int.unsigned;
+          sample_rate_secs = lib.mkOption {
+            type = lib.types.ints.unsigned;
             default = 1800;
             description = "Rate in which the air sensor will be sampled.";
           };
         };
       };
 
-      airPump = {
+      air_pump = {
         enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
           description = "Whether to enable the air pump controller.";
         };
         pin = lib.mkOption {
-          type = lib.types.int.u8;
+          type = lib.types.ints.u8;
           default = 24;
           description = "Gpio pin to control the air pump.";
         };
