@@ -60,6 +60,7 @@
         install-sampler = import ./nix/install-sampler.nix { inherit pkgs sampler; };
       };
 
+      nixosModules.agent = ./nix/agent-module.nix;
       overlays.default = _final: _prev: {
         grow-agent = agent;
         grow-sensortest = sensortest;

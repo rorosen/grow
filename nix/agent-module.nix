@@ -1,10 +1,20 @@
-{ config, lib, ... }:
+{
+  pkgs,
+  config,
+  lib,
+  ...
+}:
 let
   cfg = config.grow.agent;
 in
 {
   options.grow.agent = {
-    enable = lib.mkEnableOption "the grow agent";
+    enable = lib.mkEnableOption "the grow agent.";
+    logLevel = lib.mkOption {
+      type = lib.types.nonEmptyStr;
+      default = "info";
+      description = "The rust log level.";
+    };
     config = {
       light = {
         control = {
@@ -19,24 +29,24 @@ in
             description = "Gpio pin to control the light.";
           };
           activateTime = lib.mkOption {
-            type = lib.types.nonEmptyString;
+            type = lib.types.nonEmptyStr;
             default = "10:00:00";
             description = "Time of the day to switch on the light.";
           };
           deactivateTime = lib.mkOption {
-            type = lib.tpes.nonEmptyString;
+            type = lib.tpes.nonEmptyStr;
             default = "04:00:00";
             description = "Time of the day to switch off the light.";
           };
         };
         sample = {
           leftAddress = lib.mkOption {
-            type = lib.types.nonEmptyString;
+            type = lib.types.nonEmptyStr;
             default = "0x23";
             description = "Address of the left light sensor.";
           };
           rightAddress = lib.mkOption {
-            type = lib.types.nonEmptyString;
+            type = lib.types.nonEmptyStr;
             default = "0x5C";
             description = "Address of the right light sensor.";
           };
@@ -59,7 +69,7 @@ in
         };
         sample = {
           sensorAddress = lib.mkOption {
-            type = lib.types.nonEmptyString;
+            type = lib.types.nonEmptyStr;
             default = "0x29";
             description = "Address of the water level sensor.";
           };
@@ -79,7 +89,7 @@ in
         };
         pin = lib.mkOption {
           type = lib.types.int.u8;
-          default = 17;
+          default = 23;
           description = "Gpio pin to control the fans.";
         };
         onDurationSecs = lib.mkOption {
@@ -134,12 +144,12 @@ in
         };
         sample = {
           leftAddress = lib.mkOption {
-            type = lib.types.nonEmptyString;
+            type = lib.types.nonEmptyStr;
             default = "0x77";
             description = "Address of the left air sensor.";
           };
           rightAddress = lib.mkOption {
-            type = lib.types.nonEmptyString;
+            type = lib.types.nonEmptyStr;
             default = "0x76";
             description = "Address of the right air sensor.";
           };
@@ -155,16 +165,28 @@ in
         enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Whether to enable the fan controller.";
+          description = "Whether to enable the air pump controller.";
         };
         pin = lib.mkOption {
           type = lib.types.int.u8;
-          default = 17;
-          description = "Gpio pin to control the fans.";
+          default = 24;
+          description = "Gpio pin to control the air pump.";
         };
       };
     };
   };
 
-  config.grow.agent = { };
+  config = lib.mkIf cfg.enable {
+    systemd.services.grow-agent = {
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        Type = "exec";
+        ExecStart = "${pkgs.grow-agent}/bin/grow-agent";
+      };
+      environment = {
+        RUST_LOG = cfg.logLevel;
+        GROW_AGENT_CONFIG_PATH = pkgs.writeText "grow-agent-config.json" (builtins.toJSON cfg.config);
+      };
+    };
+  };
 }
