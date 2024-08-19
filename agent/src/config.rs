@@ -14,19 +14,24 @@ pub mod fan;
 pub mod light;
 pub mod water_level;
 
-#[derive(PartialEq, Debug, Deserialize)]
+#[derive(PartialEq, Debug, Default, Deserialize)]
 pub struct Config {
+    #[serde(default)]
     pub light: LightConfig,
+    #[serde(default)]
     pub water_level: WaterLevelConfig,
+    #[serde(default)]
     pub fan: FanControlConfig,
+    #[serde(default)]
     pub air: AirConfig,
+    #[serde(default)]
     pub air_pump: AirPumpControlConfig,
 }
 
 impl Config {
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self> {
-        let file = File::open(path).context("failed to open config file")?;
-        let config: Config = serde_json::from_reader(&file).context("failed to parse config")?;
+        let file = File::open(path).context("Failed to open config file")?;
+        let config: Config = serde_json::from_reader(&file).context("Failed to parse config")?;
         Ok(config)
     }
 }
@@ -44,64 +49,92 @@ where
 mod tests {
     use super::*;
 
-    use air::{AirSampleConfig, ExhaustControlConfig, ExhaustControlMode};
+    use air::{
+        AirSampleConfig, AirSensorConfig, AirSensorModel, ExhaustControlConfig, ExhaustControlMode,
+    };
     use chrono::NaiveTime;
-    use light::{LightControlConfig, LightSampleConfig};
-    use std::io::Write;
+    use light::{LightControlConfig, LightSampleConfig, LightSensorConfig, LightSensorModel};
+    use std::{collections::HashMap, io::Write};
     use tempfile::NamedTempFile;
-    use water_level::{PumpControlConfig, WaterLevelSampleConfig};
+    use water_level::{
+        PumpControlConfig, WaterLevelSampleConfig, WaterLevelSensorConfig, WaterLevelSensorModel,
+    };
 
     #[test]
     fn parse_config_ok() {
         let mut file = NamedTempFile::new().unwrap();
         let input = serde_json::json!({
-          "light": {
-            "control": {
-              "enable": true,
-              "pin": 6,
-              "activate_time": "10:00:00",
-              "deactivate_time": "04:00:00"
+            "light": {
+                "control": {
+                    "enable": true,
+                    "pin": 6,
+                    "activate_time": "10:00:00",
+                    "deactivate_time": "04:00:00"
+                },
+                "sample": {
+                    "sample_rate_secs": 123,
+                    "sensors": {
+                        "left": {
+                            "model": "Bh1750Fvi",
+                            "address": "0x23"
+                        },
+                        "right": {
+                            "model": "Bh1750Fvi",
+                            "address": "0x5C"
+                        }
+                    }
+                }
             },
-            "sample": {
-              "left_address": "0x23",
-              "right_address": "0x5C",
-              "sample_rate_secs": 1800
-            }
-          },
-          "water_level": {
-            "control": {
-              "enable": false,
-              "pin": 17,
+            "water_level": {
+                "control": {
+                    "enable": false,
+                    "pumps": {
+                        "main": 17
+                    }
+                },
+                "sample": {
+                    "sample_rate_secs": 1800,
+                    "sensors": {
+                        "main": {
+                            "model": "Vl53Lox",
+                            "address": "0x29"
+                        }
+                    }
+                }
             },
-            "sample": {
-              "sensor_address": "0x29",
-              "sample_rate_secs": 1800
-            }
-          },
-          "fan": {
-            "enable": true,
-            "pin": 23,
-            "on_duration_secs": 1,
-            "off_duration_secs": 0
-          },
-          "air": {
-            "control": {
-              "mode": "Cyclic",
-              "pin": 25,
-              "on_duration_secs": 1,
-              "off_duration_secs": 0
+            "fan": {
+                "enable": true,
+                "pin": 23,
+                "on_duration_secs": 1,
+                "off_duration_secs": 0
             },
-            "sample": {
-              "left_address": "0x77",
-              "right_address": "0x76",
-              "sample_rate_secs": 1800
+            "air": {
+                "control": {
+                    "mode": "Cyclic",
+                    "pin": 25,
+                    "on_duration_secs": 1,
+                    "off_duration_secs": 0
+                },
+                "sample": {
+                    "sample_rate_secs": 1800,
+                    "sensors": {
+                        "left": {
+                            "model": "Bme680",
+                            "address": "0x77"
+                        },
+                        "right": {
+                            "model": "Bme680",
+                            "address": "0x76"
+                        }
+                    }
+                }
+            },
+            "air_pump": {
+                "enable": true,
+                "pin": 24
             }
-          },
-          "air_pump": {
-            "enable": true,
-            "pin": 24
-          }
         });
+
         let expected = Config {
             light: LightConfig {
                 control: LightControlConfig {
@@ -111,19 +144,39 @@ mod tests {
                     deactivate_time: NaiveTime::from_hms_opt(04, 0, 0).unwrap(),
                 },
                 sample: LightSampleConfig {
-                    left_address: 35,
-                    right_address: 92,
-                    sample_rate_secs: 1800,
+                    sample_rate_secs: 123,
+                    sensors: HashMap::from([
+                        (
+                            "left".into(),
+                            LightSensorConfig {
+                                model: LightSensorModel::Bh1750Fvi,
+                                address: 35,
+                            },
+                        ),
+                        (
+                            "right".into(),
+                            LightSensorConfig {
+                                model: LightSensorModel::Bh1750Fvi,
+                                address: 92,
+                            },
+                        ),
+                    ]),
                 },
             },
             water_level: WaterLevelConfig {
                 control: PumpControlConfig {
                     enable: false,
-                    pin: 17,
+                    pumps: HashMap::from([("main".into(), 17)]),
                 },
                 sample: WaterLevelSampleConfig {
-                    sensor_address: 41,
                     sample_rate_secs: 1800,
+                    sensors: HashMap::from([(
+                        "main".into(),
+                        WaterLevelSensorConfig {
+                            model: WaterLevelSensorModel::Vl53Lox,
+                            address: 41,
+                        },
+                    )]),
                 },
             },
             fan: FanControlConfig {
@@ -140,9 +193,23 @@ mod tests {
                     off_duration_secs: 0,
                 },
                 sample: AirSampleConfig {
-                    left_address: 119,
-                    right_address: 118,
                     sample_rate_secs: 1800,
+                    sensors: HashMap::from([
+                        (
+                            "left".into(),
+                            AirSensorConfig {
+                                model: AirSensorModel::Bme680,
+                                address: 119,
+                            },
+                        ),
+                        (
+                            "right".into(),
+                            AirSensorConfig {
+                                model: AirSensorModel::Bme680,
+                                address: 118,
+                            },
+                        ),
+                    ]),
                 },
             },
             air_pump: AirPumpControlConfig {

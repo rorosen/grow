@@ -1,14 +1,18 @@
 use serde::Deserialize;
+use std::collections::HashMap;
 
-#[derive(PartialEq, Debug, Deserialize)]
+#[derive(PartialEq, Debug, Default, Deserialize)]
 pub struct AirConfig {
+    #[serde(default)]
     pub control: ExhaustControlConfig,
+    #[serde(default)]
     pub sample: AirSampleConfig,
 }
 
-#[derive(PartialEq, Debug, Deserialize)]
+#[derive(PartialEq, Debug, Default, Deserialize)]
 pub enum ExhaustControlMode {
     /// Disabled exhaust fan control.
+    #[default]
     Off,
     /// Cyclic exhaust fan control.
     Cyclic,
@@ -16,7 +20,7 @@ pub enum ExhaustControlMode {
     Threshold,
 }
 
-#[derive(PartialEq, Debug, Deserialize)]
+#[derive(PartialEq, Debug, Default, Deserialize)]
 pub struct ExhaustControlConfig {
     /// The control mode.
     pub mode: ExhaustControlMode,
@@ -30,14 +34,24 @@ pub struct ExhaustControlConfig {
     pub off_duration_secs: u64,
 }
 
-#[derive(PartialEq, Debug, Deserialize)]
+#[derive(PartialEq, Debug, Default, Deserialize)]
 pub struct AirSampleConfig {
-    /// The I2C address of the left air sensor.
-    #[serde(deserialize_with = "super::from_hex")]
-    pub left_address: u8,
-    /// The I2C address of the right air sensor.
-    #[serde(deserialize_with = "super::from_hex")]
-    pub right_address: u8,
-    /// The rate in which the air sensors take measurements in seconds.
+    /// The rate in which the air sensors are sampled in seconds.
     pub sample_rate_secs: u64,
+    /// The air sensors in use.
+    pub sensors: HashMap<String, AirSensorConfig>,
+}
+
+#[derive(PartialEq, Debug, Deserialize)]
+pub struct AirSensorConfig {
+    /// The type of the air sensor.
+    pub model: AirSensorModel,
+    /// The address of the air sensor.
+    #[serde(deserialize_with = "super::from_hex")]
+    pub address: u8,
+}
+
+#[derive(PartialEq, Debug, Deserialize)]
+pub enum AirSensorModel {
+    Bme680,
 }
