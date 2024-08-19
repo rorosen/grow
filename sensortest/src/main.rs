@@ -1,7 +1,11 @@
 use std::{env, str::FromStr};
 
 use anyhow::{bail, Context, Result};
-use grow_measure::{air::AirSensor, light::LightSensor, water_level::WaterLevelSensor};
+use grow_measure::{
+    air::{bme680::Bme680, AirSensor},
+    light::{bh1750fvi::Bh1750Fvi, LightSensor},
+    water_level::{vl53lox::Vl53L0X, WaterLevelSensor},
+};
 use tokio_util::sync::CancellationToken;
 
 #[derive(Debug)]
@@ -65,28 +69,26 @@ async fn main() -> Result<(), anyhow::Error> {
 
     match &config.variant {
         Variant::Air => {
-            let mut sensor = AirSensor::new(config.address).await.with_context(|| {
+            let mut sensor = Bme680::new(config.address).await.with_context(|| {
                 format!("failed to initialize air sensor at {}", config.address)
             })?;
             let measurement = sensor.measure(token).await?;
             println!("{measurement:?}");
         }
         Variant::Light => {
-            let mut sensor = LightSensor::new(config.address).await.with_context(|| {
+            let mut sensor = Vl53L0X::new(config.address).await.with_context(|| {
                 format!("failed to initialize light sensor at {}", config.address)
             })?;
             let measurement = sensor.measure(token).await?;
             println!("{measurement:?}");
         }
         Variant::WaterLevel => {
-            let mut sensor = WaterLevelSensor::new(config.address)
-                .await
-                .with_context(|| {
-                    format!(
-                        "failed to initialize water level sensor at {}",
-                        config.address
-                    )
-                })?;
+            let mut sensor = Bh1750Fvi::new(config.address).await.with_context(|| {
+                format!(
+                    "failed to initialize water level sensor at {}",
+                    config.address
+                )
+            })?;
             let measurement = sensor.measure(token).await?;
             println!("{measurement:?}");
         }
