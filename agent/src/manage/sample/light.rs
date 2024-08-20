@@ -1,22 +1,26 @@
 use anyhow::{Context, Result};
-use grow_measure::{light::LightSensor, LightMeasurement};
-use std::time::{Duration, SystemTime};
+use grow_measure::{
+    light::{bh1750fvi::Bh1750Fvi, LightSensor},
+    LightMeasurement,
+};
+use std::{
+    collections::HashMap,
+    time::{Duration, SystemTime},
+};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
-use crate::config::light::LightSampleConfig;
+use crate::config::light::{LightSampleConfig, LightSensorModel};
 
 pub struct LightSample {
     pub measure_time: SystemTime,
-    pub left: Option<LightMeasurement>,
-    pub right: Option<LightMeasurement>,
+    pub measurements: HashMap<String, LightMeasurement>,
 }
 
 pub struct LightSampler {
     sender: mpsc::Sender<LightSample>,
-    left_sensor: LightSensor,
-    right_sensor: LightSensor,
     sample_rate: Duration,
+    sensors: HashMap<String, Box<(dyn LightSensor)>>,
 }
 
 impl LightSampler {
@@ -24,18 +28,28 @@ impl LightSampler {
         config: &LightSampleConfig,
         sender: mpsc::Sender<LightSample>,
     ) -> Result<Self> {
-        let left_sensor = LightSensor::new(config.left_address)
-            .await
-            .context("failed to initialize left light sensor")?;
-        let right_sensor = LightSensor::new(config.right_address)
-            .await
-            .context("failed to initialize right air sensor")?;
+        let mut sensors: HashMap<String, Box<dyn LightSensor>> = HashMap::new();
+
+        for (identifier, sensor_config) in &config.sensors {
+            match sensor_config.model {
+                LightSensorModel::Bh1750Fvi => {
+                    let sensor =
+                        Bh1750Fvi::new(sensor_config.address)
+                            .await
+                            .with_context(|| {
+                                format!(
+                                    "Failed to initilaize light sensor (BH1750FVI) with identiifer {identifier}",
+                                )
+                            })?;
+                    sensors.insert(identifier.into(), Box::new(sensor));
+                }
+            }
+        }
 
         Ok(Self {
             sender,
-            left_sensor,
-            right_sensor,
             sample_rate: Duration::from_secs(config.sample_rate_secs),
+            sensors,
         })
     }
 
@@ -44,34 +58,28 @@ impl LightSampler {
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
-                    let left_measurement = match self.left_sensor.measure(cancel_token.clone()).await {
-                        Ok(m) => Some(m),
-                        Err(err) => {
-                            log::trace!("could not take left light measurement: {err}");
-                            None
-                        }
-                    };
+                    let mut measurements = HashMap::new();
 
-                    let right_measurement = match self.right_sensor.measure(cancel_token.clone()).await {
-                        Ok(m) => Some(m),
-                        Err(err) => {
-                            log::trace!("could not take right light measurement: {err}");
-                            None
-                        }
-                    };
-
-                    if left_measurement.is_some() || right_measurement.is_some() {
-                        let sample = LightSample {
-                            measure_time: SystemTime::now(),
-                            left: left_measurement,
-                            right: right_measurement,
+                    for (identifier, sensor) in &mut self.sensors {
+                        match sensor.measure(cancel_token.clone()).await {
+                            Ok(measurement) => {
+                                measurements.insert(identifier.into(), measurement);
+                            },
+                            Err(err) => {
+                                log::warn!("Failed to measure light with sensor {identifier}: {err}");
+                            }
                         };
-
-                        self.sender
-                            .send(sample)
-                            .await
-                            .expect("light measurements channel is open");
                     }
+
+                    let sample = LightSample {
+                        measure_time: SystemTime::now(),
+                        measurements,
+                    };
+
+                    self.sender
+                        .send(sample)
+                        .await
+                        .expect("light measurements channel is open");
                 }
                 _ = cancel_token.cancelled() => {
                     log::debug!("stopping light sampler");
