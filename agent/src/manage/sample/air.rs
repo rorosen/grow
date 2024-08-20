@@ -20,12 +20,12 @@ pub struct AirSample {
 pub struct AirSampler {
     sender: mpsc::Sender<AirSample>,
     sample_rate: Duration,
-    sensors: HashMap<String, Box<(dyn AirSensor)>>,
+    sensors: HashMap<String, Box<(dyn AirSensor + Send)>>,
 }
 
 impl AirSampler {
     pub async fn new(config: &AirSampleConfig, sender: mpsc::Sender<AirSample>) -> Result<Self> {
-        let mut sensors: HashMap<String, Box<dyn AirSensor>> = HashMap::new();
+        let mut sensors: HashMap<String, Box<dyn AirSensor + Send>> = HashMap::new();
 
         // Use async_iterator once stable: https://github.com/rust-lang/rust/issues/79024
         for (identifier, sensor_config) in &config.sensors {

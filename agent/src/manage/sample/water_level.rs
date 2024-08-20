@@ -20,7 +20,7 @@ pub struct WaterLevelSample {
 pub struct WaterLevelSampler {
     sender: mpsc::Sender<WaterLevelSample>,
     sample_rate: Duration,
-    sensors: HashMap<String, Box<(dyn WaterLevelSensor)>>,
+    sensors: HashMap<String, Box<(dyn WaterLevelSensor + Send)>>,
 }
 
 impl WaterLevelSampler {
@@ -28,7 +28,7 @@ impl WaterLevelSampler {
         config: &WaterLevelSampleConfig,
         sender: mpsc::Sender<WaterLevelSample>,
     ) -> Result<Self> {
-        let mut sensors: HashMap<String, Box<dyn WaterLevelSensor>> = HashMap::new();
+        let mut sensors: HashMap<String, Box<dyn WaterLevelSensor + Send>> = HashMap::new();
 
         for (identifier, sensor_config) in &config.sensors {
             match sensor_config.model {

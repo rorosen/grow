@@ -45,9 +45,8 @@ impl AirManager {
                     log::debug!("all air manager tasks finished");
                     return;
                 }
-                Some(AirSample{left, right, ..}) = self.receiver.recv() => {
-                    log::info!("left air measurement: {left:?}");
-                    log::info!("right air measurement: {right:?}");
+                Some(AirSample{measurements, ..}) = self.receiver.recv() => {
+                    log::info!("air measurements: {measurements:?}");
                 }
             }
         }

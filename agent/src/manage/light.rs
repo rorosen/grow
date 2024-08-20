@@ -41,9 +41,8 @@ impl LightManager {
                     log::debug!("all light manager tasks finished");
                     return;
                 }
-                Some(LightSample{left, right, ..}) = self.receiver.recv() => {
-                    log::info!("left light measurement: {left:?}");
-                    log::info!("right light measurement: {right:?}");
+                Some(LightSample{measurements, ..}) = self.receiver.recv() => {
+                    log::info!("light measurements: {measurements:?}");
                 }
             }
         }

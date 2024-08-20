@@ -20,7 +20,7 @@ pub struct LightSample {
 pub struct LightSampler {
     sender: mpsc::Sender<LightSample>,
     sample_rate: Duration,
-    sensors: HashMap<String, Box<(dyn LightSensor)>>,
+    sensors: HashMap<String, Box<(dyn LightSensor + Send)>>,
 }
 
 impl LightSampler {
@@ -28,7 +28,7 @@ impl LightSampler {
         config: &LightSampleConfig,
         sender: mpsc::Sender<LightSample>,
     ) -> Result<Self> {
-        let mut sensors: HashMap<String, Box<dyn LightSensor>> = HashMap::new();
+        let mut sensors: HashMap<String, Box<dyn LightSensor + Send>> = HashMap::new();
 
         for (identifier, sensor_config) in &config.sensors {
             match sensor_config.model {
