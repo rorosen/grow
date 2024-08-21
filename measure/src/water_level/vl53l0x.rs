@@ -36,7 +36,7 @@ impl Vl53L0X {
         let stop_variable = match Self::init(&mut i2c).await {
             Ok(var) => Some(var),
             Err(err) => {
-                log::warn!("failed to initialize water level sensor: {err:#}");
+                log::warn!("Failed to initialize water level sensor: {err:#}");
                 None
             }
         };
@@ -204,7 +204,7 @@ impl Vl53L0X {
 
     async fn perform_ref_calibration(i2c: &mut I2C) -> Result<(), Error> {
         Vl53L0X::perform_single_ref_calibration(i2c, 0x01, 0x01 | 0x40).await?;
-        Vl53L0X::perform_single_ref_calibration(i2c, 0x02, 0x01 | 0x00).await?;
+        Vl53L0X::perform_single_ref_calibration(i2c, 0x02, 0x01).await?;
 
         // restore sequence steps
         i2c.write_reg_byte(

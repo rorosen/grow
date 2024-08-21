@@ -62,7 +62,7 @@ mod tests {
 
     #[test]
     fn parse_config_ok() {
-        let mut file = NamedTempFile::new().expect("should be able to create tempfile");
+        let mut file = NamedTempFile::new().expect("Should be able to create tempfile");
         let input = serde_json::json!({
             "light": {
                 "control": {
@@ -217,7 +217,7 @@ mod tests {
                 pin: 24,
             },
         };
-        write!(&mut file, "{}", input.to_string()).expect("tempfile should be writable");
+        write!(&mut file, "{}", input.to_string()).expect("Tempfile should be writable");
         let config =
             Config::from_path(file.path()).expect("Config file should be parsed without error");
         assert_eq!(config, expected)
@@ -225,16 +225,16 @@ mod tests {
 
     #[test]
     fn parse_empty_config_ok() {
-        let mut file = NamedTempFile::new().expect("should be able to create tempfile");
-        write!(&mut file, "{{}}").expect("tempfile should be writable");
-        let config = Config::from_path(file.path())
-            .expect("Empty config file should be parsed without error");
+        let mut file = NamedTempFile::new().expect("Should be able to create tempfile");
+        write!(&mut file, "{{}}").expect("Tempfile should be writable");
+        let config =
+            Config::from_path(file.path()).expect("Config file should be parsed without error");
         assert_eq!(config, Config::default());
     }
 
     #[test]
     fn parse_partial_config_ok() {
-        let mut file = NamedTempFile::new().expect("should be able to create tempfile");
+        let mut file = NamedTempFile::new().expect("Should be able to create tempfile");
         let input = serde_json::json!({
             "light": {
                 "control": {
@@ -289,7 +289,7 @@ mod tests {
             },
             ..Default::default()
         };
-        write!(&mut file, "{}", input.to_string()).expect("tempfile should be writable");
+        write!(&mut file, "{}", input.to_string()).expect("Tempfile should be writable");
         let config =
             Config::from_path(file.path()).expect("Config file should be parsed without error");
         assert_eq!(config, expected)

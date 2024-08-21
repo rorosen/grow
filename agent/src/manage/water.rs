@@ -18,10 +18,10 @@ impl WaterLevelManager {
     pub async fn new(config: &WaterLevelConfig) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
         let controller =
-            PumpController::new(&config.control).context("failed to initialize pump controller")?;
+            PumpController::new(&config.control).context("Failed to initialize pump controller")?;
         let sampler = WaterLevelSampler::new(&config.sample, sender)
             .await
-            .context("failed to initialize water level sampler")?;
+            .context("Failed to initialize water level sampler")?;
 
         Ok(Self {
             receiver,
@@ -31,7 +31,7 @@ impl WaterLevelManager {
     }
 
     pub async fn run(mut self, cancel_token: CancellationToken) {
-        log::debug!("starting water manager");
+        log::debug!("Starting water manager");
 
         let tracker = TaskTracker::new();
         tracker.spawn(self.controller.run(cancel_token.clone()));
@@ -41,11 +41,11 @@ impl WaterLevelManager {
         loop {
             tokio::select! {
                 _ = tracker.wait() => {
-                    log::debug!("all water manager tasks finished");
+                    log::debug!("All water manager tasks finished");
                     return;
                 }
                 Some(WaterLevelSample{measurements, ..}) = self.receiver.recv() => {
-                    log::info!("water level measurements: {measurements:?}");
+                    log::info!("Water level measurements: {measurements:?}");
                 }
             }
         }

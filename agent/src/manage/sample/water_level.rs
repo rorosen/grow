@@ -33,14 +33,9 @@ impl WaterLevelSampler {
         for (identifier, sensor_config) in &config.sensors {
             match sensor_config.model {
                 WaterLevelSensorModel::Vl53L0x => {
-                    let sensor =
-                        Vl53L0X::new(sensor_config.address)
-                            .await
-                            .with_context(|| {
-                                format!(
-                                    "Failed to initilaize water level sensor (Vl53L0X) with identiifer {identifier}",
-                                )
-                            })?;
+                    let sensor = Vl53L0X::new(sensor_config.address).await.with_context(|| {
+                        format!("Failed to initialize {identifier} water level sensor (Vl53L0X)",)
+                    })?;
                     sensors.insert(identifier.into(), Box::new(sensor));
                 }
             }
@@ -54,7 +49,7 @@ impl WaterLevelSampler {
     }
 
     pub async fn run(mut self, cancel_token: CancellationToken) {
-        log::debug!("starting water level sampler");
+        log::debug!("Starting water level sampler");
 
         loop {
             tokio::select! {
@@ -67,7 +62,7 @@ impl WaterLevelSampler {
                                 measurements.insert(identifier.into(), measurement);
                             },
                             Err(err) => {
-                                log::warn!("Failed to measure water level with sensor {identifier}: {err}");
+                                log::warn!("Failed to measure with {identifier} water level sensor: {err}");
                             }
                         };
                     }
@@ -80,10 +75,10 @@ impl WaterLevelSampler {
                     self.sender
                         .send(sample)
                         .await
-                        .expect("water level measurements channel is open");
+                        .expect("Water level measurements channel is open");
                 }
                 _ = cancel_token.cancelled() => {
-                    log::debug!("stopping water level sampler");
+                    log::debug!("Stopping water level sampler");
                     return;
                 }
             }

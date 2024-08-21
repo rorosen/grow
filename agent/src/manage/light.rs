@@ -18,7 +18,7 @@ impl LightManager {
     pub async fn new(config: &LightConfig) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
         let controller = LightController::new(&config.control)
-            .context("failed to initialize light controller")?;
+            .context("Failed to initialize light controller")?;
 
         Ok(Self {
             receiver,
@@ -28,7 +28,7 @@ impl LightManager {
     }
 
     pub async fn run(mut self, cancel_token: CancellationToken) {
-        log::debug!("starting light manager");
+        log::debug!("Starting light manager");
 
         let tracker = TaskTracker::new();
         tracker.spawn(self.controller.run(cancel_token.clone()));
@@ -38,11 +38,11 @@ impl LightManager {
         loop {
             tokio::select! {
                 _ = tracker.wait() => {
-                    log::debug!("all light manager tasks finished");
+                    log::debug!("All light manager tasks finished");
                     return;
                 }
                 Some(LightSample{measurements, ..}) = self.receiver.recv() => {
-                    log::info!("light measurements: {measurements:?}");
+                    log::info!("Light measurements: {measurements:?}");
                 }
             }
         }

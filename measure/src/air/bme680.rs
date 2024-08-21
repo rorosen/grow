@@ -228,9 +228,7 @@ impl Params {
         let var5 = var4 + (var3 * (ambient_temperature as f64));
         (3.4 * (var5
             * (4.
-                / (4.
-                    + (self.gas.heat_range as f64)
-                        * (1. / 1. + (self.gas.heat_val as f64) * 0.002)))
+                / (4. + (self.gas.heat_range as f64) * (1. + (self.gas.heat_val as f64) * 0.002)))
             - 25.)) as u8
     }
 
@@ -277,7 +275,7 @@ impl Params {
     fn calc_pressure(&self, press_adc: u32, t_fine: f64) -> f64 {
         let mut var1 = (t_fine / 2.) - 64000.;
         let mut var2 = var1 * var1 * ((self.pressure.p6 as f64) / 131072.);
-        var2 = var2 + (var1 * (self.pressure.p5 as f64) * 2.);
+        var2 += var1 * (self.pressure.p5 as f64) * 2.;
         var2 = (var2 / 4.) + ((self.pressure.p4 as f64) * 65536.);
         var1 = ((((self.pressure.p3 as f64) * var1 * var1) / 16384.)
             + ((self.pressure.p2 as f64) * var1))
@@ -326,7 +324,7 @@ impl Bme680 {
         let params = match Self::init_params(&mut i2c).await {
             Ok(params) => Some(params),
             Err(err) => {
-                log::warn!("failed to initialize BME680 at address 0x{address:02x}: {err}");
+                log::warn!("Failed to initialize BME680 at address 0x{address:02x}: {err}");
                 None
             }
         };
@@ -438,12 +436,12 @@ impl Bme680 {
         tokio::time::sleep(Duration::from_millis(5)).await;
 
         let mut params = [0; PARAMS_SIZE1 + PARAMS_SIZE2 + PARAMS_SIZE3];
-        let (mut params1, rest) = params.split_at_mut(PARAMS_SIZE1);
-        let (mut params2, mut params3) = rest.split_at_mut(PARAMS_SIZE2);
+        let (params1, rest) = params.split_at_mut(PARAMS_SIZE1);
+        let (params2, params3) = rest.split_at_mut(PARAMS_SIZE2);
 
-        i2c.read_reg_bytes(REG_PARAMS1, &mut params1).await?;
-        i2c.read_reg_bytes(REG_PARAMS2, &mut params2).await?;
-        i2c.read_reg_bytes(REG_PARAMS3, &mut params3).await?;
+        i2c.read_reg_bytes(REG_PARAMS1, params1).await?;
+        i2c.read_reg_bytes(REG_PARAMS2, params2).await?;
+        i2c.read_reg_bytes(REG_PARAMS3, params3).await?;
 
         Ok(Params::new(&params))
     }

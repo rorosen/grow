@@ -19,10 +19,10 @@ impl AirManager {
     pub async fn new(config: &AirConfig) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
         let controller = ExhaustController::new(&config.control)
-            .context("failed to initialize exhaust fan controller")?;
+            .context("Failed to initialize exhaust fan controller")?;
         let sampler = AirSampler::new(&config.sample, sender)
             .await
-            .context("failed to initialize air sampler")?;
+            .context("Failed to initialize air sampler")?;
 
         Ok(Self {
             receiver,
@@ -32,7 +32,7 @@ impl AirManager {
     }
 
     pub async fn run(mut self, cancel_token: CancellationToken) {
-        log::debug!("starting air manager");
+        log::debug!("Starting air manager");
 
         let tracker = TaskTracker::new();
         tracker.spawn(self.controller.run(cancel_token.clone()));
@@ -42,11 +42,11 @@ impl AirManager {
         loop {
             tokio::select! {
                 _ = tracker.wait() => {
-                    log::debug!("all air manager tasks finished");
+                    log::debug!("All air manager tasks finished");
                     return;
                 }
                 Some(AirSample{measurements, ..}) = self.receiver.recv() => {
-                    log::info!("air measurements: {measurements:?}");
+                    log::info!("Air measurements: {measurements:?}");
                 }
             }
         }

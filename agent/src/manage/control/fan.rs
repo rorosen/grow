@@ -15,10 +15,10 @@ pub enum FanController {
 impl FanController {
     pub fn new(config: &FanControlConfig) -> Result<Self> {
         if config.enable {
-            let gpio = Gpio::new().context("failed to initialize GPIO")?;
+            let gpio = Gpio::new().context("Failed to initialize GPIO")?;
             let pin = gpio
                 .get(config.pin)
-                .with_context(|| format!("failed to get gpio pin {}", config.pin))?
+                .with_context(|| format!("Failed to get gpio pin {}", config.pin))?
                 .into_output();
             let controller = CyclicController::new(
                 pin,

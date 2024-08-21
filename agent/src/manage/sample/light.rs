@@ -29,7 +29,6 @@ impl LightSampler {
         sender: mpsc::Sender<LightSample>,
     ) -> Result<Self> {
         let mut sensors: HashMap<String, Box<dyn LightSensor + Send>> = HashMap::new();
-
         for (identifier, sensor_config) in &config.sensors {
             match sensor_config.model {
                 LightSensorModel::Bh1750Fvi => {
@@ -38,7 +37,7 @@ impl LightSampler {
                             .await
                             .with_context(|| {
                                 format!(
-                                    "Failed to initilaize light sensor (BH1750FVI) with identiifer {identifier}",
+                                    "Failed to initilaize {identifier} light sensor (BH1750FVI)",
                                 )
                             })?;
                     sensors.insert(identifier.into(), Box::new(sensor));
@@ -54,19 +53,18 @@ impl LightSampler {
     }
 
     pub async fn run(mut self, cancel_token: CancellationToken) {
-        log::debug!("starting light sampler");
+        log::debug!("Starting light sampler");
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
                     let mut measurements = HashMap::new();
-
                     for (identifier, sensor) in &mut self.sensors {
                         match sensor.measure(cancel_token.clone()).await {
                             Ok(measurement) => {
                                 measurements.insert(identifier.into(), measurement);
                             },
                             Err(err) => {
-                                log::warn!("Failed to measure light with sensor {identifier}: {err}");
+                                log::warn!("Failed to measure with {identifier} light sensor: {err}");
                             }
                         };
                     }
@@ -79,10 +77,10 @@ impl LightSampler {
                     self.sender
                         .send(sample)
                         .await
-                        .expect("light measurements channel is open");
+                        .expect("Light measurements channel should be open");
                 }
                 _ = cancel_token.cancelled() => {
-                    log::debug!("stopping light sampler");
+                    log::debug!("Stopping light sampler");
                     return;
                 }
             }

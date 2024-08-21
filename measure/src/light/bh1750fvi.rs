@@ -46,7 +46,7 @@ impl LightSensor for Bh1750Fvi {
 
         tokio::select! {
             _ = cancel_token.cancelled() => {
-                log::debug!("aborting light measurement: token cancelled");
+                log::debug!("Aborting light measurement: token cancelled");
                 return Err(Error::Cancelled);
             }
             _ = tokio::time::sleep(WAIT_DURATION) => {

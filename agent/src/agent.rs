@@ -27,53 +27,53 @@ impl Agent {
 
     pub async fn run(self) -> Result<()> {
         let mut sigint =
-            signal(SignalKind::interrupt()).context("failed to register SIGINT handler")?;
+            signal(SignalKind::interrupt()).context("Failed to register SIGINT handler")?;
         let mut sigterm =
-            signal(SignalKind::terminate()).context("failed to register SIGTERM handler")?;
+            signal(SignalKind::terminate()).context("Failed to register SIGTERM handler")?;
 
         AirPumpController::set_pin(&self.config.air_pump)
-            .context("failed to configure air pump")?;
+            .context("Failed to configure air pump")?;
         let fan_controller =
-            FanController::new(&self.config.fan).context("failed to initialize fan controller")?;
+            FanController::new(&self.config.fan).context("Failed to initialize fan controller")?;
         let air_manager = AirManager::new(&self.config.air)
             .await
-            .context("failed to initialize air manager")?;
+            .context("Failed to initialize air manager")?;
         let light_manager = LightManager::new(&self.config.light)
             .await
-            .context("failed to initialize light manager")?;
+            .context("Failed to initialize light manager")?;
         let water_manager = WaterLevelManager::new(&self.config.water_level)
             .await
-            .context("failed to initialize water manager")?;
+            .context("Failed to initialize water level manager")?;
 
         let mut set = JoinSet::new();
         let cancel_token = CancellationToken::new();
         let cloned_token = cancel_token.clone();
-        set.spawn(async move { ("fan controller", fan_controller.run(cloned_token).await) });
+        set.spawn(async move { ("Fan controller", fan_controller.run(cloned_token).await) });
         let cloned_token = cancel_token.clone();
-        set.spawn(async move { ("air manager", air_manager.run(cloned_token).await) });
+        set.spawn(async move { ("Air manager", air_manager.run(cloned_token).await) });
         let cloned_token = cancel_token.clone();
-        set.spawn(async move { ("light manager", light_manager.run(cloned_token).await) });
+        set.spawn(async move { ("Light manager", light_manager.run(cloned_token).await) });
         let cloned_token = cancel_token.clone();
-        set.spawn(async move { ("water manager", water_manager.run(cloned_token).await) });
+        set.spawn(async move { ("Water manager", water_manager.run(cloned_token).await) });
 
         loop {
             tokio::select! {
                 _ = sigint.recv() => {
-                    log::info!("shutting down on sigint");
+                    log::info!("Shutting down on sigint");
                     cancel_token.cancel();
                 }
                 _ = sigterm.recv() => {
-                    log::info!("shutting down on sigterm");
+                    log::info!("Shutting down on sigterm");
                     cancel_token.cancel();
                 }
                 res = set.join_next() => {
                     match res {
                         Some(Ok((id, _))) => log::info!("{id} task terminated"),
                         Some(Err(err)) => {
-                            bail!("task panicked: {err:#}");
+                            bail!("Task panicked: {err:#}");
                         }
                         None => {
-                            log::info!("all manager tasks terminated");
+                            log::info!("All tasks terminated");
                             return Ok(());
                         }
                     }

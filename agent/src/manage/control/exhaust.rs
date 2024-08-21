@@ -17,10 +17,10 @@ impl ExhaustController {
         match config.mode {
             ExhaustControlMode::Off => Ok(Self::Disabled),
             ExhaustControlMode::Cyclic => {
-                let gpio = Gpio::new().context("failed to initialize GPIO")?;
+                let gpio = Gpio::new().context("Failed to initialize GPIO")?;
                 let pin = gpio
                     .get(config.pin)
-                    .with_context(|| format!("failed to get gpio pin {}", config.pin))?
+                    .with_context(|| format!("Failed to get gpio pin {}", config.pin))?
                     .into_output();
                 let controller = CyclicController::new(
                     pin,

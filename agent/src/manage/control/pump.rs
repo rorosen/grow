@@ -7,7 +7,10 @@ use tokio_util::sync::CancellationToken;
 use crate::config::water_level::PumpControlConfig;
 
 pub enum PumpController {
-    Enabled { pins: HashMap<String, OutputPin> },
+    Enabled {
+        #[allow(dead_code)]
+        pins: HashMap<String, OutputPin>,
+    },
     Disabled,
 }
 
@@ -15,12 +18,12 @@ impl PumpController {
     pub fn new(config: &PumpControlConfig) -> Result<Self> {
         if config.enable {
             let mut pins = HashMap::new();
-            let gpio = Gpio::new().context("failed to initialize GPIO")?;
+            let gpio = Gpio::new().context("Failed to initialize GPIO")?;
             for (identifier, pin) in &config.pumps {
                 let pin = gpio
                     .get(*pin)
                     .with_context(|| {
-                        format!("Failed to get gpio pin {pin} of water pump {identifier}")
+                        format!("Failed to get gpio pin {pin} of {identifier} water pump")
                     })?
                     .into_output();
 
@@ -35,7 +38,7 @@ impl PumpController {
 
     pub async fn run(self, _: CancellationToken) {
         match self {
-            PumpController::Enabled { .. } => todo!("implement pump controller run"),
+            PumpController::Enabled { .. } => todo!("Implement pump controller run"),
             PumpController::Disabled => (),
         }
     }

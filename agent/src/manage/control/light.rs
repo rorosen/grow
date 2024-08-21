@@ -14,14 +14,14 @@ pub enum LightController {
 impl LightController {
     pub fn new(config: &LightControlConfig) -> Result<Self> {
         if config.enable {
-            let gpio = Gpio::new().context("failed to initialize GPIO")?;
+            let gpio = Gpio::new().context("Failed to initialize GPIO")?;
             let pin = gpio
                 .get(config.pin)
-                .with_context(|| format!("failed to get gpio pin {}", config.pin))?
+                .with_context(|| format!("Failed to get gpio pin {}", config.pin))?
                 .into_output();
             let controller =
                 TimeBasedController::new(pin, config.activate_time, config.deactivate_time)
-                    .context("failed to create time based controller")?;
+                    .context("Failed to create time based controller")?;
 
             Ok(Self::Time { controller })
         } else {

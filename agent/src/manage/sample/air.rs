@@ -32,9 +32,7 @@ impl AirSampler {
             match sensor_config.model {
                 AirSensorModel::Bme680 => {
                     let sensor = Bme680::new(sensor_config.address).await.with_context(|| {
-                        format!(
-                            "Failed to initialize air sensor (BME680) with identifier {identifier}",
-                        )
+                        format!("Failed to initialize {identifier} air sensor (BME680)",)
                     })?;
                     sensors.insert(identifier.into(), Box::new(sensor));
                 }
@@ -49,7 +47,7 @@ impl AirSampler {
     }
 
     pub async fn run(mut self, cancel_token: CancellationToken) {
-        log::debug!("starting air sampler");
+        log::debug!("Starting air sampler");
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
@@ -61,7 +59,7 @@ impl AirSampler {
                                 measurements.insert(identifier.into(), measurement);
                             },
                             Err(err) => {
-                                log::warn!("Failed to measure air with sensor {identifier}: {err}");
+                                log::warn!("Failed to measure with {identifier} air sensor: {err}");
                             }
                         };
                     }
@@ -74,10 +72,10 @@ impl AirSampler {
                     self.sender
                         .send(sample)
                         .await
-                        .expect("air measurements channel is open");
+                        .expect("Air measurements channel should be open");
                 }
                 _ = cancel_token.cancelled() => {
-                    log::debug!("stopping air sampler");
+                    log::debug!("Stopping air sampler");
                     return;
                 }
             }
