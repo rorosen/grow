@@ -1,8 +1,5 @@
 use anyhow::{Context, Result};
-use grow_measure::{
-    light::{bh1750fvi::Bh1750Fvi, LightSensor},
-    LightMeasurement,
-};
+use grow_measure::light::{bh1750fvi::Bh1750Fvi, LightMeasurement, LightSensor};
 use std::{
     collections::HashMap,
     time::{Duration, SystemTime},

@@ -3,8 +3,12 @@ use std::{env, process::ExitCode};
 use agent::Agent;
 
 mod agent;
+mod air;
 mod config;
-mod manage;
+mod control;
+mod light;
+mod sample;
+mod water;
 
 #[tokio::main]
 async fn main() -> ExitCode {

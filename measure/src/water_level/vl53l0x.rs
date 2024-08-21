@@ -1,7 +1,6 @@
 use super::WaterLevelSensor;
-use crate::{Error, WaterLevelMeasurement};
+use crate::{i2c::I2C, water_level::WaterLevelMeasurement, Error};
 use async_trait::async_trait;
-use grow_hardware::i2c::I2C;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 

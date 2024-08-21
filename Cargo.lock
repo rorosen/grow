@@ -262,21 +262,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "grow-hardware"
-version = "0.1.0"
-dependencies = [
- "nix",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "grow-measure"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "grow-hardware",
  "log",
+ "nix",
  "serde",
  "thiserror",
  "tokio",

@@ -1,8 +1,9 @@
-use crate::{air::AirSensor, AirMeasurement, Error};
+use crate::{air::AirSensor, i2c::I2C, Error};
 use async_trait::async_trait;
-use grow_hardware::i2c::I2C;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
+
+use super::AirMeasurement;
 
 const TEMPERATURE_MAX: u16 = 400;
 const GAS_WAIT_MS_MAX: u16 = 4032;

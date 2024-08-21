@@ -1,8 +1,5 @@
 use anyhow::{Context, Result};
-use grow_measure::{
-    water_level::{vl53l0x::Vl53L0X, WaterLevelSensor},
-    WaterLevelMeasurement,
-};
+use grow_measure::water_level::{vl53l0x::Vl53L0X, WaterLevelMeasurement, WaterLevelSensor};
 use std::{
     collections::HashMap,
     time::{Duration, SystemTime},

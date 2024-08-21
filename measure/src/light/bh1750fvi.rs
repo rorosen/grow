@@ -1,9 +1,8 @@
 use async_trait::async_trait;
-use grow_hardware::i2c::I2C;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
-use crate::{Error, LightMeasurement};
+use crate::{i2c::I2C, light::LightMeasurement, Error};
 
 use super::LightSensor;
 

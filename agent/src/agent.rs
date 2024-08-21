@@ -1,11 +1,11 @@
 use std::path::Path;
 
 use crate::{
+    air::AirManager,
     config::Config,
-    manage::{
-        air::AirManager, light::LightManager, water::WaterLevelManager, AirPumpController,
-        FanController,
-    },
+    control::{air_pump::AirPumpController, fan::FanController},
+    light::LightManager,
+    water::WaterLevelManager,
 };
 use anyhow::{bail, Context, Result};
 use tokio::{

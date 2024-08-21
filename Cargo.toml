@@ -1,5 +1,5 @@
 [workspace]
-members = ["agent", "measure", "hardware", "sensortest", "gpiotest"]
+members = ["agent", "measure",  "sensortest", "gpiotest"]
 resolver = "2"
 
 [workspace.package]
@@ -22,7 +22,6 @@ anyhow = "1.0.86"
 rppal = "0.18.0"
 async-trait = "0.1.81"
 grow-utils = { path = "./utils" }
-grow-hardware = { path = "./hardware" }
 grow-measure = { path = "./measure" }
 
 [workspace.lints.clippy]

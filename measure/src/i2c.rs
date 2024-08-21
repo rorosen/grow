@@ -3,10 +3,26 @@ use std::os::fd::AsRawFd;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use crate::I2cError;
-
 const I2C_DEVICE_PATH: &str = "/dev/i2c-1";
 const REQ_SLAVE: libc::c_ulong = 0x0706;
+
+#[derive(Debug, thiserror::Error)]
+pub enum I2cError {
+    #[error("Failed to open I2C bus at {file:?}: {err}")]
+    Open {
+        file: &'static str,
+        err: tokio::io::Error,
+    },
+
+    #[error("Failed to set I2C slave address \"{0:02x}\" via ioctl")]
+    SlaveAddr(u8),
+
+    #[error("Failed to write to I2C: {0}")]
+    Write(tokio::io::Error),
+
+    #[error("Failed to read from I2C: {0}")]
+    Read(tokio::io::Error),
+}
 
 pub struct I2C {
     dev: File,

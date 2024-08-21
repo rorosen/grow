@@ -1,8 +1,5 @@
 use anyhow::{Context, Result};
-use grow_measure::{
-    air::{bme680::Bme680, AirSensor},
-    AirMeasurement,
-};
+use grow_measure::air::{bme680::Bme680, AirMeasurement, AirSensor};
 use std::{
     collections::HashMap,
     time::{Duration, SystemTime},
