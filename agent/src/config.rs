@@ -62,7 +62,7 @@ mod tests {
 
     #[test]
     fn parse_config_ok() {
-        let mut file = NamedTempFile::new().unwrap();
+        let mut file = NamedTempFile::new().expect("should be able to create tempfile");
         let input = serde_json::json!({
             "light": {
                 "control": {
@@ -93,10 +93,10 @@ mod tests {
                     }
                 },
                 "sample": {
-                    "sample_rate_secs": 1800,
+                    "sample_rate_secs": 86400,
                     "sensors": {
                         "main": {
-                            "model": "Vl53Lox",
+                            "model": "Vl53L0x",
                             "address": "0x29"
                         }
                     }
@@ -169,11 +169,11 @@ mod tests {
                     pumps: HashMap::from([("main".into(), 17)]),
                 },
                 sample: WaterLevelSampleConfig {
-                    sample_rate_secs: 1800,
+                    sample_rate_secs: 86400,
                     sensors: HashMap::from([(
                         "main".into(),
                         WaterLevelSensorConfig {
-                            model: WaterLevelSensorModel::Vl53Lox,
+                            model: WaterLevelSensorModel::Vl53L0x,
                             address: 41,
                         },
                     )]),
@@ -217,9 +217,81 @@ mod tests {
                 pin: 24,
             },
         };
-        write!(&mut file, "{}", input.to_string()).unwrap();
-        let config = Config::from_path(file.path()).expect("Can parse config file without error");
+        write!(&mut file, "{}", input.to_string()).expect("tempfile should be writable");
+        let config =
+            Config::from_path(file.path()).expect("Config file should be parsed without error");
+        assert_eq!(config, expected)
+    }
 
+    #[test]
+    fn parse_empty_config_ok() {
+        let mut file = NamedTempFile::new().expect("should be able to create tempfile");
+        write!(&mut file, "{{}}").expect("tempfile should be writable");
+        let config = Config::from_path(file.path())
+            .expect("Empty config file should be parsed without error");
+        assert_eq!(config, Config::default());
+    }
+
+    #[test]
+    fn parse_partial_config_ok() {
+        let mut file = NamedTempFile::new().expect("should be able to create tempfile");
+        let input = serde_json::json!({
+            "light": {
+                "control": {
+                    "enable": true,
+                    "pin": 6,
+                    "activate_time": "10:00:00",
+                    "deactivate_time": "04:00:00"
+                },
+                "sample": {
+                    "sample_rate_secs": 123,
+                    "sensors": {
+                        "left": {
+                            "model": "Bh1750Fvi",
+                            "address": "0x23"
+                        },
+                        "right": {
+                            "model": "Bh1750Fvi",
+                            "address": "0x5C"
+                        }
+                    }
+                }
+            }
+        });
+
+        let expected = Config {
+            light: LightConfig {
+                control: LightControlConfig {
+                    enable: true,
+                    pin: 6,
+                    activate_time: NaiveTime::from_hms_opt(10, 0, 0).unwrap(),
+                    deactivate_time: NaiveTime::from_hms_opt(04, 0, 0).unwrap(),
+                },
+                sample: LightSampleConfig {
+                    sample_rate_secs: 123,
+                    sensors: HashMap::from([
+                        (
+                            "left".into(),
+                            LightSensorConfig {
+                                model: LightSensorModel::Bh1750Fvi,
+                                address: 35,
+                            },
+                        ),
+                        (
+                            "right".into(),
+                            LightSensorConfig {
+                                model: LightSensorModel::Bh1750Fvi,
+                                address: 92,
+                            },
+                        ),
+                    ]),
+                },
+            },
+            ..Default::default()
+        };
+        write!(&mut file, "{}", input.to_string()).expect("tempfile should be writable");
+        let config =
+            Config::from_path(file.path()).expect("Config file should be parsed without error");
         assert_eq!(config, expected)
     }
 }

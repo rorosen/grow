@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use grow_measure::{
     air::{bme680::Bme680, AirSensor},
     light::{bh1750fvi::Bh1750Fvi, LightSensor},
-    water_level::{vl53lox::Vl53L0X, WaterLevelSensor},
+    water_level::{vl53l0x::Vl53L0X, WaterLevelSensor},
 };
 use tokio_util::sync::CancellationToken;
 

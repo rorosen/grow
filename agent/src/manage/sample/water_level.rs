@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use grow_measure::{
-    water_level::{vl53lox::Vl53L0X, WaterLevelSensor},
+    water_level::{vl53l0x::Vl53L0X, WaterLevelSensor},
     WaterLevelMeasurement,
 };
 use std::{
@@ -32,7 +32,7 @@ impl WaterLevelSampler {
 
         for (identifier, sensor_config) in &config.sensors {
             match sensor_config.model {
-                WaterLevelSensorModel::Vl53Lox => {
+                WaterLevelSensorModel::Vl53L0x => {
                     let sensor =
                         Vl53L0X::new(sensor_config.address)
                             .await
