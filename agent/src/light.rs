@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::config::light::LightConfig;
 
 use super::{
@@ -15,7 +17,7 @@ pub struct LightManager {
 }
 
 impl LightManager {
-    pub async fn new(config: &LightConfig) -> Result<Self> {
+    pub async fn new(config: &LightConfig, i2c_path: impl AsRef<Path>) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
         let controller = LightController::new(&config.control)
             .context("Failed to initialize light controller")?;
@@ -23,7 +25,7 @@ impl LightManager {
         Ok(Self {
             receiver,
             controller,
-            sampler: LightSampler::new(&config.sample, sender).await?,
+            sampler: LightSampler::new(&config.sample, sender, &i2c_path).await?,
         })
     }
 

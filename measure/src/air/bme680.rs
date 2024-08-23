@@ -1,6 +1,6 @@
 use crate::{air::AirSensor, i2c::I2C, Error};
 use async_trait::async_trait;
-use std::time::Duration;
+use std::{path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
 
 use super::AirMeasurement;
@@ -320,8 +320,8 @@ pub struct Bme680 {
 }
 
 impl Bme680 {
-    pub async fn new(address: u8) -> Result<Self, Error> {
-        let mut i2c = I2C::new(address).await?;
+    pub async fn new(i2c_path: impl AsRef<Path>, address: u8) -> Result<Self, Error> {
+        let mut i2c = I2C::new(i2c_path, address).await?;
         let params = match Self::init_params(&mut i2c).await {
             Ok(params) => Some(params),
             Err(err) => {

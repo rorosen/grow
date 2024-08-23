@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use grow_measure::air::{bme680::Bme680, AirMeasurement, AirSensor};
 use std::{
     collections::HashMap,
+    path::Path,
     time::{Duration, SystemTime},
 };
 use tokio::sync::mpsc;
@@ -21,16 +22,22 @@ pub struct AirSampler {
 }
 
 impl AirSampler {
-    pub async fn new(config: &AirSampleConfig, sender: mpsc::Sender<AirSample>) -> Result<Self> {
+    pub async fn new(
+        config: &AirSampleConfig,
+        sender: mpsc::Sender<AirSample>,
+        i2c_path: impl AsRef<Path>,
+    ) -> Result<Self> {
         let mut sensors: HashMap<String, Box<dyn AirSensor + Send>> = HashMap::new();
 
         // Use async_iterator once stable: https://github.com/rust-lang/rust/issues/79024
         for (identifier, sensor_config) in &config.sensors {
             match sensor_config.model {
                 AirSensorModel::Bme680 => {
-                    let sensor = Bme680::new(sensor_config.address).await.with_context(|| {
-                        format!("Failed to initialize {identifier} air sensor (BME680)",)
-                    })?;
+                    let sensor = Bme680::new(&i2c_path, sensor_config.address)
+                        .await
+                        .with_context(|| {
+                            format!("Failed to initialize {identifier} air sensor (BME680)",)
+                        })?;
                     sensors.insert(identifier.into(), Box::new(sensor));
                 }
             }

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use std::time::Duration;
+use std::{path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
 
 use crate::{i2c::I2C, light::LightMeasurement, Error};
@@ -20,8 +20,8 @@ pub struct Bh1750Fvi {
 }
 
 impl Bh1750Fvi {
-    pub async fn new(address: u8) -> Result<Self, Error> {
-        let i2c = I2C::new(address).await?;
+    pub async fn new(i2c_path: impl AsRef<Path>, address: u8) -> Result<Self, Error> {
+        let i2c = I2C::new(i2c_path, address).await?;
 
         Ok(Self { i2c })
     }

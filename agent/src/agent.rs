@@ -35,13 +35,13 @@ impl Agent {
             .context("Failed to configure air pump")?;
         let fan_controller =
             FanController::new(&self.config.fan).context("Failed to initialize fan controller")?;
-        let air_manager = AirManager::new(&self.config.air)
+        let air_manager = AirManager::new(&self.config.air, &self.config.i2c_path)
             .await
             .context("Failed to initialize air manager")?;
-        let light_manager = LightManager::new(&self.config.light)
+        let light_manager = LightManager::new(&self.config.light, &self.config.i2c_path)
             .await
             .context("Failed to initialize light manager")?;
-        let water_manager = WaterLevelManager::new(&self.config.water_level)
+        let water_manager = WaterLevelManager::new(&self.config.water_level, &self.config.i2c_path)
             .await
             .context("Failed to initialize water level manager")?;
 

@@ -1,4 +1,7 @@
-use std::{fs::File, path::Path};
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+};
 
 use air::AirConfig;
 use air_pump::AirPumpControlConfig;
@@ -14,18 +17,20 @@ pub mod fan;
 pub mod light;
 pub mod water_level;
 
-#[derive(PartialEq, Debug, Default, Deserialize)]
+#[derive(PartialEq, Debug, Deserialize)]
 pub struct Config {
-    #[serde(default)]
-    pub light: LightConfig,
-    #[serde(default)]
-    pub water_level: WaterLevelConfig,
-    #[serde(default)]
-    pub fan: FanControlConfig,
+    #[serde(default = "default_i2c_path")]
+    pub i2c_path: PathBuf,
     #[serde(default)]
     pub air: AirConfig,
     #[serde(default)]
     pub air_pump: AirPumpControlConfig,
+    #[serde(default)]
+    pub fan: FanControlConfig,
+    #[serde(default)]
+    pub light: LightConfig,
+    #[serde(default)]
+    pub water_level: WaterLevelConfig,
 }
 
 impl Config {
@@ -34,6 +39,23 @@ impl Config {
         let config: Config = serde_json::from_reader(&file).context("Failed to parse config")?;
         Ok(config)
     }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            i2c_path: default_i2c_path(),
+            air: AirConfig::default(),
+            air_pump: AirPumpControlConfig::default(),
+            fan: FanControlConfig::default(),
+            light: LightConfig::default(),
+            water_level: WaterLevelConfig::default(),
+        }
+    }
+}
+
+fn default_i2c_path() -> PathBuf {
+    "/dev/i2c-1".into()
 }
 
 fn from_hex<'de, D>(deserializer: D) -> Result<u8, D::Error>
@@ -64,6 +86,7 @@ mod tests {
     fn parse_config_ok() {
         let mut file = NamedTempFile::new().expect("Should be able to create tempfile");
         let input = serde_json::json!({
+            "i2c_path": "/dev/i2c-69",
             "light": {
                 "control": {
                     "enable": true,
@@ -136,12 +159,15 @@ mod tests {
         });
 
         let expected = Config {
+            i2c_path: PathBuf::from("/dev/i2c-69"),
             light: LightConfig {
                 control: LightControlConfig {
                     enable: true,
                     pin: 6,
-                    activate_time: NaiveTime::from_hms_opt(10, 0, 0).unwrap(),
-                    deactivate_time: NaiveTime::from_hms_opt(04, 0, 0).unwrap(),
+                    activate_time: NaiveTime::from_hms_opt(10, 0, 0)
+                        .expect("Failed to craete NaiveTime"),
+                    deactivate_time: NaiveTime::from_hms_opt(4, 0, 0)
+                        .expect("Failed to craete NaiveTime"),
                 },
                 sample: LightSampleConfig {
                     sample_rate_secs: 123,
@@ -217,7 +243,7 @@ mod tests {
                 pin: 24,
             },
         };
-        write!(&mut file, "{}", input.to_string()).expect("Tempfile should be writable");
+        write!(&mut file, "{}", input).expect("Tempfile should be writable");
         let config =
             Config::from_path(file.path()).expect("Config file should be parsed without error");
         assert_eq!(config, expected)
@@ -264,8 +290,10 @@ mod tests {
                 control: LightControlConfig {
                     enable: true,
                     pin: 6,
-                    activate_time: NaiveTime::from_hms_opt(10, 0, 0).unwrap(),
-                    deactivate_time: NaiveTime::from_hms_opt(04, 0, 0).unwrap(),
+                    activate_time: NaiveTime::from_hms_opt(10, 0, 0)
+                        .expect("Failed to craete NaiveTime"),
+                    deactivate_time: NaiveTime::from_hms_opt(4, 0, 0)
+                        .expect("Failed to craete NaiveTime"),
                 },
                 sample: LightSampleConfig {
                     sample_rate_secs: 123,
@@ -289,7 +317,7 @@ mod tests {
             },
             ..Default::default()
         };
-        write!(&mut file, "{}", input.to_string()).expect("Tempfile should be writable");
+        write!(&mut file, "{}", input).expect("Tempfile should be writable");
         let config =
             Config::from_path(file.path()).expect("Config file should be parsed without error");
         assert_eq!(config, expected)

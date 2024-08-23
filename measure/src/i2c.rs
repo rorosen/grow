@@ -1,18 +1,15 @@
 use nix::libc;
 use std::os::fd::AsRawFd;
+use std::path::Path;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-const I2C_DEVICE_PATH: &str = "/dev/i2c-1";
 const REQ_SLAVE: libc::c_ulong = 0x0706;
 
 #[derive(Debug, thiserror::Error)]
 pub enum I2cError {
-    #[error("Failed to open I2C bus at {file:?}: {err}")]
-    Open {
-        file: &'static str,
-        err: tokio::io::Error,
-    },
+    #[error("Failed to open I2C bus: {err}")]
+    Open { err: tokio::io::Error },
 
     #[error("Failed to set I2C slave address \"{0:02x}\" via ioctl")]
     SlaveAddr(u8),
@@ -29,16 +26,13 @@ pub struct I2C {
 }
 
 impl I2C {
-    pub async fn new(slave_address: u8) -> Result<Self, I2cError> {
+    pub async fn new(i2c_path: impl AsRef<Path>, slave_address: u8) -> Result<Self, I2cError> {
         let dev = OpenOptions::new()
             .read(true)
             .write(true)
-            .open(I2C_DEVICE_PATH)
+            .open(i2c_path)
             .await
-            .map_err(|err| I2cError::Open {
-                file: I2C_DEVICE_PATH,
-                err,
-            })?;
+            .map_err(|err| I2cError::Open { err })?;
 
         if unsafe {
             libc::ioctl(

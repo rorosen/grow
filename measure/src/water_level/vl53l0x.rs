@@ -1,7 +1,7 @@
 use super::WaterLevelSensor;
 use crate::{i2c::I2C, water_level::WaterLevelMeasurement, Error};
 use async_trait::async_trait;
-use std::time::Duration;
+use std::{path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
 
 const IDENTIFICATION_MODEL_ID: u8 = 0xEE;
@@ -29,8 +29,8 @@ pub struct Vl53L0X {
 }
 
 impl Vl53L0X {
-    pub async fn new(address: u8) -> Result<Self, Error> {
-        let mut i2c = I2C::new(address).await?;
+    pub async fn new(i2c_path: impl AsRef<Path>, address: u8) -> Result<Self, Error> {
+        let mut i2c = I2C::new(i2c_path, address).await?;
 
         let stop_variable = match Self::init(&mut i2c).await {
             Ok(var) => Some(var),

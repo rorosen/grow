@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::config::air::AirConfig;
 
 use super::{
@@ -16,11 +18,11 @@ pub struct AirManager {
 }
 
 impl AirManager {
-    pub async fn new(config: &AirConfig) -> Result<Self> {
+    pub async fn new(config: &AirConfig, i2c_path: impl AsRef<Path>) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
         let controller = ExhaustController::new(&config.control)
             .context("Failed to initialize exhaust fan controller")?;
-        let sampler = AirSampler::new(&config.sample, sender)
+        let sampler = AirSampler::new(&config.sample, sender, &i2c_path)
             .await
             .context("Failed to initialize air sampler")?;
 

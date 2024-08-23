@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::config::water_level::WaterLevelConfig;
 
 use super::{
@@ -15,11 +17,11 @@ pub struct WaterLevelManager {
 }
 
 impl WaterLevelManager {
-    pub async fn new(config: &WaterLevelConfig) -> Result<Self> {
+    pub async fn new(config: &WaterLevelConfig, i2c_path: impl AsRef<Path>) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
         let controller =
             PumpController::new(&config.control).context("Failed to initialize pump controller")?;
-        let sampler = WaterLevelSampler::new(&config.sample, sender)
+        let sampler = WaterLevelSampler::new(&config.sample, sender, &i2c_path)
             .await
             .context("Failed to initialize water level sampler")?;
 

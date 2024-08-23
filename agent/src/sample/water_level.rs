@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use grow_measure::water_level::{vl53l0x::Vl53L0X, WaterLevelMeasurement, WaterLevelSensor};
 use std::{
     collections::HashMap,
+    path::Path,
     time::{Duration, SystemTime},
 };
 use tokio::sync::mpsc;
@@ -24,15 +25,20 @@ impl WaterLevelSampler {
     pub async fn new(
         config: &WaterLevelSampleConfig,
         sender: mpsc::Sender<WaterLevelSample>,
+        i2c_path: impl AsRef<Path>,
     ) -> Result<Self> {
         let mut sensors: HashMap<String, Box<dyn WaterLevelSensor + Send>> = HashMap::new();
 
         for (identifier, sensor_config) in &config.sensors {
             match sensor_config.model {
                 WaterLevelSensorModel::Vl53L0x => {
-                    let sensor = Vl53L0X::new(sensor_config.address).await.with_context(|| {
-                        format!("Failed to initialize {identifier} water level sensor (Vl53L0X)",)
-                    })?;
+                    let sensor = Vl53L0X::new(&i2c_path, sensor_config.address)
+                        .await
+                        .with_context(|| {
+                            format!(
+                                "Failed to initialize {identifier} water level sensor (Vl53L0X)",
+                            )
+                        })?;
                     sensors.insert(identifier.into(), Box::new(sensor));
                 }
             }
