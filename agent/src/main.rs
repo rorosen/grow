@@ -6,6 +6,7 @@ mod agent;
 mod air;
 mod config;
 mod control;
+mod datastore;
 mod light;
 mod sample;
 mod water_level;

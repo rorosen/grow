@@ -1,5 +1,3 @@
-use std::time::SystemTime;
-
 use crate::Error;
 use async_trait::async_trait;
 use serde::Deserialize;
@@ -16,7 +14,7 @@ pub trait AirSensor {
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct AirMeasurement {
     /// The number of seconds since unix epoch.
-    pub measure_time: u64,
+    pub measure_time: i64,
     /// The label of this measurement, used to organize measurements.
     pub label: Option<String>,
     /// The temperature in degree celsius.
@@ -33,12 +31,7 @@ pub struct AirMeasurement {
 }
 
 impl AirMeasurement {
-    pub fn new(temperature: f64, humidity: f64, pressure: f64) -> Self {
-        let measure_time = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .expect("SystemTime should be after unix epoch")
-            .as_secs();
-
+    pub fn new(measure_time: i64, temperature: f64, humidity: f64, pressure: f64) -> Self {
         Self {
             measure_time,
             label: None,

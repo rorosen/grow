@@ -8,11 +8,14 @@ pub enum Error {
     #[error("I2C error: {0}")]
     Transport(#[from] i2c::I2cError),
 
-    #[error("Failed to identify sensor")]
-    IdentifyFailed,
-
     #[error("Sensor is not initialized")]
     NotInit,
+
+    #[error("Failed to identify sensor")]
+    Identify,
+
+    #[error("Failed to get measurement time")]
+    Time,
 
     #[error("Measurement cancelled")]
     Cancelled,

@@ -1,11 +1,8 @@
-use std::path::Path;
-
-use crate::config::air::AirConfig;
-
 use super::{control::exhaust::ExhaustController, sample::air::AirSampler};
-
+use crate::config::air::AirConfig;
 use anyhow::{Context, Result};
 use grow_measure::air::AirMeasurement;
+use std::path::Path;
 use tokio::sync::mpsc;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 

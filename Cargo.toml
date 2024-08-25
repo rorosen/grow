@@ -23,6 +23,3 @@ gpio-cdev = "0.6.0"
 async-trait = "0.1.81"
 grow-utils = { path = "./utils" }
 grow-measure = { path = "./measure" }
-
-[workspace.lints.clippy]
-unwrap_used = "deny"

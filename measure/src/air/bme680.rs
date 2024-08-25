@@ -1,6 +1,9 @@
 use crate::{air::AirSensor, i2c::I2C, Error};
 use async_trait::async_trait;
-use std::{path::Path, time::Duration};
+use std::{
+    path::Path,
+    time::{Duration, SystemTime},
+};
 use tokio_util::sync::CancellationToken;
 
 use super::AirMeasurement;
@@ -429,7 +432,7 @@ impl Bme680 {
         let id = i2c.read_reg_byte(REG_CHIP_ID).await?;
 
         if id != CHIP_ID {
-            return Err(Error::IdentifyFailed);
+            return Err(Error::Identify);
         }
 
         i2c.write_reg_byte(REG_RESET, CMD_SOFT_RESET).await?;
@@ -461,13 +464,20 @@ impl AirSensor for Bme680 {
         self.set_heater_config(25, 300, 700).await?;
         self.set_op_mode(MODE_FORCED).await?;
         let data = self.read_sensor_data(cancel_token).await?;
+        let measure_time = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .map_err(|_| Error::Time)?
+            .as_secs()
+            .try_into()
+            .map_err(|_| Error::Time)?;
+
         let params = self.params.as_ref().ok_or(Error::NotInit)?;
         let (t_fine, temperature) = params.calc_temperature(data.temp_adc);
         let humidity = params.calc_humidity(data.hum_adc, temperature);
         let pressure = params.calc_pressure(data.press_adc, t_fine) / 100.;
         let resistance = params.compute_resistance(data.gas_adc, data.gas_range as usize);
-        let measurement =
-            AirMeasurement::new(temperature, humidity, pressure).resistance(resistance);
+        let measurement = AirMeasurement::new(measure_time, temperature, humidity, pressure)
+            .resistance(resistance);
 
         Ok(measurement)
     }

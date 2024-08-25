@@ -1,7 +1,10 @@
 use super::WaterLevelSensor;
 use crate::{i2c::I2C, water_level::WaterLevelMeasurement, Error};
 use async_trait::async_trait;
-use std::{path::Path, time::Duration};
+use std::{
+    path::Path,
+    time::{Duration, SystemTime},
+};
 use tokio_util::sync::CancellationToken;
 
 const IDENTIFICATION_MODEL_ID: u8 = 0xEE;
@@ -46,7 +49,7 @@ impl Vl53L0X {
     async fn init(i2c: &mut I2C) -> Result<u8, Error> {
         let device_id = i2c.read_reg_byte(REG_IDENTIFICATION_MODEL_ID).await?;
         if device_id != IDENTIFICATION_MODEL_ID {
-            return Err(Error::IdentifyFailed);
+            return Err(Error::Identify);
         }
 
         let stop_variable = Vl53L0X::init_data(i2c).await?;
@@ -286,6 +289,12 @@ impl WaterLevelSensor for Vl53L0X {
                 }
             }
         }
+        let measure_time = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .map_err(|_| Error::Time)?
+            .as_secs()
+            .try_into()
+            .map_err(|_| Error::Time)?;
 
         // read measurement result
         let distance = self
@@ -298,7 +307,7 @@ impl WaterLevelSensor for Vl53L0X {
         self.i2c
             .write_reg_byte(REG_SYSTEM_INTERRUPT_CLEAR, 0x01)
             .await?;
-        let measurement = WaterLevelMeasurement::new(distance);
+        let measurement = WaterLevelMeasurement::new(measure_time, distance);
 
         Ok(measurement)
     }
