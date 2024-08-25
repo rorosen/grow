@@ -11,11 +11,20 @@ pub struct LightConfig {
 }
 
 #[derive(PartialEq, Debug, Default, Deserialize)]
+pub enum LightControlMode {
+    /// Disabled light control.
+    #[default]
+    Off,
+    /// Activate and deactivate the light control pin based on time stamps.
+    TimeBased,
+}
+
+#[derive(PartialEq, Debug, Default, Deserialize)]
 pub struct LightControlConfig {
-    /// Whether to enable time based light control.
-    pub enable: bool,
+    /// The control mode
+    pub mode: LightControlMode,
     /// The gpio pin used to control the light.
-    pub pin: u8,
+    pub pin: u32,
     /// The time of the day when the light should be switched on.
     /// Only has an effect if control is enabled.
     pub activate_time: NaiveTime,

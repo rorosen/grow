@@ -21,10 +21,12 @@ pub mod water_level;
 pub struct Config {
     #[serde(default = "default_i2c_path")]
     pub i2c_path: PathBuf,
+    #[serde(default = "default_gpio_path")]
+    pub gpio_path: PathBuf,
     #[serde(default)]
     pub air: AirConfig,
     #[serde(default)]
-    pub air_pump: AirPumpControlConfig,
+    pub air_pump_control: AirPumpControlConfig,
     #[serde(default)]
     pub fan: FanControlConfig,
     #[serde(default)]
@@ -45,8 +47,9 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             i2c_path: default_i2c_path(),
+            gpio_path: default_gpio_path(),
             air: AirConfig::default(),
-            air_pump: AirPumpControlConfig::default(),
+            air_pump_control: AirPumpControlConfig::default(),
             fan: FanControlConfig::default(),
             light: LightConfig::default(),
             water_level: WaterLevelConfig::default(),
@@ -56,6 +59,10 @@ impl Default for Config {
 
 fn default_i2c_path() -> PathBuf {
     "/dev/i2c-1".into()
+}
+
+fn default_gpio_path() -> PathBuf {
+    "/dev/gpiochip0".into()
 }
 
 fn from_hex<'de, D>(deserializer: D) -> Result<u8, D::Error>
@@ -74,12 +81,18 @@ mod tests {
     use air::{
         AirSampleConfig, AirSensorConfig, AirSensorModel, ExhaustControlConfig, ExhaustControlMode,
     };
+    use air_pump::AirPumpControlMode;
     use chrono::NaiveTime;
-    use light::{LightControlConfig, LightSampleConfig, LightSensorConfig, LightSensorModel};
+    use fan::FanControlMode;
+    use light::{
+        LightControlConfig, LightControlMode, LightSampleConfig, LightSensorConfig,
+        LightSensorModel,
+    };
     use std::{collections::HashMap, io::Write};
     use tempfile::NamedTempFile;
     use water_level::{
-        PumpControlConfig, WaterLevelSampleConfig, WaterLevelSensorConfig, WaterLevelSensorModel,
+        WaterLevelControlConfig, WaterLevelControlMode, WaterLevelSampleConfig,
+        WaterLevelSensorConfig, WaterLevelSensorModel,
     };
 
     #[test]
@@ -87,9 +100,10 @@ mod tests {
         let mut file = NamedTempFile::new().expect("Should be able to create tempfile");
         let input = serde_json::json!({
             "i2c_path": "/dev/i2c-69",
+            "gpio_path": "/dev/gpiochip69",
             "light": {
                 "control": {
-                    "enable": true,
+                    "mode": "TimeBased",
                     "pin": 6,
                     "activate_time": "10:00:00",
                     "deactivate_time": "04:00:00"
@@ -110,7 +124,7 @@ mod tests {
             },
             "water_level": {
                 "control": {
-                    "enable": false,
+                    "mode": "Off",
                     "pumps": {
                         "main": 17
                     }
@@ -126,7 +140,7 @@ mod tests {
                 }
             },
             "fan": {
-                "enable": true,
+                "mode": "Cyclic",
                 "pin": 23,
                 "on_duration_secs": 1,
                 "off_duration_secs": 0
@@ -152,17 +166,18 @@ mod tests {
                     }
                 }
             },
-            "air_pump": {
-                "enable": true,
+            "air_pump_control": {
+                "mode": "Permanent",
                 "pin": 24
             }
         });
 
         let expected = Config {
             i2c_path: PathBuf::from("/dev/i2c-69"),
+            gpio_path: PathBuf::from("/dev/gpiochip69"),
             light: LightConfig {
                 control: LightControlConfig {
-                    enable: true,
+                    mode: LightControlMode::TimeBased,
                     pin: 6,
                     activate_time: NaiveTime::from_hms_opt(10, 0, 0)
                         .expect("Failed to craete NaiveTime"),
@@ -190,8 +205,8 @@ mod tests {
                 },
             },
             water_level: WaterLevelConfig {
-                control: PumpControlConfig {
-                    enable: false,
+                control: WaterLevelControlConfig {
+                    mode: WaterLevelControlMode::Off,
                     pumps: HashMap::from([("main".into(), 17)]),
                 },
                 sample: WaterLevelSampleConfig {
@@ -206,7 +221,7 @@ mod tests {
                 },
             },
             fan: FanControlConfig {
-                enable: true,
+                mode: FanControlMode::Cyclic,
                 pin: 23,
                 on_duration_secs: 1,
                 off_duration_secs: 0,
@@ -238,8 +253,8 @@ mod tests {
                     ]),
                 },
             },
-            air_pump: AirPumpControlConfig {
-                enable: true,
+            air_pump_control: AirPumpControlConfig {
+                mode: AirPumpControlMode::Permanent,
                 pin: 24,
             },
         };
@@ -264,7 +279,7 @@ mod tests {
         let input = serde_json::json!({
             "light": {
                 "control": {
-                    "enable": true,
+                    "mode": "TimeBased",
                     "pin": 6,
                     "activate_time": "10:00:00",
                     "deactivate_time": "04:00:00"
@@ -288,7 +303,7 @@ mod tests {
         let expected = Config {
             light: LightConfig {
                 control: LightControlConfig {
-                    enable: true,
+                    mode: LightControlMode::TimeBased,
                     pin: 6,
                     activate_time: NaiveTime::from_hms_opt(10, 0, 0)
                         .expect("Failed to craete NaiveTime"),

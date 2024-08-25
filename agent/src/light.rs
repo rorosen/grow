@@ -17,9 +17,13 @@ pub struct LightManager {
 }
 
 impl LightManager {
-    pub async fn new(config: &LightConfig, i2c_path: impl AsRef<Path>) -> Result<Self> {
+    pub async fn new(
+        config: &LightConfig,
+        i2c_path: impl AsRef<Path>,
+        gpio_path: impl AsRef<Path>,
+    ) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
-        let controller = LightController::new(&config.control)
+        let controller = LightController::new(&config.control, &gpio_path)
             .context("Failed to initialize light controller")?;
 
         Ok(Self {
@@ -29,7 +33,7 @@ impl LightManager {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) {
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
         log::debug!("Starting light manager");
 
         let tracker = TaskTracker::new();
@@ -41,7 +45,7 @@ impl LightManager {
             tokio::select! {
                 _ = tracker.wait() => {
                     log::debug!("All light manager tasks finished");
-                    return;
+                    return Ok(());
                 }
                 Some(LightSample{measurements, ..}) = self.receiver.recv() => {
                     log::info!("Light measurements: {measurements:?}");

@@ -18,9 +18,13 @@ pub struct AirManager {
 }
 
 impl AirManager {
-    pub async fn new(config: &AirConfig, i2c_path: impl AsRef<Path>) -> Result<Self> {
+    pub async fn new(
+        config: &AirConfig,
+        i2c_path: impl AsRef<Path>,
+        gpio_path: impl AsRef<Path>,
+    ) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
-        let controller = ExhaustController::new(&config.control)
+        let controller = ExhaustController::new(&config.control, &gpio_path)
             .context("Failed to initialize exhaust fan controller")?;
         let sampler = AirSampler::new(&config.sample, sender, &i2c_path)
             .await
@@ -33,7 +37,7 @@ impl AirManager {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) {
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
         log::debug!("Starting air manager");
 
         let tracker = TaskTracker::new();
@@ -45,7 +49,7 @@ impl AirManager {
             tokio::select! {
                 _ = tracker.wait() => {
                     log::debug!("All air manager tasks finished");
-                    return;
+                    return Ok(());
                 }
                 Some(AirSample{measurements, ..}) = self.receiver.recv() => {
                     log::info!("Air measurements: {measurements:?}");

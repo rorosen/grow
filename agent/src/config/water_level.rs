@@ -5,17 +5,24 @@ use serde::Deserialize;
 #[derive(PartialEq, Debug, Default, Deserialize)]
 pub struct WaterLevelConfig {
     #[serde(default)]
-    pub control: PumpControlConfig,
+    pub control: WaterLevelControlConfig,
     #[serde(default)]
     pub sample: WaterLevelSampleConfig,
 }
 
 #[derive(PartialEq, Debug, Default, Deserialize)]
-pub struct PumpControlConfig {
-    /// Whether to enable pump control.
-    pub enable: bool,
+pub enum WaterLevelControlMode {
+    /// Disabled water level control.
+    #[default]
+    Off,
+}
+
+#[derive(PartialEq, Debug, Default, Deserialize)]
+pub struct WaterLevelControlConfig {
+    /// The control mode.
+    pub mode: WaterLevelControlMode,
     /// The water pumps in use.
-    pub pumps: HashMap<String, u8>,
+    pub pumps: HashMap<String, u32>,
 }
 
 #[derive(PartialEq, Debug, Default, Deserialize)]

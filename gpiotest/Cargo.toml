@@ -6,4 +6,4 @@ authors.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-rppal.workspace = true
+gpio-cdev.workspace = true

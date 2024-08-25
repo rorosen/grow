@@ -3,7 +3,7 @@ use std::path::Path;
 use crate::config::water_level::WaterLevelConfig;
 
 use super::{
-    control::pump::PumpController,
+    control::water_level::PumpController,
     sample::water_level::{WaterLevelSample, WaterLevelSampler},
 };
 use anyhow::{Context, Result};
@@ -17,10 +17,14 @@ pub struct WaterLevelManager {
 }
 
 impl WaterLevelManager {
-    pub async fn new(config: &WaterLevelConfig, i2c_path: impl AsRef<Path>) -> Result<Self> {
+    pub async fn new(
+        config: &WaterLevelConfig,
+        i2c_path: impl AsRef<Path>,
+        gpio_path: impl AsRef<Path>,
+    ) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
-        let controller =
-            PumpController::new(&config.control).context("Failed to initialize pump controller")?;
+        let controller = PumpController::new(&config.control, &gpio_path)
+            .context("Failed to initialize pump controller")?;
         let sampler = WaterLevelSampler::new(&config.sample, sender, &i2c_path)
             .await
             .context("Failed to initialize water level sampler")?;
@@ -32,7 +36,7 @@ impl WaterLevelManager {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) {
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
         log::debug!("Starting water manager");
 
         let tracker = TaskTracker::new();
@@ -44,7 +48,7 @@ impl WaterLevelManager {
             tokio::select! {
                 _ = tracker.wait() => {
                     log::debug!("All water manager tasks finished");
-                    return;
+                    return Ok(());
                 }
                 Some(WaterLevelSample{measurements, ..}) = self.receiver.recv() => {
                     log::info!("Water level measurements: {measurements:?}");

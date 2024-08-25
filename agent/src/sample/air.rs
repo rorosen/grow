@@ -50,7 +50,7 @@ impl AirSampler {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) {
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
         log::debug!("Starting air sampler");
         loop {
             tokio::select! {
@@ -80,7 +80,7 @@ impl AirSampler {
                 }
                 _ = cancel_token.cancelled() => {
                     log::debug!("Stopping air sampler");
-                    return;
+                    return Ok(());
                 }
             }
         }

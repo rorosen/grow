@@ -25,7 +25,7 @@ pub struct ExhaustControlConfig {
     /// The control mode.
     pub mode: ExhaustControlMode,
     /// The gpio pin used to control the exhaust fan.
-    pub pin: u8,
+    pub pin: u32,
     /// The duration in seconds for which the air fan should
     /// run (0 means never). Only has an effect in cyclic mode.
     pub on_duration_secs: u64,

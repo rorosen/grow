@@ -5,7 +5,7 @@ use crate::{
     config::Config,
     control::{air_pump::AirPumpController, fan::FanController},
     light::LightManager,
-    water::WaterLevelManager,
+    water_level::WaterLevelManager,
 };
 use anyhow::{bail, Context, Result};
 use tokio::{
@@ -31,22 +31,42 @@ impl Agent {
         let mut sigterm =
             signal(SignalKind::terminate()).context("Failed to register SIGTERM handler")?;
 
-        AirPumpController::set_pin(&self.config.air_pump)
-            .context("Failed to configure air pump")?;
-        let fan_controller =
-            FanController::new(&self.config.fan).context("Failed to initialize fan controller")?;
-        let air_manager = AirManager::new(&self.config.air, &self.config.i2c_path)
-            .await
-            .context("Failed to initialize air manager")?;
-        let light_manager = LightManager::new(&self.config.light, &self.config.i2c_path)
-            .await
-            .context("Failed to initialize light manager")?;
-        let water_manager = WaterLevelManager::new(&self.config.water_level, &self.config.i2c_path)
-            .await
-            .context("Failed to initialize water level manager")?;
+        let air_pump_controller =
+            AirPumpController::new(&self.config.air_pump_control, &self.config.gpio_path)
+                .context("Failed to initialize air pump controller")?;
+        let fan_controller = FanController::new(&self.config.fan, &self.config.gpio_path)
+            .context("Failed to initialize fan controller")?;
+        let air_manager = AirManager::new(
+            &self.config.air,
+            &self.config.i2c_path,
+            &self.config.gpio_path,
+        )
+        .await
+        .context("Failed to initialize air manager")?;
+        let light_manager = LightManager::new(
+            &self.config.light,
+            &self.config.i2c_path,
+            &self.config.gpio_path,
+        )
+        .await
+        .context("Failed to initialize light manager")?;
+        let water_manager = WaterLevelManager::new(
+            &self.config.water_level,
+            &self.config.i2c_path,
+            &self.config.gpio_path,
+        )
+        .await
+        .context("Failed to initialize water level manager")?;
 
         let mut set = JoinSet::new();
         let cancel_token = CancellationToken::new();
+        let cloned_token = cancel_token.clone();
+        set.spawn(async move {
+            (
+                "Air pump controller",
+                air_pump_controller.run(cloned_token).await,
+            )
+        });
         let cloned_token = cancel_token.clone();
         set.spawn(async move { ("Fan controller", fan_controller.run(cloned_token).await) });
         let cloned_token = cancel_token.clone();

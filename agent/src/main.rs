@@ -8,7 +8,7 @@ mod config;
 mod control;
 mod light;
 mod sample;
-mod water;
+mod water_level;
 
 #[tokio::main]
 async fn main() -> ExitCode {
