@@ -13,6 +13,8 @@ pub trait AirSensor {
 /// A single air measurement.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct AirMeasurement {
+    /// The number of seconds since unix epoch.
+    pub measure_time: u64,
     /// The temperature in degree celsius.
     pub temperature: f64,
     /// The humidity in percentage.

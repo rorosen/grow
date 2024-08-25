@@ -10,13 +10,8 @@ use tokio_util::sync::CancellationToken;
 
 use crate::config::air::{AirSampleConfig, AirSensorModel};
 
-pub struct AirSample {
-    pub measure_time: SystemTime,
-    pub measurements: HashMap<String, AirMeasurement>,
-}
-
 pub struct AirSampler {
-    sender: mpsc::Sender<AirSample>,
+    sender: mpsc::Sender<HashMap<String, AirMeasurement>>,
     sample_rate: Duration,
     sensors: HashMap<String, Box<(dyn AirSensor + Send)>>,
 }
@@ -24,7 +19,7 @@ pub struct AirSampler {
 impl AirSampler {
     pub async fn new(
         config: &AirSampleConfig,
-        sender: mpsc::Sender<AirSample>,
+        sender: mpsc::Sender<HashMap<String, AirMeasurement>>,
         i2c_path: impl AsRef<Path>,
     ) -> Result<Self> {
         let mut sensors: HashMap<String, Box<dyn AirSensor + Send>> = HashMap::new();
@@ -68,13 +63,8 @@ impl AirSampler {
                         };
                     }
 
-                    let sample = AirSample {
-                        measure_time: SystemTime::now(),
-                        measurements,
-                    };
-
                     self.sender
-                        .send(sample)
+                        .send(measurements)
                         .await
                         .expect("Air measurements channel should be open");
                 }

@@ -14,6 +14,8 @@ pub trait LightSensor {
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 /// A single light measurement.
 pub struct LightMeasurement {
+    /// The number of seconds since unix epoch.
+    pub measure_time: u64,
     /// The illuminance in lux.
     pub illuminance: f64,
 }

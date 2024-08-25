@@ -16,6 +16,8 @@ pub trait WaterLevelSensor {
 /// A single water level measurement.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct WaterLevelMeasurement {
+    /// The number of seconds since unix epoch.
+    pub measure_time: u64,
     /// The distance in mm.
     pub distance: u32,
 }
