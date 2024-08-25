@@ -1,8 +1,5 @@
 use async_trait::async_trait;
-use std::{
-    path::Path,
-    time::{Duration, SystemTime},
-};
+use std::{path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
 
 use crate::{i2c::I2C, light::LightMeasurement, Error};
@@ -54,14 +51,8 @@ impl LightSensor for Bh1750Fvi {
             _ = tokio::time::sleep(WAIT_DURATION) => {
                 let mut buf = [0; 2];
                 self.i2c.read_bytes(&mut buf[..]).await?;
-                let measure_time = SystemTime::now()
-                    .duration_since(SystemTime::UNIX_EPOCH)
-                    .expect("SystemTime should be after unix epoch")
-                    .as_secs();
-                let measurement = LightMeasurement{
-                    measure_time,
-                    illuminance: ((((buf[0] as u32) << 8) | (buf[1] as u32)) as f64) / 1.2 * ((MT_REG_DEFAULT as f64) / (MT_REG_MAX as f64)),
-                };
+                let illuminance = ((((buf[0] as u32) << 8) | (buf[1] as u32)) as f64) / 1.2 * ((MT_REG_DEFAULT as f64) / (MT_REG_MAX as f64));
+                let measurement = LightMeasurement::new(illuminance);
 
                 return Ok(measurement);
             }

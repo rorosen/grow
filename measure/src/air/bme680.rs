@@ -1,9 +1,6 @@
 use crate::{air::AirSensor, i2c::I2C, Error};
 use async_trait::async_trait;
-use std::{
-    path::Path,
-    time::{Duration, SystemTime},
-};
+use std::{path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
 
 use super::AirMeasurement;
@@ -466,17 +463,12 @@ impl AirSensor for Bme680 {
         let data = self.read_sensor_data(cancel_token).await?;
         let params = self.params.as_ref().ok_or(Error::NotInit)?;
         let (t_fine, temperature) = params.calc_temperature(data.temp_adc);
-        let measure_time = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .expect("SystemTime should be after unix epoch")
-            .as_secs();
+        let humidity = params.calc_humidity(data.hum_adc, temperature);
+        let pressure = params.calc_pressure(data.press_adc, t_fine) / 100.;
+        let resistance = params.compute_resistance(data.gas_adc, data.gas_range as usize);
+        let measurement =
+            AirMeasurement::new(temperature, humidity, pressure).resistance(resistance);
 
-        Ok(AirMeasurement {
-            measure_time,
-            temperature,
-            humidity: params.calc_humidity(data.hum_adc, temperature),
-            pressure: params.calc_pressure(data.press_adc, t_fine) / 100.,
-            resistance: Some(params.compute_resistance(data.gas_adc, data.gas_range as usize)),
-        })
+        Ok(measurement)
     }
 }

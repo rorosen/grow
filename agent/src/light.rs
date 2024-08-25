@@ -2,16 +2,14 @@ use std::path::Path;
 
 use crate::config::light::LightConfig;
 
-use super::{
-    control::light::LightController,
-    sample::light::{LightSample, LightSampler},
-};
+use super::{control::light::LightController, sample::light::LightSampler};
 use anyhow::{Context, Result};
+use grow_measure::light::LightMeasurement;
 use tokio::sync::mpsc;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
 pub struct LightManager {
-    receiver: mpsc::Receiver<LightSample>,
+    receiver: mpsc::Receiver<Vec<LightMeasurement>>,
     controller: LightController,
     sampler: LightSampler,
 }
@@ -47,7 +45,7 @@ impl LightManager {
                     log::debug!("All light manager tasks finished");
                     return Ok(());
                 }
-                Some(LightSample{measurements, ..}) = self.receiver.recv() => {
+                Some(measurements) = self.receiver.recv() => {
                     log::info!("Light measurements: {measurements:?}");
                 }
             }

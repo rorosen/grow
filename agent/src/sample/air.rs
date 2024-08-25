@@ -1,17 +1,13 @@
 use anyhow::{Context, Result};
 use grow_measure::air::{bme680::Bme680, AirMeasurement, AirSensor};
-use std::{
-    collections::HashMap,
-    path::Path,
-    time::{Duration, SystemTime},
-};
+use std::{collections::HashMap, path::Path, time::Duration};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 use crate::config::air::{AirSampleConfig, AirSensorModel};
 
 pub struct AirSampler {
-    sender: mpsc::Sender<HashMap<String, AirMeasurement>>,
+    sender: mpsc::Sender<Vec<AirMeasurement>>,
     sample_rate: Duration,
     sensors: HashMap<String, Box<(dyn AirSensor + Send)>>,
 }
@@ -19,21 +15,21 @@ pub struct AirSampler {
 impl AirSampler {
     pub async fn new(
         config: &AirSampleConfig,
-        sender: mpsc::Sender<HashMap<String, AirMeasurement>>,
+        sender: mpsc::Sender<Vec<AirMeasurement>>,
         i2c_path: impl AsRef<Path>,
     ) -> Result<Self> {
         let mut sensors: HashMap<String, Box<dyn AirSensor + Send>> = HashMap::new();
 
         // Use async_iterator once stable: https://github.com/rust-lang/rust/issues/79024
-        for (identifier, sensor_config) in &config.sensors {
+        for (label, sensor_config) in &config.sensors {
             match sensor_config.model {
                 AirSensorModel::Bme680 => {
                     let sensor = Bme680::new(&i2c_path, sensor_config.address)
                         .await
                         .with_context(|| {
-                            format!("Failed to initialize {identifier} air sensor (BME680)",)
+                            format!("Failed to initialize {label} air sensor (BME680)",)
                         })?;
-                    sensors.insert(identifier.into(), Box::new(sensor));
+                    sensors.insert(label.into(), Box::new(sensor));
                 }
             }
         }
@@ -50,15 +46,15 @@ impl AirSampler {
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
-                    let mut measurements = HashMap::new();
+                    let mut measurements = vec![];
 
-                    for (identifier, sensor) in &mut self.sensors {
+                    for (label, sensor) in &mut self.sensors {
                         match sensor.measure(cancel_token.clone()).await {
                             Ok(measurement) => {
-                                measurements.insert(identifier.into(), measurement);
+                                measurements.push(measurement.label(label.into()));
                             },
                             Err(err) => {
-                                log::warn!("Failed to measure with {identifier} air sensor: {err}");
+                                log::warn!("Failed to measure with {label} air sensor: {err}");
                             }
                         };
                     }

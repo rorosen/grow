@@ -1,22 +1,13 @@
 use anyhow::{Context, Result};
 use grow_measure::light::{bh1750fvi::Bh1750Fvi, LightMeasurement, LightSensor};
-use std::{
-    collections::HashMap,
-    path::Path,
-    time::{Duration, SystemTime},
-};
+use std::{collections::HashMap, path::Path, time::Duration};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 use crate::config::light::{LightSampleConfig, LightSensorModel};
 
-pub struct LightSample {
-    pub measure_time: SystemTime,
-    pub measurements: HashMap<String, LightMeasurement>,
-}
-
 pub struct LightSampler {
-    sender: mpsc::Sender<LightSample>,
+    sender: mpsc::Sender<Vec<LightMeasurement>>,
     sample_rate: Duration,
     sensors: HashMap<String, Box<(dyn LightSensor + Send)>>,
 }
@@ -24,19 +15,19 @@ pub struct LightSampler {
 impl LightSampler {
     pub async fn new(
         config: &LightSampleConfig,
-        sender: mpsc::Sender<LightSample>,
+        sender: mpsc::Sender<Vec<LightMeasurement>>,
         i2c_path: impl AsRef<Path>,
     ) -> Result<Self> {
         let mut sensors: HashMap<String, Box<dyn LightSensor + Send>> = HashMap::new();
-        for (identifier, sensor_config) in &config.sensors {
+        for (label, sensor_config) in &config.sensors {
             match sensor_config.model {
                 LightSensorModel::Bh1750Fvi => {
                     let sensor = Bh1750Fvi::new(&i2c_path, sensor_config.address)
                         .await
                         .with_context(|| {
-                            format!("Failed to initilaize {identifier} light sensor (BH1750FVI)",)
+                            format!("Failed to initilaize {label} light sensor (BH1750FVI)",)
                         })?;
-                    sensors.insert(identifier.into(), Box::new(sensor));
+                    sensors.insert(label.into(), Box::new(sensor));
                 }
             }
         }
@@ -53,25 +44,20 @@ impl LightSampler {
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
-                    let mut measurements = HashMap::new();
-                    for (identifier, sensor) in &mut self.sensors {
+                    let mut measurements = vec![];
+                    for (label, sensor) in &mut self.sensors {
                         match sensor.measure(cancel_token.clone()).await {
                             Ok(measurement) => {
-                                measurements.insert(identifier.into(), measurement);
+                                measurements.push(measurement.label(label.into()));
                             },
                             Err(err) => {
-                                log::warn!("Failed to measure with {identifier} light sensor: {err}");
+                                log::warn!("Failed to measure with {label} light sensor: {err}");
                             }
                         };
                     }
 
-                    let sample = LightSample {
-                        measure_time: SystemTime::now(),
-                        measurements,
-                    };
-
                     self.sender
-                        .send(sample)
+                        .send(measurements)
                         .await
                         .expect("Light measurements channel should be open");
                 }

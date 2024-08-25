@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use crate::Error;
 use async_trait::async_trait;
 use serde::Deserialize;
@@ -18,6 +20,28 @@ pub trait WaterLevelSensor {
 pub struct WaterLevelMeasurement {
     /// The number of seconds since unix epoch.
     pub measure_time: u64,
+    /// The label of this measurement, used to organize measurements.
+    pub label: Option<String>,
     /// The distance in mm.
     pub distance: u32,
+}
+
+impl WaterLevelMeasurement {
+    pub fn new(distance: u32) -> Self {
+        let measure_time = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("SystemTime should be after unix epoch")
+            .as_secs();
+
+        Self {
+            measure_time,
+            label: None,
+            distance,
+        }
+    }
+
+    pub fn label(mut self, label: String) -> Self {
+        self.label = Some(label);
+        self
+    }
 }

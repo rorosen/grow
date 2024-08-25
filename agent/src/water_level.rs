@@ -2,16 +2,14 @@ use std::path::Path;
 
 use crate::config::water_level::WaterLevelConfig;
 
-use super::{
-    control::water_level::PumpController,
-    sample::water_level::{WaterLevelSample, WaterLevelSampler},
-};
+use super::{control::water_level::PumpController, sample::water_level::WaterLevelSampler};
 use anyhow::{Context, Result};
+use grow_measure::water_level::WaterLevelMeasurement;
 use tokio::sync::mpsc;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
 pub struct WaterLevelManager {
-    receiver: mpsc::Receiver<WaterLevelSample>,
+    receiver: mpsc::Receiver<Vec<WaterLevelMeasurement>>,
     controller: PumpController,
     sampler: WaterLevelSampler,
 }
@@ -50,7 +48,7 @@ impl WaterLevelManager {
                     log::debug!("All water manager tasks finished");
                     return Ok(());
                 }
-                Some(WaterLevelSample{measurements, ..}) = self.receiver.recv() => {
+                Some(measurements) = self.receiver.recv() => {
                     log::info!("Water level measurements: {measurements:?}");
                 }
             }

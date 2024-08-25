@@ -2,17 +2,15 @@ use std::path::Path;
 
 use crate::config::air::AirConfig;
 
-use super::{
-    control::exhaust::ExhaustController,
-    sample::air::{AirSample, AirSampler},
-};
+use super::{control::exhaust::ExhaustController, sample::air::AirSampler};
 
 use anyhow::{Context, Result};
+use grow_measure::air::AirMeasurement;
 use tokio::sync::mpsc;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
 pub struct AirManager {
-    receiver: mpsc::Receiver<AirSample>,
+    receiver: mpsc::Receiver<Vec<AirMeasurement>>,
     controller: ExhaustController,
     sampler: AirSampler,
 }
@@ -51,7 +49,7 @@ impl AirManager {
                     log::debug!("All air manager tasks finished");
                     return Ok(());
                 }
-                Some(AirSample{measurements, ..}) = self.receiver.recv() => {
+                Some(measurements) = self.receiver.recv() => {
                     log::info!("Air measurements: {measurements:?}");
                 }
             }
