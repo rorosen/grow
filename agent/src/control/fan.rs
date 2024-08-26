@@ -36,7 +36,10 @@ impl FanController {
 
     pub async fn run(self, cancel_token: CancellationToken) -> Result<()> {
         match self {
-            FanController::Disabled => Ok(()),
+            FanController::Disabled => {
+                log::info!("Fan controller is disabled");
+                Ok(())
+            }
             FanController::Cyclic { mut controller } => {
                 controller.run(cancel_token, "circulation fan").await
             }

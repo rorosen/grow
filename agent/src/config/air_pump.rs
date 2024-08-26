@@ -6,7 +6,7 @@ pub enum AirPumpControlMode {
     #[default]
     Off,
     /// Activate the air pump permanently.
-    Permanent,
+    AlwaysOn,
 }
 
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]

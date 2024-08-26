@@ -18,7 +18,10 @@ impl PumpController {
 
     pub async fn run(self, _: CancellationToken) -> Result<()> {
         match self {
-            PumpController::Disabled => Ok(()),
+            PumpController::Disabled => {
+                log::info!("Pump controller is disabled");
+                Ok(())
+            }
         }
     }
 }

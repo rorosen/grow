@@ -16,8 +16,6 @@ pub enum ExhaustControlMode {
     Off,
     /// Cyclic exhaust fan control.
     Cyclic,
-    /// Threshold exhaust fan control.
-    Threshold,
 }
 
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
@@ -26,11 +24,11 @@ pub struct ExhaustControlConfig {
     pub mode: ExhaustControlMode,
     /// The gpio pin used to control the exhaust fan.
     pub pin: u32,
-    /// The duration in seconds for which the air fan should
-    /// run (0 means never). Only has an effect in cyclic mode.
+    /// The duration in seconds for which the exhaust fan control pin should
+    /// be activated (0 means never). Only has an effect in cyclic mode.
     pub on_duration_secs: u64,
-    /// The duration in seconds for which the air fan should be
-    /// stopped (0 means never). Only has an effect in cyclic mode.
+    /// The duration in seconds for which the exhaust fan control pin should
+    /// be deactivated (0 means never). Only has an effect in cyclic mode.
     pub off_duration_secs: u64,
 }
 

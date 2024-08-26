@@ -41,6 +41,12 @@ impl LightSampler {
 
     pub async fn run(mut self, cancel_token: CancellationToken) {
         log::debug!("Starting light sampler");
+
+        if self.sensors.is_empty() {
+            log::debug!("No light sensors configured - light sampler is disabled");
+            return;
+        }
+
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {

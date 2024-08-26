@@ -18,7 +18,7 @@ impl AirPumpController {
     pub fn new(config: &AirPumpControlConfig, gpio_path: impl AsRef<Path>) -> Result<Self> {
         match config.mode {
             AirPumpControlMode::Off => Ok(Self::Disabled),
-            AirPumpControlMode::Permanent => {
+            AirPumpControlMode::AlwaysOn => {
                 let mut chip = Chip::new(gpio_path).context("Failed to open GPIO chip")?;
                 let handle = chip
                     .get_line(config.pin)
@@ -34,7 +34,7 @@ impl AirPumpController {
     pub async fn run(self, cancel_token: CancellationToken) -> Result<()> {
         match self {
             Self::Disabled => {
-                cancel_token.cancelled().await;
+                log::info!("Air pump controller is disabled");
                 Ok(())
             }
             Self::Permanent { handle } => {

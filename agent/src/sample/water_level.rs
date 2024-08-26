@@ -22,7 +22,7 @@ impl WaterLevelSampler {
 
         for (label, sensor_config) in &config.sensors {
             match sensor_config.model {
-                WaterLevelSensorModel::Vl53L0x => {
+                WaterLevelSensorModel::Vl53L0X => {
                     let sensor = Vl53L0X::new(&i2c_path, sensor_config.address)
                         .await
                         .with_context(|| {
@@ -42,6 +42,11 @@ impl WaterLevelSampler {
 
     pub async fn run(mut self, cancel_token: CancellationToken) {
         log::debug!("Starting water level sampler");
+
+        if self.sensors.is_empty() {
+            log::debug!("No water level sensors configured - water level sampler is disabled");
+            return;
+        }
 
         loop {
             tokio::select! {

@@ -1,10 +1,12 @@
+use std::str::FromStr;
+
 use anyhow::{Context, Result};
 use grow_measure::{
     air::AirMeasurement, light::LightMeasurement, water_level::WaterLevelMeasurement,
 };
-use sqlx::{QueryBuilder, Sqlite, SqlitePool};
+use sqlx::{sqlite::SqliteConnectOptions, QueryBuilder, Sqlite, SqlitePool};
 
-pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!();
+pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
 #[derive(Clone)]
 pub struct DataStore {
@@ -13,13 +15,16 @@ pub struct DataStore {
 
 impl DataStore {
     pub async fn new(db_url: &str) -> Result<Self> {
-        let pool = SqlitePool::connect(db_url)
-            .await
-            .context("Failed to create connection pool")?;
+        println!("{db_url}");
+        let options = SqliteConnectOptions::from_str(db_url)
+            .context("foo")?
+            .create_if_missing(true);
+        let pool = SqlitePool::connect_with(options).await.context("")?;
+
         MIGRATOR
             .run(&pool)
             .await
-            .context("Failed to run databse migration")?;
+            .context("Failed to run database migration")?;
 
         Ok(Self { pool })
     }

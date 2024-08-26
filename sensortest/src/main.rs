@@ -20,7 +20,7 @@ struct Config {
 enum Variant {
     Bme680,
     Bh1750Fvi,
-    Vl53L0x,
+    Vl53L0X,
 }
 
 impl FromStr for Variant {
@@ -30,7 +30,7 @@ impl FromStr for Variant {
         match s.to_lowercase().as_str() {
             "bme680" => Ok(Self::Bme680),
             "bh1750fvi" => Ok(Self::Bh1750Fvi),
-            "vl53l0x" => Ok(Self::Vl53L0x),
+            "vl53l0x" => Ok(Self::Vl53L0X),
             arg => bail!("Unrecognized sensor model: {arg}"),
         }
     }
@@ -91,7 +91,7 @@ async fn main() -> Result<(), anyhow::Error> {
             let measurement = sensor.measure(token).await?;
             println!("{measurement:?}");
         }
-        Variant::Vl53L0x => {
+        Variant::Vl53L0X => {
             let mut sensor = Bh1750Fvi::new(I2C_PATH, config.address)
                 .await
                 .with_context(|| {

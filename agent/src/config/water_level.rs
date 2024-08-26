@@ -44,5 +44,5 @@ pub struct WaterLevelSensorConfig {
 
 #[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub enum WaterLevelSensorModel {
-    Vl53L0x,
+    Vl53L0X,
 }

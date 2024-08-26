@@ -31,13 +31,15 @@ impl ExhaustController {
 
                 Ok(Self::Cyclic { controller })
             }
-            ExhaustControlMode::Threshold => todo!(),
         }
     }
 
     pub async fn run(self, cancel_token: CancellationToken) -> Result<()> {
         match self {
-            ExhaustController::Disabled => Ok(()),
+            ExhaustController::Disabled => {
+                log::info!("Air controller is disabled");
+                Ok(())
+            }
             ExhaustController::Cyclic { mut controller } => {
                 controller.run(cancel_token, "exhaust fan").await
             }

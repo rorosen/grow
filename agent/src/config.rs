@@ -114,6 +114,37 @@ mod tests {
         let input = serde_json::json!({
             "i2c_path": "/dev/i2c-69",
             "gpio_path": "/dev/gpiochip69",
+            "air": {
+                "control": {
+                    "mode": "Cyclic",
+                    "pin": 25,
+                    "on_duration_secs": 1,
+                    "off_duration_secs": 0
+                },
+                "sample": {
+                    "sample_rate_secs": 1800,
+                    "sensors": {
+                        "left": {
+                            "model": "Bme680",
+                            "address": "0x77"
+                        },
+                        "right": {
+                            "model": "Bme680",
+                            "address": "0x76"
+                        }
+                    }
+                }
+            },
+            "air_pump_control": {
+                "mode": "AlwaysOn",
+                "pin": 24
+            },
+            "fan": {
+                "mode": "Cyclic",
+                "pin": 23,
+                "on_duration_secs": 1,
+                "off_duration_secs": 0
+            },
             "light": {
                 "control": {
                     "mode": "TimeBased",
@@ -146,48 +177,54 @@ mod tests {
                     "sample_rate_secs": 86400,
                     "sensors": {
                         "main": {
-                            "model": "Vl53L0x",
+                            "model": "Vl53L0X",
                             "address": "0x29"
                         }
                     }
                 }
-            },
-            "fan": {
-                "mode": "Cyclic",
-                "pin": 23,
-                "on_duration_secs": 1,
-                "off_duration_secs": 0
-            },
-            "air": {
-                "control": {
-                    "mode": "Cyclic",
-                    "pin": 25,
-                    "on_duration_secs": 1,
-                    "off_duration_secs": 0
-                },
-                "sample": {
-                    "sample_rate_secs": 1800,
-                    "sensors": {
-                        "left": {
-                            "model": "Bme680",
-                            "address": "0x77"
-                        },
-                        "right": {
-                            "model": "Bme680",
-                            "address": "0x76"
-                        }
-                    }
-                }
-            },
-            "air_pump_control": {
-                "mode": "Permanent",
-                "pin": 24
             }
         });
 
         let expected = Config {
             i2c_path: PathBuf::from("/dev/i2c-69"),
             gpio_path: PathBuf::from("/dev/gpiochip69"),
+            air: AirConfig {
+                control: ExhaustControlConfig {
+                    mode: ExhaustControlMode::Cyclic,
+                    pin: 25,
+                    on_duration_secs: 1,
+                    off_duration_secs: 0,
+                },
+                sample: AirSampleConfig {
+                    sample_rate_secs: 1800,
+                    sensors: HashMap::from([
+                        (
+                            "left".into(),
+                            AirSensorConfig {
+                                model: AirSensorModel::Bme680,
+                                address: 119,
+                            },
+                        ),
+                        (
+                            "right".into(),
+                            AirSensorConfig {
+                                model: AirSensorModel::Bme680,
+                                address: 118,
+                            },
+                        ),
+                    ]),
+                },
+            },
+            air_pump_control: AirPumpControlConfig {
+                mode: AirPumpControlMode::AlwaysOn,
+                pin: 24,
+            },
+            fan: FanControlConfig {
+                mode: FanControlMode::Cyclic,
+                pin: 23,
+                on_duration_secs: 1,
+                off_duration_secs: 0,
+            },
             light: LightConfig {
                 control: LightControlConfig {
                     mode: LightControlMode::TimeBased,
@@ -227,48 +264,11 @@ mod tests {
                     sensors: HashMap::from([(
                         "main".into(),
                         WaterLevelSensorConfig {
-                            model: WaterLevelSensorModel::Vl53L0x,
+                            model: WaterLevelSensorModel::Vl53L0X,
                             address: 41,
                         },
                     )]),
                 },
-            },
-            fan: FanControlConfig {
-                mode: FanControlMode::Cyclic,
-                pin: 23,
-                on_duration_secs: 1,
-                off_duration_secs: 0,
-            },
-            air: AirConfig {
-                control: ExhaustControlConfig {
-                    mode: ExhaustControlMode::Cyclic,
-                    pin: 25,
-                    on_duration_secs: 1,
-                    off_duration_secs: 0,
-                },
-                sample: AirSampleConfig {
-                    sample_rate_secs: 1800,
-                    sensors: HashMap::from([
-                        (
-                            "left".into(),
-                            AirSensorConfig {
-                                model: AirSensorModel::Bme680,
-                                address: 119,
-                            },
-                        ),
-                        (
-                            "right".into(),
-                            AirSensorConfig {
-                                model: AirSensorModel::Bme680,
-                                address: 118,
-                            },
-                        ),
-                    ]),
-                },
-            },
-            air_pump_control: AirPumpControlConfig {
-                mode: AirPumpControlMode::Permanent,
-                pin: 24,
             },
         };
         write!(&mut file, "{input}").expect("Tempfile should be writable");

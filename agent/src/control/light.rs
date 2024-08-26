@@ -35,7 +35,10 @@ impl LightController {
 
     pub async fn run(self, cancel_token: CancellationToken) -> Result<()> {
         match self {
-            LightController::Disabled => Ok(()),
+            LightController::Disabled => {
+                log::info!("Light controller is disabled");
+                Ok(())
+            }
             LightController::TimeBased { mut controller } => {
                 controller.run(cancel_token, "light").await
             }

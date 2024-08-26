@@ -43,6 +43,12 @@ impl AirSampler {
 
     pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
         log::debug!("Starting air sampler");
+
+        if self.sensors.is_empty() {
+            log::debug!("No air sensors configured - air sampler is disabled");
+            return Ok(());
+        }
+
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
