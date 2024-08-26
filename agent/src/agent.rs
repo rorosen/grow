@@ -11,7 +11,7 @@ use crate::{
 use anyhow::{Context, Result};
 use tokio::{
     signal::unix::{signal, SignalKind},
-    task::JoinSet,
+    task::{spawn_blocking, JoinSet},
 };
 use tokio_util::sync::CancellationToken;
 
@@ -22,7 +22,7 @@ pub struct Agent {
 }
 
 impl Agent {
-    pub fn new() -> Result<Self> {
+    pub async fn new() -> Result<Self> {
         let state_dirs = env::var("STATE_DIRECTORY")
             .context("Failed to read STATE_DIRECTORY from environment")?;
         let state_dir = state_dirs
@@ -32,8 +32,12 @@ impl Agent {
 
         let config_path = env::var("GROW_AGENT_CONFIG_PATH")
             .unwrap_or_else(|_| format!("{state_dir}/config.json"));
-        let config = Config::new(&config_path)
-            .with_context(|| format!("Failed to initialize config at {config_path}"))?;
+        let config = spawn_blocking(move || {
+            Config::new(&config_path)
+                .with_context(|| format!("Failed to initialize config at {config_path}"))
+        })
+        .await
+        .context("Panic while initializing config")??;
 
         Ok(Self {
             config,
@@ -77,7 +81,7 @@ impl Agent {
 
         let water_manager = WaterLevelManager::new(
             &self.config.water_level,
-            store.clone(),
+            store,
             &self.config.i2c_path,
             &self.config.gpio_path,
         )
@@ -86,9 +90,9 @@ impl Agent {
 
         let cancel_token = CancellationToken::new();
         let mut set = JoinSet::new();
+        set.spawn(air_manager.run(cancel_token.clone()));
         set.spawn(air_pump_controller.run());
         set.spawn(fan_controller.run(cancel_token.clone()));
-        set.spawn(air_manager.run(cancel_token.clone()));
         set.spawn(light_manager.run(cancel_token.clone()));
         set.spawn(water_manager.run(cancel_token.clone()));
 

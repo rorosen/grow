@@ -15,7 +15,7 @@ mod water_level;
 async fn main() -> ExitCode {
     env_logger::init();
 
-    let agent = match Agent::new() {
+    let agent = match Agent::new().await {
         Ok(agent) => agent,
         Err(err) => {
             log::error!("Failed to initialize agent: {err:#}");
