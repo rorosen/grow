@@ -1,4 +1,4 @@
-use std::{env, process::ExitCode};
+use std::process::ExitCode;
 
 use agent::Agent;
 
@@ -14,13 +14,11 @@ mod water_level;
 #[tokio::main]
 async fn main() -> ExitCode {
     env_logger::init();
-    let config_path = env::var("GROW_AGENT_CONFIG_PATH")
-        .expect("Environment variable GROW_AGENT_CONFIG_PATH must be set to a valid value");
 
-    let agent = match Agent::new(&config_path) {
+    let agent = match Agent::new() {
         Ok(agent) => agent,
         Err(err) => {
-            log::error!("Failed to initialize from config at {config_path:?}: {err:#}");
+            log::error!("Failed to initialize agent: {err:#}");
             return ExitCode::FAILURE;
         }
     };

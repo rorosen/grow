@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::config::water_level::WaterLevelConfig;
+use crate::{config::water_level::WaterLevelConfig, datastore::DataStore};
 
 use super::{control::water_level::PumpController, sample::water_level::WaterLevelSampler};
 use anyhow::{Context, Result};
@@ -12,11 +12,13 @@ pub struct WaterLevelManager {
     receiver: mpsc::Receiver<Vec<WaterLevelMeasurement>>,
     controller: PumpController,
     sampler: WaterLevelSampler,
+    store: DataStore,
 }
 
 impl WaterLevelManager {
     pub async fn new(
         config: &WaterLevelConfig,
+        store: DataStore,
         i2c_path: impl AsRef<Path>,
         gpio_path: impl AsRef<Path>,
     ) -> Result<Self> {
@@ -31,6 +33,7 @@ impl WaterLevelManager {
             receiver,
             controller,
             sampler,
+            store,
         })
     }
 
@@ -49,7 +52,10 @@ impl WaterLevelManager {
                     return Ok(());
                 }
                 Some(measurements) = self.receiver.recv() => {
-                    log::info!("Water level measurements: {measurements:?}");
+                    log::trace!("Water level measurements: {measurements:?}");
+                    self.store.add_water_level_measurements(measurements)
+                        .await
+                        .context("Failed to save water level measurements")?;
                 }
             }
         }

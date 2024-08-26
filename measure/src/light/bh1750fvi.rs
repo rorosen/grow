@@ -1,8 +1,6 @@
 use async_trait::async_trait;
-use std::{
-    path::Path,
-    time::{Duration, SystemTime},
-};
+use chrono::Utc;
+use std::{path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
 
 use crate::{i2c::I2C, light::LightMeasurement, Error};
@@ -45,12 +43,7 @@ impl LightSensor for Bh1750Fvi {
             .await?;
 
         self.i2c.write_bytes(&[MODE_ONE_TIME_HIGH_RES]).await?;
-        let measure_time = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .map_err(|_| Error::Time)?
-            .as_secs()
-            .try_into()
-            .map_err(|_| Error::Time)?;
+        let measure_time = Utc::now().timestamp();
 
         tokio::select! {
             _ = cancel_token.cancelled() => {

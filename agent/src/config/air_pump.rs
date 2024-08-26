@@ -1,6 +1,6 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq, Debug, Default, Deserialize)]
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub enum AirPumpControlMode {
     /// Disabled air pump control.
     #[default]
@@ -9,7 +9,7 @@ pub enum AirPumpControlMode {
     Permanent,
 }
 
-#[derive(PartialEq, Debug, Default, Deserialize)]
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct AirPumpControlConfig {
     /// The control mode.
     pub mode: AirPumpControlMode,

@@ -5,10 +5,11 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
-thiserror.workspace = true
-tokio-util.workspace = true
-log.workspace = true
 async-trait.workspace = true
-tokio = { workspace = true, features = ["fs", "io-util", "time", "macros"] }
-serde = { workspace = true, features = ["derive"] }
+chrono.workspace = true
+log.workspace = true
 nix = { version = "0.29.0", features = ["ioctl"] }
+serde = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+tokio = { workspace = true, features = ["fs", "io-util", "time", "macros"] }
+tokio-util.workspace = true

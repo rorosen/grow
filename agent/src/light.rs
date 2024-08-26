@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::config::light::LightConfig;
+use crate::{config::light::LightConfig, datastore::DataStore};
 
 use super::{control::light::LightController, sample::light::LightSampler};
 use anyhow::{Context, Result};
@@ -12,22 +12,28 @@ pub struct LightManager {
     receiver: mpsc::Receiver<Vec<LightMeasurement>>,
     controller: LightController,
     sampler: LightSampler,
+    store: DataStore,
 }
 
 impl LightManager {
     pub async fn new(
         config: &LightConfig,
+        store: DataStore,
         i2c_path: impl AsRef<Path>,
         gpio_path: impl AsRef<Path>,
     ) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
         let controller = LightController::new(&config.control, &gpio_path)
             .context("Failed to initialize light controller")?;
+        let sampler = LightSampler::new(&config.sample, sender, &i2c_path)
+            .await
+            .context("Failed to initialize light sampler")?;
 
         Ok(Self {
             receiver,
             controller,
-            sampler: LightSampler::new(&config.sample, sender, &i2c_path).await?,
+            sampler,
+            store,
         })
     }
 
@@ -46,7 +52,10 @@ impl LightManager {
                     return Ok(());
                 }
                 Some(measurements) = self.receiver.recv() => {
-                    log::info!("Light measurements: {measurements:?}");
+                    log::trace!("Light measurements: {measurements:?}");
+                    self.store.add_light_measurements(measurements)
+                        .await
+                        .context("Failed to save light measurements")?;
                 }
             }
         }

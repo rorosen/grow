@@ -1,31 +1,30 @@
-use std::path::Path;
-
 use anyhow::{Context, Result};
 use grow_measure::{
     air::AirMeasurement, light::LightMeasurement, water_level::WaterLevelMeasurement,
 };
 use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 
+pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!();
+
+#[derive(Clone)]
 pub struct DataStore {
-    db: SqlitePool,
+    pool: SqlitePool,
 }
 
 impl DataStore {
-    pub async fn new(db_url: &str, migration_dir: &Path) -> Result<Self> {
-        let db = SqlitePool::connect(db_url)
+    pub async fn new(db_url: &str) -> Result<Self> {
+        let pool = SqlitePool::connect(db_url)
             .await
             .context("Failed to create connection pool")?;
-        sqlx::migrate::Migrator::new(migration_dir)
+        MIGRATOR
+            .run(&pool)
             .await
-            .context("Failed to resolve migrations")?
-            .run(&db)
-            .await
-            .context("Failed to run database migration")?;
+            .context("Failed to run databse migration")?;
 
-        Ok(Self { db })
+        Ok(Self { pool })
     }
 
-    pub async fn insert_air_measurements(&self, measurements: Vec<AirMeasurement>) -> Result<()> {
+    pub async fn add_air_measurements(&self, measurements: Vec<AirMeasurement>) -> Result<()> {
         let mut query_builder: QueryBuilder<Sqlite> = QueryBuilder::new(
             "INSERT INTO air_measurements(measure_time, label, temperature, humidity, pressure, resistance) ",
         );
@@ -39,17 +38,14 @@ impl DataStore {
         });
         query_builder
             .build()
-            .execute(&self.db)
+            .execute(&self.pool)
             .await
             .context("Failed to store air measurements")?;
 
         Ok(())
     }
 
-    pub async fn insert_light_measurements(
-        &self,
-        measurements: Vec<LightMeasurement>,
-    ) -> Result<()> {
+    pub async fn add_light_measurements(&self, measurements: Vec<LightMeasurement>) -> Result<()> {
         let mut query_builder: QueryBuilder<Sqlite> =
             QueryBuilder::new("INSERT INTO light_measurements(measure_time, label, illuminance) ");
         query_builder.push_values(measurements.into_iter(), |mut b, m| {
@@ -59,14 +55,14 @@ impl DataStore {
         });
         query_builder
             .build()
-            .execute(&self.db)
+            .execute(&self.pool)
             .await
             .context("Failed to store light measurements")?;
 
         Ok(())
     }
 
-    pub async fn insert_water_level_measurements(
+    pub async fn add_water_level_measurements(
         &self,
         measurements: Vec<WaterLevelMeasurement>,
     ) -> Result<()> {
@@ -80,7 +76,7 @@ impl DataStore {
         });
         query_builder
             .build()
-            .execute(&self.db)
+            .execute(&self.pool)
             .await
             .context("Failed to store water level measurements")?;
 
@@ -88,26 +84,46 @@ impl DataStore {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::NamedTempFile;
-
-    #[tokio::test]
-    async fn store_air_measurement_ok() {
-        let file = NamedTempFile::new().unwrap();
-        let db_url = format!("sqlite:{}", file.path().as_os_str().to_str().unwrap());
-        let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-        let migrations_dir = std::path::Path::new(&crate_dir).join("./migrations");
-        let mut store = DataStore::new(&db_url, &migrations_dir).await.unwrap();
-
-        //     let measurements = vec![AirMeasurement {
-        //         measure_time: ,
-        //         label: todo!(),
-        //         temperature: todo!(),
-        //         humidity: todo!(),
-        //         pressure: todo!(),
-        //         resistance: todo!(),
-        //     }];
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use chrono::Utc;
+//     use sqlx::{pool::PoolOptions, sqlite::SqliteConnectOptions, ConnectOptions, Row};
+//
+//     #[sqlx::test]
+//     async fn store_air_measurement_ok(
+//         opts: PoolOptions<Sqlite>,
+//         copts: SqliteConnectOptions,
+//     ) -> sqlx::Result<()> {
+//         let db_url = copts.get_filename().as_os_str().to_str().unwrap();
+//         let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+//         let migrations_dir = std::path::Path::new(&crate_dir).join("./migrations");
+//         let store = DataStore::new(&db_url, &migrations_dir).await.unwrap();
+//
+//         let measure_time = Utc::now();
+//         let measurements = vec![AirMeasurement {
+//             measure_time,
+//             label: None,
+//             temperature: 21.,
+//             humidity: 56.,
+//             pressure: 1021.,
+//             resistance: None,
+//         }];
+//
+//         store.add_air_measurements(measurements).await.unwrap();
+//         let mut pool = copts.connect().await?;
+//         let m = sqlx::query("select * from air_measurements")
+//             .fetch_one(&store.pool)
+//             .await
+//             .unwrap();
+//         println!("{}", m.is_empty());
+//         println!("{}", m.len());
+//         let t = m.get::<f64, _>("temperature");
+//         println!("{t}");
+//         let t = m.get::<String, _>("measure_time");
+//         println!("{t}");
+//         // println!("{m:?}");
+//
+//         Ok(())
+//     }
+// }

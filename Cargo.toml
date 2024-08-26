@@ -10,7 +10,7 @@ authors = ["rorosen"]
 [workspace.dependencies]
 serde = "1.0.193"
 serde_json = "1.0.120"
-chrono = "0.4.31"
+chrono = "0.4.38"
 env_logger = "0.10.0"
 log = "0.4.20"
 thiserror = "1.0.48"

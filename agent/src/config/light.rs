@@ -1,8 +1,8 @@
 use chrono::NaiveTime;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(PartialEq, Debug, Default, Deserialize)]
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct LightConfig {
     #[serde(default)]
     pub control: LightControlConfig,
@@ -10,7 +10,7 @@ pub struct LightConfig {
     pub sample: LightSampleConfig,
 }
 
-#[derive(PartialEq, Debug, Default, Deserialize)]
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub enum LightControlMode {
     /// Disabled light control.
     #[default]
@@ -19,7 +19,7 @@ pub enum LightControlMode {
     TimeBased,
 }
 
-#[derive(PartialEq, Debug, Default, Deserialize)]
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct LightControlConfig {
     /// The control mode
     pub mode: LightControlMode,
@@ -33,7 +33,7 @@ pub struct LightControlConfig {
     pub deactivate_time: NaiveTime,
 }
 
-#[derive(PartialEq, Debug, Default, Deserialize)]
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct LightSampleConfig {
     /// The rate in which the light sensors take measurements in seconds.
     pub sample_rate_secs: u64,
@@ -41,7 +41,7 @@ pub struct LightSampleConfig {
     pub sensors: HashMap<String, LightSensorConfig>,
 }
 
-#[derive(PartialEq, Debug, Deserialize)]
+#[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub struct LightSensorConfig {
     /// The type of the light sensor.
     pub model: LightSensorModel,
@@ -50,7 +50,7 @@ pub struct LightSensorConfig {
     pub address: u8,
 }
 
-#[derive(PartialEq, Debug, Deserialize)]
+#[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub enum LightSensorModel {
     Bh1750Fvi,
 }

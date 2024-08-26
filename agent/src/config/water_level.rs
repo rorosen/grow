@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq, Debug, Default, Deserialize)]
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct WaterLevelConfig {
     #[serde(default)]
     pub control: WaterLevelControlConfig,
@@ -10,14 +10,14 @@ pub struct WaterLevelConfig {
     pub sample: WaterLevelSampleConfig,
 }
 
-#[derive(PartialEq, Debug, Default, Deserialize)]
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub enum WaterLevelControlMode {
     /// Disabled water level control.
     #[default]
     Off,
 }
 
-#[derive(PartialEq, Debug, Default, Deserialize)]
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct WaterLevelControlConfig {
     /// The control mode.
     pub mode: WaterLevelControlMode,
@@ -25,7 +25,7 @@ pub struct WaterLevelControlConfig {
     pub pumps: HashMap<String, u32>,
 }
 
-#[derive(PartialEq, Debug, Default, Deserialize)]
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct WaterLevelSampleConfig {
     /// The rate in which the water level sensor takes measurements in seconds.
     pub sample_rate_secs: u64,
@@ -33,7 +33,7 @@ pub struct WaterLevelSampleConfig {
     pub sensors: HashMap<String, WaterLevelSensorConfig>,
 }
 
-#[derive(PartialEq, Debug, Deserialize)]
+#[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub struct WaterLevelSensorConfig {
     /// The model of the water level sensor.
     pub model: WaterLevelSensorModel,
@@ -42,7 +42,7 @@ pub struct WaterLevelSensorConfig {
     pub address: u8,
 }
 
-#[derive(PartialEq, Debug, Deserialize)]
+#[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub enum WaterLevelSensorModel {
     Vl53L0x,
 }

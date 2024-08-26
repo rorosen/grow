@@ -1,6 +1,6 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq, Debug, Default, Deserialize)]
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub enum FanControlMode {
     /// Disabled fan control.
     #[default]
@@ -9,7 +9,7 @@ pub enum FanControlMode {
     Cyclic,
 }
 
-#[derive(PartialEq, Debug, Default, Deserialize)]
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct FanControlConfig {
     /// The control mode.
     pub mode: FanControlMode,

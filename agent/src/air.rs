@@ -1,5 +1,5 @@
 use super::{control::exhaust::ExhaustController, sample::air::AirSampler};
-use crate::config::air::AirConfig;
+use crate::{config::air::AirConfig, datastore::DataStore};
 use anyhow::{Context, Result};
 use grow_measure::air::AirMeasurement;
 use std::path::Path;
@@ -10,11 +10,13 @@ pub struct AirManager {
     receiver: mpsc::Receiver<Vec<AirMeasurement>>,
     controller: ExhaustController,
     sampler: AirSampler,
+    store: DataStore,
 }
 
 impl AirManager {
     pub async fn new(
         config: &AirConfig,
+        store: DataStore,
         i2c_path: impl AsRef<Path>,
         gpio_path: impl AsRef<Path>,
     ) -> Result<Self> {
@@ -29,6 +31,7 @@ impl AirManager {
             receiver,
             controller,
             sampler,
+            store,
         })
     }
 
@@ -47,7 +50,10 @@ impl AirManager {
                     return Ok(());
                 }
                 Some(measurements) = self.receiver.recv() => {
-                    log::info!("Air measurements: {measurements:?}");
+                    log::trace!("Air measurements: {measurements:?}");
+                    self.store.add_air_measurements(measurements)
+                        .await
+                        .context("Failed to save air measurements")?;
                 }
             }
         }
