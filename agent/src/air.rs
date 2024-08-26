@@ -1,14 +1,14 @@
-use super::{control::exhaust::ExhaustController, sample::air::AirSampler};
+use super::{control::air::AirController, sample::air::AirSampler};
 use crate::{config::air::AirConfig, datastore::DataStore};
 use anyhow::{Context, Result};
 use grow_measure::air::AirMeasurement;
 use std::path::Path;
-use tokio::sync::mpsc;
-use tokio_util::{sync::CancellationToken, task::TaskTracker};
+use tokio::{sync::mpsc, task::JoinSet};
+use tokio_util::sync::CancellationToken;
 
 pub struct AirManager {
     receiver: mpsc::Receiver<Vec<AirMeasurement>>,
-    controller: ExhaustController,
+    controller: AirController,
     sampler: AirSampler,
     store: DataStore,
 }
@@ -21,7 +21,7 @@ impl AirManager {
         gpio_path: impl AsRef<Path>,
     ) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
-        let controller = ExhaustController::new(&config.control, &gpio_path)
+        let controller = AirController::new(&config.control, &gpio_path)
             .context("Failed to initialize exhaust fan controller")?;
         let sampler = AirSampler::new(&config.sample, sender, &i2c_path)
             .await
@@ -35,19 +35,25 @@ impl AirManager {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
-        log::debug!("Starting air manager");
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<&'static str> {
+        const IDENTIFIER: &str = "Air manager";
 
-        let tracker = TaskTracker::new();
-        tracker.spawn(self.controller.run(cancel_token.clone()));
-        tracker.spawn(self.sampler.run(cancel_token));
-        tracker.close();
+        let mut set = JoinSet::new();
+        set.spawn(self.controller.run(cancel_token.clone()));
+        set.spawn(self.sampler.run(cancel_token));
 
         loop {
             tokio::select! {
-                _ = tracker.wait() => {
-                    log::debug!("All air manager tasks finished");
-                    return Ok(());
+                res = set.join_next() => {
+                    match res {
+                        Some(ret) => {
+                            let id = ret
+                                .context("Air manager task panicked")?
+                                .context("Failed to run air manager task")?;
+                            log::info!("{id} task terminated successfully");
+                        },
+                        None => return Ok(IDENTIFIER),
+                    }
                 }
                 Some(measurements) = self.receiver.recv() => {
                     log::trace!("Air measurements: {measurements:?}");

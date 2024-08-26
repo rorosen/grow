@@ -5,22 +5,24 @@ use tokio_util::sync::CancellationToken;
 
 use crate::config::water_level::{WaterLevelControlConfig, WaterLevelControlMode};
 
-pub enum PumpController {
+pub enum WaterLevelController {
     Disabled,
 }
 
-impl PumpController {
+impl WaterLevelController {
     pub fn new(config: &WaterLevelControlConfig, _gpio_path: impl AsRef<Path>) -> Result<Self> {
         match config.mode {
             WaterLevelControlMode::Off => Ok(Self::Disabled),
         }
     }
 
-    pub async fn run(self, _: CancellationToken) -> Result<()> {
+    pub async fn run(self, _: CancellationToken) -> Result<&'static str> {
+        const IDENTIFIER: &str = "Water level controller";
+
         match self {
-            PumpController::Disabled => {
-                log::info!("Pump controller is disabled");
-                Ok(())
+            WaterLevelController::Disabled => {
+                log::info!("Water level controller is disabled");
+                Ok(IDENTIFIER)
             }
         }
     }

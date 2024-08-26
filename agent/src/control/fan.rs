@@ -5,7 +5,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::config::fan::{FanControlConfig, FanControlMode};
 
-use super::{CyclicController, GPIO_CONSUMER, GPIO_LOW};
+use super::{CyclicController, GPIO_CONSUMER, GPIO_DEACTIVATE};
 
 pub enum FanController {
     Disabled,
@@ -21,7 +21,7 @@ impl FanController {
                 let handle = chip
                     .get_line(config.pin)
                     .context("Failed to get a handle to the GPIO line")?
-                    .request(LineRequestFlags::OUTPUT, GPIO_LOW, GPIO_CONSUMER)
+                    .request(LineRequestFlags::OUTPUT, GPIO_DEACTIVATE, GPIO_CONSUMER)
                     .context("Failed to get access to the GPIO")?;
                 let controller = CyclicController::new(
                     handle,
@@ -34,14 +34,21 @@ impl FanController {
         }
     }
 
-    pub async fn run(self, cancel_token: CancellationToken) -> Result<()> {
+    pub async fn run(self, cancel_token: CancellationToken) -> Result<&'static str> {
+        const IDENTIFIER: &str = "Fan controller";
+
         match self {
             FanController::Disabled => {
                 log::info!("Fan controller is disabled");
-                Ok(())
+                Ok(IDENTIFIER)
             }
             FanController::Cyclic { mut controller } => {
-                controller.run(cancel_token, "circulation fan").await
+                log::info!("Starting fan controller");
+                controller
+                    .run(cancel_token, IDENTIFIER)
+                    .await
+                    .context("Failed to run fan controller")?;
+                Ok(IDENTIFIER)
             }
         }
     }

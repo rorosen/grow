@@ -4,14 +4,14 @@ use gpio_cdev::LineHandle;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
+pub mod air;
 pub mod air_pump;
-pub mod exhaust;
 pub mod fan;
 pub mod light;
 pub mod water_level;
 
-const GPIO_LOW: u8 = 0;
-const GPIO_HIGH: u8 = 1;
+const GPIO_DEACTIVATE: u8 = 0;
+const GPIO_ACTIVATE: u8 = 1;
 const GPIO_CONSUMER: &str = "grow-agent";
 
 pub struct CyclicController {
@@ -29,25 +29,28 @@ impl CyclicController {
         }
     }
 
-    async fn run(&mut self, cancel_token: CancellationToken, subject: &'static str) -> Result<()> {
-        log::debug!("Starting {subject} controller");
+    async fn run(
+        &mut self,
+        cancel_token: CancellationToken,
+        identifier: &'static str,
+    ) -> Result<()> {
         if self.off_duration.is_zero() {
-            log::info!("The {subject} is always on");
+            log::info!("{identifier}: Activating control pin permanently");
             self.handle
-                .set_value(GPIO_HIGH)
+                .set_value(GPIO_ACTIVATE)
                 .context("Failed to set value of control pin")?;
         }
 
         if self.on_duration.is_zero() {
-            log::info!("The {subject} is always off");
+            log::info!("{identifier}: Deactivating control pin permanently");
             self.handle
-                .set_value(GPIO_LOW)
+                .set_value(GPIO_DEACTIVATE)
                 .context("Failed to set value of control pin")?;
         }
 
-        log::debug!("Activating {subject}");
+        log::debug!("{identifier}: Activating control pin");
         self.handle
-            .set_value(GPIO_HIGH)
+            .set_value(GPIO_ACTIVATE)
             .context("Failed to set value of control pin")?;
         let mut timeout = self.on_duration;
 
@@ -58,23 +61,21 @@ impl CyclicController {
                         .get_value()
                         .context("Failed to get value of control pin")?;
 
-                    if value == GPIO_HIGH {
-                        log::debug!("Deactivating {subject}");
+                    if value == GPIO_ACTIVATE {
+                        log::debug!("{identifier}: Deactivating control pin");
                         self.handle
-                            .set_value(GPIO_LOW)
+                            .set_value(GPIO_DEACTIVATE)
                             .context("Failed to set value of control pin")?;
                         timeout = self.on_duration;
                     } else {
-                        log::debug!("Activating {subject}");
+                        log::debug!("{identifier}: Activating control pin");
                         self.handle
-                            .set_value(GPIO_HIGH)
+                            .set_value(GPIO_ACTIVATE)
                             .context("Failed to set value of control pin")?;
                         timeout = self.off_duration;
-
                     }
                 }
                 _ = cancel_token.cancelled() => {
-                    log::debug!("Stopping {subject} controller");
                     return Ok(());
                 }
             }
@@ -105,10 +106,30 @@ impl TimeBasedController {
         })
     }
 
-    async fn run(&mut self, cancel_token: CancellationToken, subject: &'static str) -> Result<()> {
-        log::debug!("Starting {subject} controller");
+    async fn run(
+        &mut self,
+        cancel_token: CancellationToken,
+        identifier: &'static str,
+    ) -> Result<()> {
         let mut timeout = Duration::from_secs(0);
 
+        let set_pin = |value: u8, dur: chrono::Duration| -> Result<Duration> {
+            log::debug!("{identifier}: Activating control pin");
+            self.handle
+                .set_value(value)
+                .context("Failed to set value of control pin")?;
+            log::info!(
+                "Deactivating {identifier} in {:02}:{:02} h",
+                dur.num_hours(),
+                dur.num_minutes() % 60
+            );
+
+            let ret = dur
+                .to_std()
+                .context("Failed to convert chrono duration to std duration")?;
+
+            Ok(ret)
+        };
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(timeout)=> {
@@ -116,45 +137,24 @@ impl TimeBasedController {
                     let until_on = match self.activate_time.signed_duration_since(now) {
                         dur if dur < chrono::Duration::zero() => dur
                             .checked_add(&chrono::Duration::days(1))
-                            .expect("Duration until_on should not overflow"),
+                            .context("Failed to add day to until on")?,
                         dur => dur,
                     };
 
                     let until_off = match self.deactivate_time.signed_duration_since(now) {
                         dur if dur < chrono::Duration::zero() => dur
                             .checked_add(&chrono::Duration::days(1))
-                            .expect("Duration until_off should not overflow"),
+                            .context("Failed to add day to until off")?,
                         dur => dur,
                     };
 
                     timeout = if until_on < until_off {
-                        log::debug!("Deactivating {subject} now");
-                        self.handle
-                            .set_value(GPIO_LOW)
-                            .context("Failed to set value of control pin")?;
-                        log::info!(
-                            "Activating {subject} in {:02}:{:02} h",
-                            until_on.num_hours(),
-                            until_on.num_minutes() % 60
-                        );
-
-                        until_on.to_std().context("Failed to convert chrono duration to std duration")?
+                        set_pin(GPIO_DEACTIVATE, until_on)?
                     } else {
-                        log::debug!("Activating {subject} now");
-                        self.handle
-                            .set_value(GPIO_HIGH)
-                            .context("Failed to set value of control pin")?;
-                        log::info!(
-                            "Deactivating {subject} in {:02}:{:02} h",
-                            until_off.num_hours(),
-                            until_off.num_minutes() % 60
-                        );
-
-                        until_off.to_std().context("Failed to convert chrono duration to std duration")?
+                        set_pin(GPIO_ACTIVATE, until_off)?
                     };
                 }
                 _ = cancel_token.cancelled() => {
-                    log::debug!("Stopping {subject} controller");
                     return Ok(());
                 }
             }

@@ -5,8 +5,8 @@ use crate::{config::light::LightConfig, datastore::DataStore};
 use super::{control::light::LightController, sample::light::LightSampler};
 use anyhow::{Context, Result};
 use grow_measure::light::LightMeasurement;
-use tokio::sync::mpsc;
-use tokio_util::{sync::CancellationToken, task::TaskTracker};
+use tokio::{sync::mpsc, task::JoinSet};
+use tokio_util::sync::CancellationToken;
 
 pub struct LightManager {
     receiver: mpsc::Receiver<Vec<LightMeasurement>>,
@@ -37,19 +37,25 @@ impl LightManager {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
-        log::debug!("Starting light manager");
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<&'static str> {
+        const IDENTIFIER: &str = "Light manager";
 
-        let tracker = TaskTracker::new();
-        tracker.spawn(self.controller.run(cancel_token.clone()));
-        tracker.spawn(self.sampler.run(cancel_token));
-        tracker.close();
+        let mut set = JoinSet::new();
+        set.spawn(self.controller.run(cancel_token.clone()));
+        set.spawn(self.sampler.run(cancel_token));
 
         loop {
             tokio::select! {
-                _ = tracker.wait() => {
-                    log::debug!("All light manager tasks finished");
-                    return Ok(());
+                res = set.join_next() => {
+                    match res {
+                        Some(ret) => {
+                            let id = ret
+                                .context("Light manager task panicked")?
+                                .context("Failed to run light manager task")?;
+                            log::info!("{id} task terminated successfully");
+                        },
+                        None => return Ok(IDENTIFIER),
+                    }
                 }
                 Some(measurements) = self.receiver.recv() => {
                     log::trace!("Light measurements: {measurements:?}");

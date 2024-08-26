@@ -2,11 +2,10 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use gpio_cdev::{Chip, LineHandle, LineRequestFlags};
-use tokio_util::sync::CancellationToken;
 
 use crate::{
     config::air_pump::{AirPumpControlConfig, AirPumpControlMode},
-    control::{GPIO_CONSUMER, GPIO_HIGH},
+    control::{GPIO_ACTIVATE, GPIO_CONSUMER},
 };
 
 pub enum AirPumpController {
@@ -23,7 +22,7 @@ impl AirPumpController {
                 let handle = chip
                     .get_line(config.pin)
                     .context("Failed to get a handle to the GPIO line")?
-                    .request(LineRequestFlags::OUTPUT, GPIO_HIGH, GPIO_CONSUMER)
+                    .request(LineRequestFlags::OUTPUT, GPIO_ACTIVATE, GPIO_CONSUMER)
                     .context("Failed to get access to the GPIO")?;
 
                 Ok(Self::Permanent { handle })
@@ -31,18 +30,20 @@ impl AirPumpController {
         }
     }
 
-    pub async fn run(self, cancel_token: CancellationToken) -> Result<()> {
+    pub async fn run(self) -> Result<&'static str> {
+        const IDENTIFIER: &str = "Air pump controller";
+
         match self {
             Self::Disabled => {
                 log::info!("Air pump controller is disabled");
-                Ok(())
+                Ok(IDENTIFIER)
             }
             Self::Permanent { handle } => {
+                log::info!("Air pump controller: Activating control pin");
                 handle
-                    .set_value(GPIO_HIGH)
+                    .set_value(GPIO_ACTIVATE)
                     .context("Failed to set value of control pin")?;
-                cancel_token.cancelled().await;
-                Ok(())
+                Ok(IDENTIFIER)
             }
         }
     }

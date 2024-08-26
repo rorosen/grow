@@ -40,14 +40,15 @@ impl WaterLevelSampler {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) {
-        log::debug!("Starting water level sampler");
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<&'static str> {
+        const IDENTIFIER: &str = "Water level sampler";
 
         if self.sensors.is_empty() {
-            log::debug!("No water level sensors configured - water level sampler is disabled");
-            return;
+            log::info!("No water level sensors configured - water level sampler is disabled");
+            return Ok(IDENTIFIER);
         }
 
+        log::info!("Starting water level sampler");
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
@@ -67,11 +68,10 @@ impl WaterLevelSampler {
                     self.sender
                         .send(measurements)
                         .await
-                        .expect("Water level measurements channel is open");
+                        .context("Failed to send water level measurements")?;
                 }
                 _ = cancel_token.cancelled() => {
-                    log::debug!("Stopping water level sampler");
-                    return;
+                    return Ok(IDENTIFIER);
                 }
             }
         }

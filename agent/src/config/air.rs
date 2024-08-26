@@ -4,13 +4,13 @@ use std::collections::HashMap;
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct AirConfig {
     #[serde(default)]
-    pub control: ExhaustControlConfig,
+    pub control: AirControlConfig,
     #[serde(default)]
     pub sample: AirSampleConfig,
 }
 
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
-pub enum ExhaustControlMode {
+pub enum AirControlMode {
     /// Disabled exhaust fan control.
     #[default]
     Off,
@@ -19,10 +19,10 @@ pub enum ExhaustControlMode {
 }
 
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
-pub struct ExhaustControlConfig {
+pub struct AirControlConfig {
     /// The control mode.
-    pub mode: ExhaustControlMode,
-    /// The gpio pin used to control the exhaust fan.
+    pub mode: AirControlMode,
+    /// The GPIO pin used to control the air quality via an exhaust fan.
     pub pin: u32,
     /// The duration in seconds for which the exhaust fan control pin should
     /// be activated (0 means never). Only has an effect in cyclic mode.

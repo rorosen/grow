@@ -39,14 +39,15 @@ impl LightSampler {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) {
-        log::debug!("Starting light sampler");
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<&'static str> {
+        const IDENTIFIER: &str = "Light sampler";
 
         if self.sensors.is_empty() {
-            log::debug!("No light sensors configured - light sampler is disabled");
-            return;
+            log::info!("No light sensors configured - light sampler is disabled");
+            return Ok(IDENTIFIER);
         }
 
+        log::info!("Starting light sampler");
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
@@ -65,11 +66,10 @@ impl LightSampler {
                     self.sender
                         .send(measurements)
                         .await
-                        .expect("Light measurements channel should be open");
+                        .context("Failed to send light measurements")?;
                 }
                 _ = cancel_token.cancelled() => {
-                    log::debug!("Stopping light sampler");
-                    return;
+                    return Ok(IDENTIFIER);
                 }
             }
         }

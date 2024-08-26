@@ -91,9 +91,7 @@ where
 mod tests {
     use super::*;
 
-    use air::{
-        AirSampleConfig, AirSensorConfig, AirSensorModel, ExhaustControlConfig, ExhaustControlMode,
-    };
+    use air::{AirControlConfig, AirControlMode, AirSampleConfig, AirSensorConfig, AirSensorModel};
     use air_pump::AirPumpControlMode;
     use chrono::NaiveTime;
     use fan::FanControlMode;
@@ -189,8 +187,8 @@ mod tests {
             i2c_path: PathBuf::from("/dev/i2c-69"),
             gpio_path: PathBuf::from("/dev/gpiochip69"),
             air: AirConfig {
-                control: ExhaustControlConfig {
-                    mode: ExhaustControlMode::Cyclic,
+                control: AirControlConfig {
+                    mode: AirControlMode::Cyclic,
                     pin: 25,
                     on_duration_secs: 1,
                     off_duration_secs: 0,

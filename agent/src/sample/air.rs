@@ -41,14 +41,15 @@ impl AirSampler {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
-        log::debug!("Starting air sampler");
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<&'static str> {
+        const IDENTIFIER: &str = "Air sampler";
 
         if self.sensors.is_empty() {
-            log::debug!("No air sensors configured - air sampler is disabled");
-            return Ok(());
+            log::info!("No air sensors configured - air sampler is disabled");
+            return Ok(IDENTIFIER);
         }
 
+        log::info!("Starting air sampler");
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
@@ -68,11 +69,10 @@ impl AirSampler {
                     self.sender
                         .send(measurements)
                         .await
-                        .expect("Air measurements channel should be open");
+                        .context("Failed to send air measurements")?;
                 }
                 _ = cancel_token.cancelled() => {
-                    log::debug!("Stopping air sampler");
-                    return Ok(());
+                    return Ok(IDENTIFIER);
                 }
             }
         }

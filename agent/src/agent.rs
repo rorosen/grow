@@ -8,7 +8,7 @@ use crate::{
     light::LightManager,
     water_level::WaterLevelManager,
 };
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use tokio::{
     signal::unix::{signal, SignalKind},
     task::JoinSet,
@@ -84,23 +84,13 @@ impl Agent {
         .await
         .context("Failed to initialize water level manager")?;
 
-        let mut set = JoinSet::new();
         let cancel_token = CancellationToken::new();
-        let cloned_token = cancel_token.clone();
-        set.spawn(async move {
-            (
-                "Air pump controller",
-                air_pump_controller.run(cloned_token).await,
-            )
-        });
-        let cloned_token = cancel_token.clone();
-        set.spawn(async move { ("Fan controller", fan_controller.run(cloned_token).await) });
-        let cloned_token = cancel_token.clone();
-        set.spawn(async move { ("Air manager", air_manager.run(cloned_token).await) });
-        let cloned_token = cancel_token.clone();
-        set.spawn(async move { ("Light manager", light_manager.run(cloned_token).await) });
-        let cloned_token = cancel_token.clone();
-        set.spawn(async move { ("Water manager", water_manager.run(cloned_token).await) });
+        let mut set = JoinSet::new();
+        set.spawn(air_pump_controller.run());
+        set.spawn(fan_controller.run(cancel_token.clone()));
+        set.spawn(air_manager.run(cancel_token.clone()));
+        set.spawn(light_manager.run(cancel_token.clone()));
+        set.spawn(water_manager.run(cancel_token.clone()));
 
         loop {
             tokio::select! {
@@ -114,12 +104,14 @@ impl Agent {
                 }
                 res = set.join_next() => {
                     match res {
-                        Some(Ok((id, _))) => log::info!("{id} task terminated"),
-                        Some(Err(err)) => {
-                            bail!("Task panicked: {err:#}");
-                        }
+                        Some(ret) => {
+                            let id = ret
+                                .context("Agent task panicked")?
+                                .context("Failed to run agent task")?;
+                            log::info!("{id} task terminated successfully");
+                        },
                         None => {
-                            log::info!("All tasks terminated");
+                            log::info!("All tasks terminated successfully");
                             return Ok(());
                         }
                     }

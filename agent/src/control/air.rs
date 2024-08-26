@@ -3,25 +3,25 @@ use gpio_cdev::{Chip, LineRequestFlags};
 use std::{path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
 
-use crate::config::air::{ExhaustControlConfig, ExhaustControlMode};
+use crate::config::air::{AirControlConfig, AirControlMode};
 
-use super::{CyclicController, GPIO_CONSUMER, GPIO_LOW};
+use super::{CyclicController, GPIO_CONSUMER, GPIO_DEACTIVATE};
 
-pub enum ExhaustController {
+pub enum AirController {
     Disabled,
     Cyclic { controller: CyclicController },
 }
 
-impl ExhaustController {
-    pub fn new(config: &ExhaustControlConfig, gpio_path: impl AsRef<Path>) -> Result<Self> {
+impl AirController {
+    pub fn new(config: &AirControlConfig, gpio_path: impl AsRef<Path>) -> Result<Self> {
         match config.mode {
-            ExhaustControlMode::Off => Ok(Self::Disabled),
-            ExhaustControlMode::Cyclic => {
+            AirControlMode::Off => Ok(Self::Disabled),
+            AirControlMode::Cyclic => {
                 let mut chip = Chip::new(gpio_path).context("Failed to open GPIO chip")?;
                 let handle = chip
                     .get_line(config.pin)
                     .context("Failed to get a handle to the GPIO line")?
-                    .request(LineRequestFlags::OUTPUT, GPIO_LOW, GPIO_CONSUMER)
+                    .request(LineRequestFlags::OUTPUT, GPIO_DEACTIVATE, GPIO_CONSUMER)
                     .context("Failed to get access to the GPIO")?;
                 let controller = CyclicController::new(
                     handle,
@@ -34,14 +34,21 @@ impl ExhaustController {
         }
     }
 
-    pub async fn run(self, cancel_token: CancellationToken) -> Result<()> {
+    pub async fn run(self, cancel_token: CancellationToken) -> Result<&'static str> {
+        const IDENTIFIER: &str = "Air controller";
+
         match self {
-            ExhaustController::Disabled => {
+            AirController::Disabled => {
                 log::info!("Air controller is disabled");
-                Ok(())
+                Ok(IDENTIFIER)
             }
-            ExhaustController::Cyclic { mut controller } => {
-                controller.run(cancel_token, "exhaust fan").await
+            AirController::Cyclic { mut controller } => {
+                log::info!("Starting air controller");
+                controller
+                    .run(cancel_token, IDENTIFIER)
+                    .await
+                    .context("Failed to run air controller")?;
+                Ok(IDENTIFIER)
             }
         }
     }
