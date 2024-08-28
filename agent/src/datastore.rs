@@ -15,7 +15,6 @@ pub struct DataStore {
 
 impl DataStore {
     pub async fn new(db_url: &str) -> Result<Self> {
-        println!("{db_url}");
         let options = SqliteConnectOptions::from_str(db_url)
             .context("Failed to initialize data store connection options")?
             .create_if_missing(true);

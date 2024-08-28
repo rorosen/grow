@@ -76,7 +76,7 @@ async fn main() -> Result<(), anyhow::Error> {
                 .with_context(|| {
                     format!("Failed to initialize BME680 sensor at {}", config.address)
                 })?;
-            let measurement = sensor.measure(token).await?;
+            let measurement = sensor.measure("test".into(), token).await?;
             println!("{measurement:?}");
         }
         Variant::Bh1750Fvi => {
@@ -88,7 +88,7 @@ async fn main() -> Result<(), anyhow::Error> {
                         config.address
                     )
                 })?;
-            let measurement = sensor.measure(token).await?;
+            let measurement = sensor.measure("test".into(), token).await?;
             println!("{measurement:?}");
         }
         Variant::Vl53L0X => {
@@ -97,7 +97,7 @@ async fn main() -> Result<(), anyhow::Error> {
                 .with_context(|| {
                     format!("Failed to initialize VL53L0X sensor at {}", config.address)
                 })?;
-            let measurement = sensor.measure(token).await?;
+            let measurement = sensor.measure("test".into(), token).await?;
             println!("{measurement:?}");
         }
     }

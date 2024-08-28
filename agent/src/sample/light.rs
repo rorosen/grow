@@ -52,10 +52,11 @@ impl LightSampler {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
                     let mut measurements = vec![];
+
                     for (label, sensor) in &mut self.sensors {
-                        match sensor.measure(cancel_token.clone()).await {
+                        match sensor.measure(label.into(), cancel_token.clone()).await {
                             Ok(measurement) => {
-                                measurements.push(measurement.label(label.into()));
+                                measurements.push(measurement);
                             },
                             Err(err) => {
                                 log::warn!("Failed to measure with {label} light sensor: {err}");

@@ -32,6 +32,7 @@ impl Bh1750Fvi {
 impl LightSensor for Bh1750Fvi {
     async fn measure(
         &mut self,
+        label: String,
         cancel_token: CancellationToken,
     ) -> Result<LightMeasurement, Error> {
         self.i2c
@@ -54,7 +55,7 @@ impl LightSensor for Bh1750Fvi {
                 let mut buf = [0; 2];
                 self.i2c.read_bytes(&mut buf[..]).await?;
                 let illuminance = ((((buf[0] as u32) << 8) | (buf[1] as u32)) as f64) / 1.2 * ((MT_REG_DEFAULT as f64) / (MT_REG_MAX as f64));
-                let measurement = LightMeasurement::new(measure_time, illuminance);
+                let measurement = LightMeasurement::new(measure_time, label, illuminance);
 
                 return Ok(measurement);
             }

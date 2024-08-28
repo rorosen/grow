@@ -1,28 +1,33 @@
 use crate::Error;
 use async_trait::async_trait;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
 use tokio_util::sync::CancellationToken;
 
 pub mod bme680;
 
 #[async_trait]
 pub trait AirSensor {
-    async fn measure(&mut self, cancel_token: CancellationToken) -> Result<AirMeasurement, Error>;
+    async fn measure(
+        &mut self,
+        label: String,
+        cancel_token: CancellationToken,
+    ) -> Result<AirMeasurement, Error>;
 }
 
 /// A single air measurement.
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, FromRow)]
 pub struct AirMeasurement {
     /// The number of seconds since unix epoch.
     pub measure_time: i64,
     /// The label of this measurement, used to organize measurements.
-    pub label: Option<String>,
+    pub label: String,
     /// The temperature in degree celsius.
     pub temperature: f64,
     /// The humidity in percentage.
-    pub humidity: f64,
+    pub humidity: Option<f64>,
     /// The pressure in hectopascal.
-    pub pressure: f64,
+    pub pressure: Option<f64>,
     /// The resistance of the MOX sensor due to Volatile Organic Compounds (VOC)
     /// and pollutants (except CO2) in the air.
     /// Higher concentration of VOCs leads to lower resistance.
@@ -31,19 +36,24 @@ pub struct AirMeasurement {
 }
 
 impl AirMeasurement {
-    pub fn new(measure_time: i64, temperature: f64, humidity: f64, pressure: f64) -> Self {
+    pub fn new(measure_time: i64, label: String, temperature: f64) -> Self {
         Self {
             measure_time,
-            label: None,
+            label,
             temperature,
-            humidity,
-            pressure,
+            humidity: None,
+            pressure: None,
             resistance: None,
         }
     }
 
-    pub fn label(mut self, label: String) -> Self {
-        self.label = Some(label);
+    pub fn humidity(mut self, humidity: f64) -> Self {
+        self.humidity = Some(humidity);
+        self
+    }
+
+    pub fn pressure(mut self, pressure: f64) -> Self {
+        self.pressure = Some(pressure);
         self
     }
 

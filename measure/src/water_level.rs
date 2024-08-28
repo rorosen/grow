@@ -9,6 +9,7 @@ pub mod vl53l0x;
 pub trait WaterLevelSensor {
     async fn measure(
         &mut self,
+        label: String,
         cancel_token: CancellationToken,
     ) -> Result<WaterLevelMeasurement, Error>;
 }
@@ -19,22 +20,17 @@ pub struct WaterLevelMeasurement {
     /// The number of seconds since unix epoch.
     pub measure_time: i64,
     /// The label of this measurement, used to organize measurements.
-    pub label: Option<String>,
+    pub label: String,
     /// The distance between the sensor and the water surface in mm.
     pub distance: u32,
 }
 
 impl WaterLevelMeasurement {
-    pub fn new(measure_time: i64, distance: u32) -> Self {
+    pub fn new(measure_time: i64, label: String, distance: u32) -> Self {
         Self {
             measure_time,
-            label: None,
+            label,
             distance,
         }
-    }
-
-    pub fn label(mut self, label: String) -> Self {
-        self.label = Some(label);
-        self
     }
 }

@@ -7,8 +7,11 @@ pub mod bh1750fvi;
 
 #[async_trait]
 pub trait LightSensor {
-    async fn measure(&mut self, cancel_token: CancellationToken)
-        -> Result<LightMeasurement, Error>;
+    async fn measure(
+        &mut self,
+        label: String,
+        cancel_token: CancellationToken,
+    ) -> Result<LightMeasurement, Error>;
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -17,22 +20,17 @@ pub struct LightMeasurement {
     /// The number of seconds since unix epoch.
     pub measure_time: i64,
     /// The label of this measurement, used to organize measurements.
-    pub label: Option<String>,
+    pub label: String,
     /// The illuminance in lux.
     pub illuminance: f64,
 }
 
 impl LightMeasurement {
-    pub fn new(measure_time: i64, illuminance: f64) -> Self {
+    pub fn new(measure_time: i64, label: String, illuminance: f64) -> Self {
         Self {
             measure_time,
-            label: None,
+            label,
             illuminance,
         }
-    }
-
-    pub fn label(mut self, label: String) -> Self {
-        self.label = Some(label);
-        self
     }
 }

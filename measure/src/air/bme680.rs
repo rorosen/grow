@@ -451,7 +451,11 @@ impl Bme680 {
 
 #[async_trait]
 impl AirSensor for Bme680 {
-    async fn measure(&mut self, cancel_token: CancellationToken) -> Result<AirMeasurement, Error> {
+    async fn measure(
+        &mut self,
+        label: String,
+        cancel_token: CancellationToken,
+    ) -> Result<AirMeasurement, Error> {
         if self.params.is_none() {
             self.params = Self::init_params(&mut self.i2c).await.ok();
         }
@@ -468,7 +472,9 @@ impl AirSensor for Bme680 {
         let humidity = params.calc_humidity(data.hum_adc, temperature);
         let pressure = params.calc_pressure(data.press_adc, t_fine) / 100.;
         let resistance = params.compute_resistance(data.gas_adc, data.gas_range as usize);
-        let measurement = AirMeasurement::new(measure_time, temperature, humidity, pressure)
+        let measurement = AirMeasurement::new(measure_time, label, temperature)
+            .humidity(humidity)
+            .pressure(pressure)
             .resistance(resistance);
 
         Ok(measurement)

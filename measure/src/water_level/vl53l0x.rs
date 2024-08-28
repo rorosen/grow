@@ -246,6 +246,7 @@ impl Vl53L0X {
 impl WaterLevelSensor for Vl53L0X {
     async fn measure(
         &mut self,
+        label: String,
         cancel_token: CancellationToken,
     ) -> Result<WaterLevelMeasurement, Error> {
         if self.stop_variable.is_none() {
@@ -299,7 +300,7 @@ impl WaterLevelSensor for Vl53L0X {
         self.i2c
             .write_reg_byte(REG_SYSTEM_INTERRUPT_CLEAR, 0x01)
             .await?;
-        let measurement = WaterLevelMeasurement::new(measure_time, distance);
+        let measurement = WaterLevelMeasurement::new(measure_time, label, distance);
 
         Ok(measurement)
     }
