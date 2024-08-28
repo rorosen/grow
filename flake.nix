@@ -66,5 +66,7 @@
         grow-sensortest = sensortest;
         grow-gpiotest = gpiotest;
       };
+
+      devShells.${system}.default = craneLib.devShell { packages = [ pkgs.sqlx-cli ]; };
     };
 }
