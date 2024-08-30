@@ -18,7 +18,7 @@ use tokio_util::sync::CancellationToken;
 #[derive(Debug)]
 pub struct Agent {
     config: Config,
-    store_path: String,
+    state_dir: String,
 }
 
 impl Agent {
@@ -28,7 +28,8 @@ impl Agent {
         let state_dir = state_dirs
             .split(':')
             .next()
-            .with_context(|| format!("Failed to get state directory from {state_dirs:?}"))?;
+            .with_context(|| format!("Failed to get state directory from {state_dirs:?}"))?
+            .to_string();
 
         let config_path = env::var("GROW_AGENT_CONFIG_PATH")
             .unwrap_or_else(|_| format!("{state_dir}/config.json"));
@@ -39,10 +40,7 @@ impl Agent {
         .await
         .context("Panic while initializing config")??;
 
-        Ok(Self {
-            config,
-            store_path: format!("sqlite://{state_dir}/grow.sqlite"),
-        })
+        Ok(Self { config, state_dir })
     }
 
     pub async fn run(self) -> Result<()> {
@@ -51,9 +49,12 @@ impl Agent {
         let mut sigterm =
             signal(SignalKind::terminate()).context("Failed to register SIGTERM handler")?;
 
-        let store = DataStore::new(&self.store_path)
-            .await
-            .context("Failed to initialize data store")?;
+        let store = DataStore::new(&format!(
+            "sqlite://{}/{}.sqlite3",
+            self.state_dir, self.config.grow_id
+        ))
+        .await
+        .context("Failed to initialize data store")?;
 
         let air_pump_controller =
             AirPumpController::new(&self.config.air_pump_control, &self.config.gpio_path)

@@ -47,7 +47,7 @@ let
 in
 {
   options.grow = {
-    enable = lib.mkEnableOption "the grow softwware.";
+    enable = lib.mkEnableOption "the grow tools.";
 
     logLevel = lib.mkOption {
       type = lib.types.nonEmptyStr;
@@ -71,6 +71,13 @@ in
           type = lib.types.nonEmptyStr;
           default = "/dev/gpiochip0";
           description = "Path to the GPIO character device.";
+        };
+
+        grow_id = lib.mkOption {
+          type = lib.types.nonEmptyStr;
+          default = "grow";
+          example = "tomatoes";
+          description = "The identifier od this grow";
         };
 
         air = {

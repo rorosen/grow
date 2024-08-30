@@ -23,6 +23,8 @@ pub struct Config {
     pub i2c_path: PathBuf,
     #[serde(default = "default_gpio_path")]
     pub gpio_path: PathBuf,
+    #[serde(default = "default_grow_id")]
+    pub grow_id: String,
     #[serde(default)]
     pub air: AirConfig,
     #[serde(default)]
@@ -61,6 +63,7 @@ impl Default for Config {
         Self {
             i2c_path: default_i2c_path(),
             gpio_path: default_gpio_path(),
+            grow_id: default_grow_id(),
             air: AirConfig::default(),
             air_pump_control: AirPumpControlConfig::default(),
             fan: FanControlConfig::default(),
@@ -76,6 +79,10 @@ fn default_i2c_path() -> PathBuf {
 
 fn default_gpio_path() -> PathBuf {
     "/dev/gpiochip0".into()
+}
+
+fn default_grow_id() -> String {
+    "grow".into()
 }
 
 fn from_hex<'de, D>(deserializer: D) -> Result<u8, D::Error>
@@ -112,6 +119,7 @@ mod tests {
         let input = serde_json::json!({
             "i2c_path": "/dev/i2c-69",
             "gpio_path": "/dev/gpiochip69",
+            "grow_id": "tomatoes",
             "air": {
                 "control": {
                     "mode": "Cyclic",
@@ -186,6 +194,7 @@ mod tests {
         let expected = Config {
             i2c_path: PathBuf::from("/dev/i2c-69"),
             gpio_path: PathBuf::from("/dev/gpiochip69"),
+            grow_id: String::from("tomatoes"),
             air: AirConfig {
                 control: AirControlConfig {
                     mode: AirControlMode::Cyclic,
