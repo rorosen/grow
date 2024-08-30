@@ -10,7 +10,7 @@ chrono.workspace = true
 log.workspace = true
 nix = { version = "0.29.0", features = ["ioctl"] }
 serde = { workspace = true, features = ["derive"] }
-sqlx = { default-features= false, workspace = true }
+sqlx.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["fs", "io-util", "time", "macros"] }
 tokio-util.workspace = true

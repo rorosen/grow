@@ -1,10 +1,10 @@
-use std::env;
+use std::{env, path::PathBuf};
 
 use anyhow::{Context, Result};
 
 pub struct Config {
-    listen_address: String,
-    state_dir: PathBuf,
+    pub listen_address: String,
+    pub state_dir: PathBuf,
 }
 
 impl Config {
@@ -16,7 +16,8 @@ impl Config {
         let state_dir = state_dirs
             .split(':')
             .next()
-            .with_context(|| format!("Failed to get state directory from {state_dirs:?}"))?;
+            .with_context(|| format!("Failed to get state directory from {state_dirs:?}"))?
+            .into();
 
         Ok(Self {
             listen_address,

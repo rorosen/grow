@@ -67,6 +67,11 @@
         grow-gpiotest = gpiotest;
       };
 
-      devShells.${system}.default = craneLib.devShell { packages = [ pkgs.sqlx-cli ]; };
+      # devShells.${system}.default = craneLib.devShell {
+      #   packages = with pkgs; [
+      #     pkg-config
+      #     sqlx-cli
+      #   ];
+      # };
     };
 }
