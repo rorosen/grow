@@ -1,6 +1,7 @@
 use crate::Error;
 use async_trait::async_trait;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
 use tokio_util::sync::CancellationToken;
 
 pub mod bh1750fvi;
@@ -14,7 +15,7 @@ pub trait LightSensor {
     ) -> Result<LightMeasurement, Error>;
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, FromRow)]
 /// A single light measurement.
 pub struct LightMeasurement {
     /// The number of seconds since unix epoch.

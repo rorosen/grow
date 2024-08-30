@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    ffi::OsString,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -12,6 +11,9 @@ use axum::{
     response::IntoResponse,
     routing::get,
     Json, Router,
+};
+use grow_measure::{
+    air::AirMeasurement, light::LightMeasurement, water_level::WaterLevelMeasurement,
 };
 use serde::Deserialize;
 use sqlx::SqlitePool;
@@ -68,7 +70,7 @@ where
 struct TimeParams {
     from: i64,
     to: i64,
-    interval: i64,
+    interval_ms: i64,
 }
 
 pub struct Server {
@@ -117,15 +119,22 @@ async fn grows(State(state): State<ServerState>) -> Result<Json<Vec<String>>, Se
         .await
         .with_context(|| format!("Failed to get directory entry of {:?}", state.state_dir))?
     {
+        const SQLITE_ENDING: &str = "sqlite3";
+
         let file_name = entry
             .file_name()
             .into_string()
             .map_err(|n| anyhow!("Failed to get valid unicode string from {n:?}"))?;
+        let file_name = Path::new(&file_name);
+        if !file_name.extension().is_some_and(|e| e == SQLITE_ENDING) {
+            continue;
+        }
+
         let grow_id = Path::new(&file_name)
             .file_stem()
-            .with_context(|| format!("Failed to get grow ID from {file_name}"))?
+            .with_context(|| format!("Failed to get grow ID from {file_name:?}"))?
             .to_str()
-            .with_context(|| format!("Failed to get grow ID from {file_name}"))?
+            .with_context(|| format!("Failed to get grow ID from {file_name:?}"))?
             .to_owned();
 
         if pools.contains_key(&grow_id) {
@@ -151,25 +160,97 @@ async fn air_measurements(
     State(state): State<ServerSubState>,
     extract::Path(grow_id): extract::Path<String>,
     time_params: Query<TimeParams>,
-) -> Result<(), ServerError> {
-    log::info!("{grow_id:?}");
-    // let pools = state.pools.read().await;
-    // let pool = pools.get(grow_id).with_context(|| format!("Failed to get database pool for {grow_id}"))?;
-    Ok(())
+) -> Result<Json<Vec<AirMeasurement>>, ServerError> {
+    let pools = state.pools.read().await;
+    let pool = pools
+        .get(&grow_id)
+        .with_context(|| format!("Unknown grow ID {grow_id:?}"))?;
+    let interval = time_params.interval_ms / 1000;
+
+    let measurements = sqlx::query_as::<_, AirMeasurement>(
+        r#"
+        SELECT cast(("measure_time" / $1) as int) * $1 AS time,
+        measure_time,
+        label,
+        temperature,
+        humidity,
+        pressure,
+        resistance FROM air_measurements
+        WHERE measure_time BETWEEN $2 AND $3
+        GROUP BY time
+        ORDER BY measure_time ASC;
+    "#,
+    )
+    .bind(interval)
+    .bind(time_params.from)
+    .bind(time_params.to)
+    .fetch_all(pool)
+    .await
+    .context("Failed to query air measurements")?;
+
+    Ok(Json(measurements))
 }
 
 async fn light_measurements(
     State(state): State<ServerSubState>,
     extract::Path(grow_id): extract::Path<String>,
     time_params: Query<TimeParams>,
-) -> Result<(), ServerError> {
-    Ok(())
+) -> Result<Json<Vec<LightMeasurement>>, ServerError> {
+    let pools = state.pools.read().await;
+    let pool = pools
+        .get(&grow_id)
+        .with_context(|| format!("Unknown grow ID {grow_id:?}"))?;
+    let interval = time_params.interval_ms / 1000;
+
+    let measurements = sqlx::query_as::<_, LightMeasurement>(
+        r#"
+        SELECT cast(("measure_time" / $1) as int) * $1 AS time,
+        measure_time,
+        label,
+        illuminance FROM light_measurements
+        WHERE measure_time BETWEEN $2 AND $3
+        GROUP BY time
+        ORDER BY measure_time ASC;
+    "#,
+    )
+    .bind(interval)
+    .bind(time_params.from)
+    .bind(time_params.to)
+    .fetch_all(pool)
+    .await
+    .context("Failed to query light measurements")?;
+
+    Ok(Json(measurements))
 }
 
 async fn water_level_measurements(
     State(state): State<ServerSubState>,
     extract::Path(grow_id): extract::Path<String>,
     time_params: Query<TimeParams>,
-) -> Result<(), ServerError> {
-    Ok(())
+) -> Result<Json<Vec<WaterLevelMeasurement>>, ServerError> {
+    let pools = state.pools.read().await;
+    let pool = pools
+        .get(&grow_id)
+        .with_context(|| format!("Unknown grow ID {grow_id:?}"))?;
+    let interval = time_params.interval_ms / 1000;
+
+    let measurements = sqlx::query_as::<_, WaterLevelMeasurement>(
+        r#"
+        SELECT cast(("measure_time" / $1) as int) * $1 AS time,
+        measure_time,
+        label,
+        distance FROM water_level_measurements
+        WHERE measure_time BETWEEN $2 AND $3
+        GROUP BY time
+        ORDER BY measure_time ASC;
+    "#,
+    )
+    .bind(interval)
+    .bind(time_params.from)
+    .bind(time_params.to)
+    .fetch_all(pool)
+    .await
+    .context("Failed to query water level measurements")?;
+
+    Ok(Json(measurements))
 }

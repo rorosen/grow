@@ -1,6 +1,7 @@
 use crate::Error;
 use async_trait::async_trait;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
 use tokio_util::sync::CancellationToken;
 
 pub mod vl53l0x;
@@ -15,7 +16,7 @@ pub trait WaterLevelSensor {
 }
 
 /// A single water level measurement.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, FromRow)]
 pub struct WaterLevelMeasurement {
     /// The number of seconds since unix epoch.
     pub measure_time: i64,
