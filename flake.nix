@@ -25,46 +25,34 @@
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs {
-        inherit system;
-        overlays = [ (import rust-overlay) ];
-      };
-
-      crossPkgs = import nixpkgs {
         localSystem = system;
         crossSystem = "aarch64-linux";
         overlays = [ (import rust-overlay) ];
       };
 
-      crossToolchain = crossPkgs.pkgsBuildHost.rust-bin.stable.latest.default.override {
+      crossToolchain = pkgs.pkgsBuildHost.rust-bin.stable.latest.default.override {
         targets = [ "aarch64-unknown-linux-gnu" ];
       };
 
-      craneLib = (crane.mkLib crossPkgs).overrideToolchain (_p: crossToolchain);
-      sampler = crossPkgs.callPackage ./nix/sampler.nix { inherit craneLib; };
-      agent = crossPkgs.callPackage ./nix/agent.nix { inherit craneLib; };
-      sensortest = crossPkgs.callPackage ./nix/sensortest.nix { inherit craneLib; };
-      gpiotest = crossPkgs.callPackage ./nix/gpiotest.nix { inherit craneLib; };
+      craneLib = (crane.mkLib pkgs).overrideToolchain (_p: crossToolchain);
+      crates = pkgs.callPackage ./nix/build.nix { inherit craneLib; };
     in
     {
       packages.${system} = {
-        inherit
-          sampler
+        inherit (crates)
           agent
-          sensortest
+          server
           gpiotest
+          sensortest
           ;
-        agent-service = import ./nix/agent-service.nix {
-          inherit pkgs agent;
-          inherit (nixpkgs.lib) nixosSystem;
-        };
-        install-sampler = import ./nix/install-sampler.nix { inherit pkgs sampler; };
       };
 
-      nixosModules.agent = ./nix/agent-module.nix;
+      nixosModules.default = ./nix/module.nix;
       overlays.default = _final: _prev: {
-        grow-agent = agent;
-        grow-sensortest = sensortest;
-        grow-gpiotest = gpiotest;
+        grow-agent = crates.agent;
+        grow-server = crates.server;
+        grow-gpiotest = crates.gpiotest;
+        grow-sensortest = crates.sensortest;
       };
 
       # devShells.${system}.default = craneLib.devShell {

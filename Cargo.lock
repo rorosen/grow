@@ -584,23 +584,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "grow-dataserver"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "chrono",
- "grow-measure",
- "log",
- "serde",
- "sqlx",
- "tokio",
- "tower-http",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "grow-gpiotest"
 version = "0.1.0"
 dependencies = [
@@ -631,6 +614,23 @@ dependencies = [
  "grow-measure",
  "tokio",
  "tokio-util",
+]
+
+[[package]]
+name = "grow-server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "chrono",
+ "grow-measure",
+ "log",
+ "serde",
+ "sqlx",
+ "tokio",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
