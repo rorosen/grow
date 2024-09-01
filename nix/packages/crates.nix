@@ -7,9 +7,9 @@ let
   sqlFilter = path: _type: builtins.match ".*\.sql$" path != null;
   sqlOrCargo = path: type: (sqlFilter path type) || (craneLib.filterCargoSources path type);
   commonArgs = {
-    inherit (craneLib.crateNameFromCargoToml { cargoToml = ../agent/Cargo.toml; }) pname;
+    inherit (craneLib.crateNameFromCargoToml { cargoToml = ../../agent/Cargo.toml; }) pname;
     src = lib.cleanSourceWith {
-      src = craneLib.path ./..;
+      src = craneLib.path ./../..;
       filter = sqlOrCargo;
       name = "source";
     };
@@ -25,7 +25,7 @@ let
     commonArgs
     // {
       inherit cargoArtifacts;
-      inherit (craneLib.crateNameFromCargoToml { cargoToml = ../agent/Cargo.toml; }) pname;
+      inherit (craneLib.crateNameFromCargoToml { cargoToml = ../../agent/Cargo.toml; }) pname;
       cargoExtraArgs = "--target aarch64-unknown-linux-gnu --package=grow-agent";
     }
   );
@@ -33,7 +33,7 @@ let
     commonArgs
     // {
       inherit cargoArtifacts;
-      inherit (craneLib.crateNameFromCargoToml { cargoToml = ../server/Cargo.toml; }) pname;
+      inherit (craneLib.crateNameFromCargoToml { cargoToml = ../../server/Cargo.toml; }) pname;
       cargoExtraArgs = "--target aarch64-unknown-linux-gnu --package=grow-server";
     }
   );
@@ -41,7 +41,7 @@ let
     commonArgs
     // {
       inherit cargoArtifacts;
-      inherit (craneLib.crateNameFromCargoToml { cargoToml = ../gpiotest/Cargo.toml; }) pname;
+      inherit (craneLib.crateNameFromCargoToml { cargoToml = ../../gpiotest/Cargo.toml; }) pname;
       cargoExtraArgs = "--target aarch64-unknown-linux-gnu --package=grow-gpiotest";
     }
   );
@@ -49,7 +49,7 @@ let
     commonArgs
     // {
       inherit cargoArtifacts;
-      inherit (craneLib.crateNameFromCargoToml { cargoToml = ../sensortest/Cargo.toml; }) pname;
+      inherit (craneLib.crateNameFromCargoToml { cargoToml = ../../sensortest/Cargo.toml; }) pname;
       cargoExtraArgs = "--target aarch64-unknown-linux-gnu --package=grow-sensortest";
     }
   );

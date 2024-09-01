@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  ...
 }:
 let
   cfg = config.grow.server;
@@ -34,7 +35,7 @@ in
 
     environment = {
       RUST_LOG = cfg.logLevel;
-      GROW_LISTEN_ADDRESS = cfg.server.listenAddress;
+      GROW_LISTEN_ADDRESS = cfg.listenAddress;
     };
   };
 }

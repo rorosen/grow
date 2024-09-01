@@ -58,6 +58,7 @@
         grow-server = crates.server;
         grow-gpiotest = crates.gpiotest;
         grow-sensortest = crates.sensortest;
+        grafanaPlugins.yesoreyeram-infinity-datasource = yesoreyeram-infinity-datasource;
       };
 
       # devShells.${system}.default = craneLib.devShell {
