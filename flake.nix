@@ -35,10 +35,14 @@
       };
 
       craneLib = (crane.mkLib pkgs).overrideToolchain (_p: crossToolchain);
-      crates = pkgs.callPackage ./nix/build.nix { inherit craneLib; };
+      crates = pkgs.callPackage ./nix/packages/crates.nix { inherit craneLib; };
+      yesoreyeram-infinity-datasource =
+        pkgs.callPackage ./nix/packages/yesoreyeram-infinity-datasource.nix
+          { };
     in
     {
       packages.${system} = {
+        inherit yesoreyeram-infinity-datasource;
         inherit (crates)
           agent
           server
@@ -47,7 +51,8 @@
           ;
       };
 
-      nixosModules.default = ./nix/module.nix;
+      nixosModules = import ./nix/modules;
+
       overlays.default = _final: _prev: {
         grow-agent = crates.agent;
         grow-server = crates.server;
