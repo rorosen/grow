@@ -250,7 +250,7 @@ in
             default = { };
             example = lib.literalExpression ''
               {
-                "main" = 17;
+                main = 17;
               }
             '';
             description = ''

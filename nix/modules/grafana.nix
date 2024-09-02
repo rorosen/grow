@@ -29,48 +29,7 @@ in
           type = "yesoreyeram-infinity-datasource";
         }
       ];
-      dashboards.settings.providers =
-        let
-          grow-dashboard = pkgs.writeTextDir "grow-dashboard.json" (
-            builtins.readFile ../../grow-dashboard.json
-          );
-        in
-        [ { options.path = ../../grow-dashboard.json; } ];
-      # dashboards.settings =
-      #   let
-      #     nodeExporterFull = pkgs.writeTextDir "node-exporter-full.json" (
-      #       builtins.readFile (
-      #         pkgs.fetchurl {
-      #           url = "https://github.com/rfmoz/grafana-dashboards/blob/1e33ce6655776bc6ceeafe202b78c19464889462/prometheus/node-exporter-full.json";
-      #           hash = config.nodeExporterHash;
-      #         }
-      #       )
-      #     );
-      #
-      #     lokiDashboard = pkgs.writeTextDir "loki-dashboard.json" (
-      #       builtins.readFile (
-      #         pkgs.fetchurl {
-      #           url = "https://grafana.com/api/dashboards/13186/revisions/1/download";
-      #           hash = config.lokiDashboardHash;
-      #         }
-      #       )
-      #     );
-      #   in
-      #   {
-      #     apiVersion = 1;
-      #     providers = [
-      #       {
-      #         name = "default";
-      #         options.path = pkgs.symlinkJoin {
-      #           name = "dashboards";
-      #           paths = [
-      #             nodeExporterFull
-      #             lokiDashboard
-      #           ];
-      #         };
-      #       }
-      #     ];
-      #   };
+      dashboards.settings.providers = [ { options.path = ../../grow-dashboard.json; } ];
     };
   };
 

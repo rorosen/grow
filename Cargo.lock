@@ -627,6 +627,7 @@ dependencies = [
  "log",
  "serde",
  "sqlx",
+ "thiserror",
  "tokio",
  "tower-http",
  "tracing",

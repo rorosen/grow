@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    fmt::Display,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -17,7 +18,8 @@ use grow_measure::{
 };
 use serde::Deserialize;
 use sqlx::SqlitePool;
-use tokio::sync::RwLock;
+use thiserror::Error;
+use tokio::sync::{RwLock, RwLockWriteGuard};
 use tower_http::trace::TraceLayer;
 
 use crate::config::Config;
@@ -26,15 +28,6 @@ use crate::config::Config;
 struct ServerState {
     state_dir: PathBuf,
     pools: Arc<RwLock<HashMap<String, SqlitePool>>>,
-}
-
-impl ServerState {
-    fn new(state_dir: PathBuf) -> Self {
-        Self {
-            state_dir,
-            pools: Arc::new(RwLock::new(HashMap::new())),
-        }
-    }
 }
 
 struct ServerSubState {
@@ -49,20 +42,22 @@ impl FromRef<ServerState> for ServerSubState {
     }
 }
 
-struct ServerError(anyhow::Error);
+#[derive(Debug, Error)]
+struct ServerError {
+    source: anyhow::Error,
+    code: StatusCode,
+}
 
 impl IntoResponse for ServerError {
     fn into_response(self) -> axum::response::Response {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("{}", self.0)).into_response()
+        log::error!("{:#}", self.source);
+        (self.code, format!("{}", self.source)).into_response()
     }
 }
 
-impl<E> From<E> for ServerError
-where
-    E: Into<anyhow::Error>,
-{
-    fn from(err: E) -> Self {
-        Self(err.into())
+impl Display for ServerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.source)
     }
 }
 
@@ -85,7 +80,14 @@ impl Server {
     }
 
     pub async fn run(self) -> Result<()> {
-        let state = ServerState::new(self.config.state_dir);
+        let pools = Arc::new(RwLock::new(HashMap::new()));
+        populate_pools(&self.config.state_dir, &mut pools.write().await)
+            .await
+            .context("Failed to initially populate database pools")?;
+        let state = ServerState {
+            state_dir: self.config.state_dir,
+            pools,
+        };
         let router = Router::new()
             .route("/grows", get(grows))
             .route("/:grow_id/air_measurements", get(air_measurements))
@@ -108,16 +110,18 @@ impl Server {
     }
 }
 
-async fn grows(State(state): State<ServerState>) -> Result<Json<Vec<String>>, ServerError> {
-    let mut read_dir = tokio::fs::read_dir(&state.state_dir)
+async fn populate_pools(
+    state_dir: &Path,
+    pools: &mut RwLockWriteGuard<'_, HashMap<String, SqlitePool>>,
+) -> anyhow::Result<()> {
+    let mut read_dir = tokio::fs::read_dir(&state_dir)
         .await
-        .with_context(|| format!("Failed to get directory entries of {:?}", state.state_dir))?;
-    let mut pools = state.pools.write().await;
+        .with_context(|| format!("Failed to get directory entries of {state_dir:?}"))?;
 
     while let Some(entry) = &read_dir
         .next_entry()
         .await
-        .with_context(|| format!("Failed to get directory entry of {:?}", state.state_dir))?
+        .with_context(|| format!("Failed to get directory entry of {state_dir:?}"))?
     {
         const SQLITE_ENDING: &str = "sqlite3";
 
@@ -130,14 +134,13 @@ async fn grows(State(state): State<ServerState>) -> Result<Json<Vec<String>>, Se
             continue;
         }
 
-        let grow_id = Path::new(&file_name)
+        let grow_id = file_name
             .file_stem()
             .with_context(|| format!("Failed to get grow ID from {file_name:?}"))?
             .to_str()
-            .with_context(|| format!("Failed to get grow ID from {file_name:?}"))?
-            .to_owned();
+            .with_context(|| format!("Failed to get grow ID from {file_name:?}"))?;
 
-        if pools.contains_key(&grow_id) {
+        if pools.contains_key(grow_id) {
             continue;
         }
 
@@ -149,10 +152,22 @@ async fn grows(State(state): State<ServerState>) -> Result<Json<Vec<String>>, Se
         let pool = SqlitePool::connect_lazy(&url)
             .with_context(|| format!("Failed to create connection pool with {url}"))?;
 
-        pools.insert(grow_id, pool);
+        pools.insert(grow_id.to_string(), pool);
     }
 
+    Ok(())
+}
+
+async fn grows(State(state): State<ServerState>) -> Result<Json<Vec<String>>, ServerError> {
+    let mut pools = state.pools.write().await;
+    populate_pools(&state.state_dir, &mut pools)
+        .await
+        .map_err(|source| ServerError {
+            source,
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+        })?;
     let grow_ids = pools.keys().map(|id| id.to_string()).collect();
+
     Ok(Json(grow_ids))
 }
 
@@ -164,7 +179,11 @@ async fn air_measurements(
     let pools = state.pools.read().await;
     let pool = pools
         .get(&grow_id)
-        .with_context(|| format!("Unknown grow ID {grow_id:?}"))?;
+        .with_context(|| format!("Unknown grow ID {grow_id:?}"))
+        .map_err(|source| ServerError {
+            source,
+            code: StatusCode::NOT_FOUND,
+        })?;
     let interval = time_params.interval_ms / 1000;
 
     let measurements = sqlx::query_as::<_, AirMeasurement>(
@@ -177,7 +196,7 @@ async fn air_measurements(
         pressure,
         resistance FROM air_measurements
         WHERE measure_time BETWEEN $2 AND $3
-        GROUP BY time
+        GROUP BY time, label
         ORDER BY measure_time ASC;
     "#,
     )
@@ -186,7 +205,11 @@ async fn air_measurements(
     .bind(time_params.to)
     .fetch_all(pool)
     .await
-    .context("Failed to query air measurements")?;
+    .context("Failed to query air measurements")
+    .map_err(|source| ServerError {
+        source,
+        code: StatusCode::INTERNAL_SERVER_ERROR,
+    })?;
 
     Ok(Json(measurements))
 }
@@ -199,7 +222,11 @@ async fn light_measurements(
     let pools = state.pools.read().await;
     let pool = pools
         .get(&grow_id)
-        .with_context(|| format!("Unknown grow ID {grow_id:?}"))?;
+        .with_context(|| format!("Unknown grow ID {grow_id:?}"))
+        .map_err(|source| ServerError {
+            source,
+            code: StatusCode::NOT_FOUND,
+        })?;
     let interval = time_params.interval_ms / 1000;
 
     let measurements = sqlx::query_as::<_, LightMeasurement>(
@@ -209,7 +236,7 @@ async fn light_measurements(
         label,
         illuminance FROM light_measurements
         WHERE measure_time BETWEEN $2 AND $3
-        GROUP BY time
+        GROUP BY time, label
         ORDER BY measure_time ASC;
     "#,
     )
@@ -218,7 +245,11 @@ async fn light_measurements(
     .bind(time_params.to)
     .fetch_all(pool)
     .await
-    .context("Failed to query light measurements")?;
+    .context("Failed to query light measurements")
+    .map_err(|source| ServerError {
+        source,
+        code: StatusCode::INTERNAL_SERVER_ERROR,
+    })?;
 
     Ok(Json(measurements))
 }
@@ -231,7 +262,11 @@ async fn water_level_measurements(
     let pools = state.pools.read().await;
     let pool = pools
         .get(&grow_id)
-        .with_context(|| format!("Unknown grow ID {grow_id:?}"))?;
+        .with_context(|| format!("Unknown grow ID {grow_id:?}"))
+        .map_err(|source| ServerError {
+            source,
+            code: StatusCode::NOT_FOUND,
+        })?;
     let interval = time_params.interval_ms / 1000;
 
     let measurements = sqlx::query_as::<_, WaterLevelMeasurement>(
@@ -241,7 +276,7 @@ async fn water_level_measurements(
         label,
         distance FROM water_level_measurements
         WHERE measure_time BETWEEN $2 AND $3
-        GROUP BY time
+        GROUP BY time, label
         ORDER BY measure_time ASC;
     "#,
     )
@@ -250,7 +285,11 @@ async fn water_level_measurements(
     .bind(time_params.to)
     .fetch_all(pool)
     .await
-    .context("Failed to query water level measurements")?;
+    .context("Failed to query water level measurements")
+    .map_err(|source| ServerError {
+        source,
+        code: StatusCode::INTERNAL_SERVER_ERROR,
+    })?;
 
     Ok(Json(measurements))
 }
