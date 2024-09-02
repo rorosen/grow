@@ -65,10 +65,12 @@ impl WaterLevelSampler {
                         };
                     }
 
-                    self.sender
-                        .send(measurements)
-                        .await
-                        .context("Failed to send water level measurements")?;
+                    if !measurements.is_empty() {
+                        self.sender
+                            .send(measurements)
+                            .await
+                            .context("Failed to send water level measurements")?;
+                    }
                 }
                 _ = cancel_token.cancelled() => {
                     return Ok(IDENTIFIER);

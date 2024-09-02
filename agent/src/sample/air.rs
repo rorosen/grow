@@ -66,10 +66,12 @@ impl AirSampler {
                         };
                     }
 
-                    self.sender
-                        .send(measurements)
-                        .await
-                        .context("Failed to send air measurements")?;
+                    if !measurements.is_empty() {
+                        self.sender
+                            .send(measurements)
+                            .await
+                            .context("Failed to send air measurements")?;
+                    }
                 }
                 _ = cancel_token.cancelled() => {
                     return Ok(IDENTIFIER);

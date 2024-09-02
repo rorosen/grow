@@ -64,10 +64,12 @@ impl LightSampler {
                         };
                     }
 
-                    self.sender
-                        .send(measurements)
-                        .await
-                        .context("Failed to send light measurements")?;
+                    if !measurements.is_empty() {
+                        self.sender
+                            .send(measurements)
+                            .await
+                            .context("Failed to send light measurements")?;
+                    }
                 }
                 _ = cancel_token.cancelled() => {
                     return Ok(IDENTIFIER);

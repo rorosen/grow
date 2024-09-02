@@ -59,9 +59,7 @@ impl LightManager {
                 }
                 Some(measurements) = self.receiver.recv() => {
                     log::trace!("Light measurements: {measurements:?}");
-                    self.store.add_light_measurements(measurements)
-                        .await
-                        .context("Failed to save light measurements")?;
+                    self.store.add_light_measurements(measurements).await?;
                 }
             }
         }

@@ -59,9 +59,7 @@ impl WaterLevelManager {
                 }
                 Some(measurements) = self.receiver.recv() => {
                     log::trace!("Water level measurements: {measurements:?}");
-                    self.store.add_water_level_measurements(measurements)
-                        .await
-                        .context("Failed to save water level measurements")?;
+                    self.store.add_water_level_measurements(measurements).await?
                 }
             }
         }

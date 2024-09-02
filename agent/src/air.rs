@@ -57,9 +57,7 @@ impl AirManager {
                 }
                 Some(measurements) = self.receiver.recv() => {
                     log::trace!("Air measurements: {measurements:?}");
-                    self.store.add_air_measurements(measurements)
-                        .await
-                        .context("Failed to save air measurements")?;
+                    self.store.add_air_measurements(measurements).await?;
                 }
             }
         }
