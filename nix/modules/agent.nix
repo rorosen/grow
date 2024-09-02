@@ -63,7 +63,7 @@ in
       i2c_path = lib.mkOption {
         type = lib.types.nonEmptyStr;
         default = "/dev/i2c-1";
-        description = "Path to the I2C file.";
+        description = "Path to the I2C device interface.";
       };
       gpio_path = lib.mkOption {
         type = lib.types.nonEmptyStr;
