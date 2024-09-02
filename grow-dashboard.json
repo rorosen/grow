@@ -209,7 +209,7 @@
           "root_selector": "",
           "source": "url",
           "type": "json",
-          "url": "http://localhost:8088/${grow_id}/air_measurements?from=${__from:date:seconds}&to=${__to:date:seconds}&interval_ms=${__interval_ms}",
+          "url": "http://localhost:8080/${grow_id}/air_measurements?from=${__from:date:seconds}&to=${__to:date:seconds}&interval_ms=${__interval_ms}",
           "url_options": {
             "data": "",
             "method": "GET"
@@ -778,7 +778,7 @@
           "root_selector": "",
           "source": "url",
           "type": "json",
-          "url": "http://localhost:8088/${grow_id}/light_measurements?from=${__from:date:seconds}&to=${__to:date:seconds}&interval_ms=${__interval_ms}",
+          "url": "http://localhost:8080/${grow_id}/light_measurements?from=${__from:date:seconds}&to=${__to:date:seconds}&interval_ms=${__interval_ms}",
           "url_options": {
             "data": "",
             "method": "GET"
@@ -905,7 +905,7 @@
             {
               "selector": "distance",
               "text": "Distance",
-              "type": "string"
+              "type": "number"
             }
           ],
           "datasource": {
@@ -919,7 +919,7 @@
           "root_selector": "",
           "source": "url",
           "type": "json",
-          "url": "http://localhost:8088/${grow_id}/water_level_measurements?from=${__from:date:seconds}&to=${__to:date:seconds}&interval_ms=${__interval_ms}",
+          "url": "http://localhost:8080/${grow_id}/water_level_measurements?from=${__from:date:seconds}&to=${__to:date:seconds}&interval_ms=${__interval_ms}",
           "url_options": {
             "data": "",
             "method": "GET"
@@ -968,7 +968,7 @@
             "root_selector": "",
             "source": "url",
             "type": "json",
-            "url": "http://localhost:8088/grows",
+            "url": "http://localhost:8080/grows",
             "url_options": {
               "data": "",
               "method": "GET"

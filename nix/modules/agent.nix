@@ -52,6 +52,7 @@ in
     logLevel = lib.mkOption {
       type = lib.types.nonEmptyStr;
       default = "info";
+      example = "debug";
       description = "The rust log level.";
     };
 
@@ -61,13 +62,11 @@ in
         default = "/dev/i2c-1";
         description = "Path to the I2C file.";
       };
-
       gpio_path = lib.mkOption {
         type = lib.types.nonEmptyStr;
         default = "/dev/gpiochip0";
         description = "Path to the GPIO character device.";
       };
-
       grow_id = lib.mkOption {
         type = lib.types.nonEmptyStr;
         default = "grow";

@@ -14,14 +14,22 @@ in
     logLevel = lib.mkOption {
       type = lib.types.nonEmptyStr;
       default = "info";
+      example = "debug";
       description = "The rust log level.";
     };
 
     listenAddress = lib.mkOption {
       type = lib.types.nonEmptyStr;
-      default = "[::1]:8088";
-      example = "192.168.123.123:8088";
+      default = "[::1]";
+      example = "192.168.123.123";
       description = "The address on which the server listens.";
+    };
+
+    listenPort = lib.mkOption {
+      type = lib.types.port;
+      default = 8080;
+      description = "The port on which the server listens.";
+
     };
   };
 
@@ -36,6 +44,7 @@ in
     environment = {
       RUST_LOG = cfg.logLevel;
       GROW_LISTEN_ADDRESS = cfg.listenAddress;
+      GROW_LISTEN_PORT = builtins.toString cfg.listenPort;
     };
   };
 }

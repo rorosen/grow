@@ -57,9 +57,5 @@ fn main() -> Result<(), anyhow::Error> {
     chip.get_line(config.line)?
         .request(LineRequestFlags::OUTPUT, config.value, &config.name)?;
 
-    // println!("Output being driven... Enter to exit");
-    // let mut buf = String::new();
-    // ::std::io::stdin().read_line(&mut buf)?;
-
     Ok(())
 }

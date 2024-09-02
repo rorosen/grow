@@ -99,9 +99,12 @@ impl Server {
             .layer(TraceLayer::new_for_http())
             .with_state(state);
 
-        let listener = tokio::net::TcpListener::bind(&self.config.listen_address)
-            .await
-            .context("Failed to bind TCP listener")?;
+        let listener = tokio::net::TcpListener::bind(&format!(
+            "{}:{}",
+            self.config.listen_address, self.config.listen_port
+        ))
+        .await
+        .context("Failed to bind TCP listener")?;
         axum::serve(listener, router)
             .await
             .context("Failed to serve")?;
