@@ -34,8 +34,8 @@ impl Agent {
         let config_path = env::var("GROW_AGENT_CONFIG_PATH")
             .unwrap_or_else(|_| format!("{state_dir}/config.json"));
         let config = spawn_blocking(move || {
-            Config::new(&config_path)
-                .with_context(|| format!("Failed to initialize config at {config_path}"))
+            Config::from_file(&config_path)
+                .with_context(|| format!("Failed to initialize config from {config_path}"))
         })
         .await
         .context("Panic while initializing config")??;

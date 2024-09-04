@@ -38,23 +38,10 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(path: impl AsRef<Path>) -> Result<Self> {
-        let config_exists = path
-            .as_ref()
-            .try_exists()
-            .context("Failed to check existence of config file")?;
-
-        if !config_exists {
-            let file = File::create(&path).context("Failed to create config file")?;
-            let config = Self::default();
-            serde_json::to_writer(file, &config).context("Failed to write default config")?;
-            Ok(config)
-        } else {
-            let file = File::open(&path).context("Failed to open config file")?;
-            let config: Config =
-                serde_json::from_reader(&file).context("Failed to parse config")?;
-            Ok(config)
-        }
+    pub fn from_file(path: impl AsRef<Path>) -> Result<Self> {
+        let file = File::open(&path).context("Failed to open config file")?;
+        let config: Config = serde_json::from_reader(&file).context("Failed to parse config")?;
+        Ok(config)
     }
 }
 
@@ -107,7 +94,7 @@ mod tests {
         LightSensorModel,
     };
     use std::{collections::HashMap, io::Write};
-    use tempfile::{tempdir, NamedTempFile};
+    use tempfile::NamedTempFile;
     use water_level::{
         WaterLevelControlConfig, WaterLevelControlMode, WaterLevelSampleConfig,
         WaterLevelSensorConfig, WaterLevelSensorModel,
@@ -279,15 +266,17 @@ mod tests {
             },
         };
         write!(&mut file, "{input}").expect("Tempfile should be writable");
-        let config = Config::new(file.path()).expect("Config file should be parsed without error");
+        let config =
+            Config::from_file(file.path()).expect("Config file should be parsed without error");
         assert_eq!(config, expected)
     }
 
     #[test]
     fn parse_empty_config_ok() {
-        let dir = tempdir().expect("Temporary directory should be created");
-        let config =
-            Config::new(dir.path().join("config.json")).expect("Default config should be created");
+        let mut file = NamedTempFile::new().expect("should be able to create tempfile");
+        write!(&mut file, "{{}}").expect("tempfile should be writable");
+        let config = Config::from_file(file.path())
+            .expect("Empty config file should be parsed without error");
         assert_eq!(config, Config::default());
     }
 
@@ -351,7 +340,8 @@ mod tests {
             ..Default::default()
         };
         write!(&mut file, "{}", input).expect("Tempfile should be writable");
-        let config = Config::new(file.path()).expect("Config file should be parsed without error");
+        let config =
+            Config::from_file(file.path()).expect("Config file should be parsed without error");
         assert_eq!(config, expected)
     }
 }
