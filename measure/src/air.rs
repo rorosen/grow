@@ -23,7 +23,7 @@ pub struct AirMeasurement {
     /// The label of this measurement, used to organize measurements.
     pub label: String,
     /// The temperature in degree celsius.
-    pub temperature: f64,
+    pub temperature: Option<f64>,
     /// The humidity in percentage.
     pub humidity: Option<f64>,
     /// The pressure in hectopascal.
@@ -36,15 +36,20 @@ pub struct AirMeasurement {
 }
 
 impl AirMeasurement {
-    pub fn new(measure_time: i64, label: String, temperature: f64) -> Self {
+    pub fn new(measure_time: i64, label: String) -> Self {
         Self {
             measure_time,
             label,
-            temperature,
+            temperature: None,
             humidity: None,
             pressure: None,
             resistance: None,
         }
+    }
+
+    pub fn temperature(mut self, temperature: f64) -> Self {
+        self.temperature = Some(temperature);
+        self
     }
 
     pub fn humidity(mut self, humidity: f64) -> Self {

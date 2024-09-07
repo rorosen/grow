@@ -472,7 +472,8 @@ impl AirSensor for Bme680 {
         let humidity = params.calc_humidity(data.hum_adc, temperature);
         let pressure = params.calc_pressure(data.press_adc, t_fine) / 100.;
         let resistance = params.compute_resistance(data.gas_adc, data.gas_range as usize);
-        let measurement = AirMeasurement::new(measure_time, label, temperature)
+        let measurement = AirMeasurement::new(measure_time, label)
+            .temperature(temperature)
             .humidity(humidity)
             .pressure(pressure)
             .resistance(resistance);

@@ -23,15 +23,20 @@ pub struct WaterLevelMeasurement {
     /// The label of this measurement, used to organize measurements.
     pub label: String,
     /// The distance between the sensor and the water surface in mm.
-    pub distance: u32,
+    pub distance: Option<u32>,
 }
 
 impl WaterLevelMeasurement {
-    pub fn new(measure_time: i64, label: String, distance: u32) -> Self {
+    pub fn new(measure_time: i64, label: String) -> Self {
         Self {
             measure_time,
             label,
-            distance,
+            distance: None,
         }
+    }
+
+    pub fn distance(mut self, distance: u32) -> Self {
+        self.distance = Some(distance);
+        self
     }
 }

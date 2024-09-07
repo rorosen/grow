@@ -23,15 +23,20 @@ pub struct LightMeasurement {
     /// The label of this measurement, used to organize measurements.
     pub label: String,
     /// The illuminance in lux.
-    pub illuminance: f64,
+    pub illuminance: Option<f64>,
 }
 
 impl LightMeasurement {
-    pub fn new(measure_time: i64, label: String, illuminance: f64) -> Self {
+    pub fn new(measure_time: i64, label: String) -> Self {
         Self {
             measure_time,
             label,
-            illuminance,
+            illuminance: None,
         }
+    }
+
+    pub fn illuminance(mut self, illuminance: f64) -> Self {
+        self.illuminance = Some(illuminance);
+        self
     }
 }

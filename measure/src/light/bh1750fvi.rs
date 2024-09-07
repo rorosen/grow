@@ -55,7 +55,7 @@ impl LightSensor for Bh1750Fvi {
                 let mut buf = [0; 2];
                 self.i2c.read_bytes(&mut buf[..]).await?;
                 let illuminance = ((((buf[0] as u32) << 8) | (buf[1] as u32)) as f64) / 1.2 * ((MT_REG_DEFAULT as f64) / (MT_REG_MAX as f64));
-                let measurement = LightMeasurement::new(measure_time, label, illuminance);
+                let measurement = LightMeasurement::new(measure_time, label).illuminance(illuminance);
 
                 return Ok(measurement);
             }

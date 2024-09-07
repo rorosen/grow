@@ -300,7 +300,7 @@ impl WaterLevelSensor for Vl53L0X {
         self.i2c
             .write_reg_byte(REG_SYSTEM_INTERRUPT_CLEAR, 0x01)
             .await?;
-        let measurement = WaterLevelMeasurement::new(measure_time, label, distance);
+        let measurement = WaterLevelMeasurement::new(measure_time, label).distance(distance);
 
         Ok(measurement)
     }
