@@ -1,9 +1,0 @@
-[package]
-name = "grow-gpiotest"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-
-[dependencies]
-anyhow.workspace = true
-gpio-cdev.workspace = true

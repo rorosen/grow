@@ -26,9 +26,8 @@ conditions to grow via automated control.
 
 Typically this project runs on a device that is close your plants, for example a Raspberry Pi or
 similar. Everything is tested and known to work on a Raspberry Pi 4 Model B, but you could also run
-it on other devices with different architectures. The only requirements are access to the Linux I2C
-Device interface if you want to use sensors and a GPIO character device if you want to control
-GPIOs.
+it on other devices. The only requirements are access to the Linux I2C Device interface if you want
+to use sensors and a GPIO character device if you want to control GPIOs.
 
 This project mainly consists of two components:
 

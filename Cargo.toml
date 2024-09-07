@@ -1,5 +1,5 @@
 [workspace]
-members = ["agent", "measure",  "sensortest", "gpiotest", "server"]
+members = ["agent", "measure",  "sensortest", "server"]
 resolver = "2"
 
 [workspace.package]

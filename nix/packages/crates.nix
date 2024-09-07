@@ -37,14 +37,6 @@ let
       cargoExtraArgs = "--target aarch64-unknown-linux-gnu --package=grow-server";
     }
   );
-  gpiotest = craneLib.buildPackage (
-    commonArgs
-    // {
-      inherit cargoArtifacts;
-      inherit (craneLib.crateNameFromCargoToml { cargoToml = ../../gpiotest/Cargo.toml; }) pname;
-      cargoExtraArgs = "--target aarch64-unknown-linux-gnu --package=grow-gpiotest";
-    }
-  );
   sensortest = craneLib.buildPackage (
     commonArgs
     // {
@@ -55,10 +47,5 @@ let
   );
 in
 {
-  inherit
-    agent
-    server
-    gpiotest
-    sensortest
-    ;
+  inherit agent server sensortest;
 }

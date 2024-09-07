@@ -584,14 +584,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "grow-gpiotest"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "gpio-cdev",
-]
-
-[[package]]
 name = "grow-measure"
 version = "0.1.0"
 dependencies = [
