@@ -10,11 +10,9 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> Result<Self> {
-        let listen_address = env::var("GROW_LISTEN_ADDRESS")
-            .context("Failed to read GROW_LISTEN_ADDRESS from environment")?;
-        let listen_port = env::var("GROW_LISTEN_PORT")
-            .context("Failed to read GROW_LISTEN_PORT from environment")?;
-        let listen_port = listen_port.parse().context("")?;
+        let listen_address = env::var("GROW_LISTEN_ADDRESS").unwrap_or("::1".into());
+        let listen_port = env::var("GROW_LISTEN_PORT").unwrap_or("8080".into());
+        let listen_port = listen_port.parse().context("Failed to parse listen port")?;
         let state_dirs = env::var("STATE_DIRECTORY")
             .context("Failed to read STATE_DIRECTORY from environment")?;
         let state_dir = state_dirs
