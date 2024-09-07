@@ -23,16 +23,15 @@ pub struct Agent {
 
 impl Agent {
     pub async fn new() -> Result<Self> {
-        let state_dirs = env::var("STATE_DIRECTORY")
-            .context("Failed to read STATE_DIRECTORY from environment")?;
-        let state_dir = state_dirs
-            .split(':')
-            .next()
-            .with_context(|| format!("Failed to get state directory from {state_dirs:?}"))?
-            .to_string();
-
+        let state_dir =
+            Self::get_systemd_dir("STATE_DIRECTORY").context("Failed to get state directory")?;
         let config_path = env::var("GROW_AGENT_CONFIG_PATH")
-            .unwrap_or_else(|_| format!("{state_dir}/config.json"));
+            .or_else(|_| -> Result<String> {
+                let config_dir = Self::get_systemd_dir("CONFIGURATION_DIRECTORY")?;
+                Ok(format!("{config_dir}/config.json"))
+            })
+            .context("failed to get config path")?;
+
         let config = spawn_blocking(move || {
             Config::from_file(&config_path)
                 .with_context(|| format!("Failed to initialize config from {config_path}"))
@@ -41,6 +40,18 @@ impl Agent {
         .context("Panic while initializing config")??;
 
         Ok(Self { config, state_dir })
+    }
+
+    fn get_systemd_dir(name: &str) -> Result<String> {
+        let dirs =
+            env::var(name).with_context(|| format!("Failed to read {name} from environment"))?;
+        let dir = dirs
+            .split(':')
+            .next()
+            .with_context(|| format!("Failed to get directory from {dirs:?}"))?
+            .to_string();
+
+        Ok(dir)
     }
 
     pub async fn run(self) -> Result<()> {
