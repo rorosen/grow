@@ -9,20 +9,25 @@ let
 in
 {
   options.grow.grafana = {
-    enable = lib.mkEnableOption "the grow grafana instance.";
+    enable = lib.mkEnableOption "the grow Grafana instance";
+    provision.enable = (lib.mkEnableOption "the provisioning of Grafana") // {
+      default = true;
+    };
   };
 
   config.services.grafana = lib.mkIf cfg.enable {
     enable = true;
-    declarativePlugins = [ pkgs.grafanaPlugins.yesoreyeram-infinity-datasource ];
+    declarativePlugins = lib.mkIf cfg.provision.enable [
+      pkgs.grafanaPlugins.yesoreyeram-infinity-datasource
+    ];
     settings.server = {
-      protocol = "http";
-      http_addr = "::";
-      http_port = 3000;
+      protocol = lib.mkDefault "http";
+      http_addr = lib.mkDefault "::";
+      http_port = lib.mkDefault 80;
     };
 
     provision = {
-      enable = true;
+      enable = cfg.provision.enable;
       datasources.settings.datasources = [
         {
           name = "yesoreyeram-infinity-datasource";

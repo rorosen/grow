@@ -20,20 +20,20 @@ in
 
     listenAddress = lib.mkOption {
       type = lib.types.nonEmptyStr;
-      default = "[::1]";
+      default = "::1";
       example = "192.168.123.123";
-      description = "The address on which the server listens.";
+      description = "The address to listen on.";
     };
 
     listenPort = lib.mkOption {
       type = lib.types.port;
       default = 8080;
-      description = "The port on which the server listens.";
+      description = "The port to listen on.";
 
     };
   };
 
-  config.systemd.services.grow-server = {
+  config.systemd.services.grow-server = lib.mkIf cfg.enable {
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "exec";

@@ -57,6 +57,9 @@ in
     };
 
     config = {
+      enable = (lib.mkEnableOption "the generation of the agent configuration") // {
+        default = true;
+      };
       i2c_path = lib.mkOption {
         type = lib.types.nonEmptyStr;
         default = "/dev/i2c-1";
@@ -290,9 +293,12 @@ in
       StateDirectory = "grow";
     };
 
-    environment = {
-      RUST_LOG = cfg.logLevel;
-      GROW_AGENT_CONFIG_PATH = pkgs.writeText "grow-agent-config.json" (builtins.toJSON cfg.config);
-    };
+    environment =
+      {
+        RUST_LOG = cfg.logLevel;
+      }
+      // (lib.optionalAttrs cfg.config.enable {
+        GROW_AGENT_CONFIG_PATH = pkgs.writeText "grow-agent-config.json" (builtins.toJSON cfg.config);
+      });
   };
 }
