@@ -39,12 +39,13 @@ This project mainly consists of two components:
   the data in a format that can be consumed by Grafana dashboards.
 
 The [NixOS modules](./nix/modules/default.nix) provide a very convenient way to install and
-configure everything together with a pre-provisioned Grafana instance. Check out the example for a
-ready-to-run image for a Raspberry Pi 4 that you can build, flash on an SD card and plug into your
-Pi. No further configuration is needed. If you don't have Nix installed already, check out the
-[Determinate Nix Installer](https://determinate.systems/posts/determinate-nix-installer/). It boils
-down to one command. Examples for installation on other operating systems, e.g.
-[Raspberry Pi OS](https://www.raspberrypi.com/software/) will follow.
+configure everything together with a pre-provisioned Grafana instance. If you don't have Nix
+installed already, check out the
+[Determinate Nix Installer](https://determinate.systems/posts/determinate-nix-installer/), it boils
+down to one command. Check out the [Nix Raspberry Pi SD image example](./examples/nix-rpi-sd-image)
+to build a ready-to-run image for a Raspberry Pi 4 that you can flash on an SD card and plug into
+your Pi. No further configuration is needed. Examples for installation on other operating systems,
+e.g. [Raspberry Pi OS](https://www.raspberrypi.com/software/) will follow.
 
 ## How it works
 
@@ -158,6 +159,6 @@ This will
 See the [agent crate](./agent/) for more information.
 
 Additionally, the [server crate](./server/) provides a HTTP API for the measurements which the
-[Grafana Dashboard](./grow-dashboard.json) uses to print time series of the measurements.
+[Grafana Dashboard](./grow-dashboard.json) uses to display time series of the measurements.
 
 ![The Grafana dashboard](./assets/grafana-dashboard.png)
