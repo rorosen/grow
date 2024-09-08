@@ -5,7 +5,7 @@
   ...
 }:
 let
-  cfg = config.grow.agent;
+  cfg = config.services.grow-agent;
   airSensorModule = lib.types.submodule (_: {
     options = {
       model = lib.mkOption {
@@ -46,8 +46,9 @@ let
   });
 in
 {
-  options.grow.agent = {
+  options.services.grow-agent = {
     enable = lib.mkEnableOption "the grow agent.";
+    package = lib.mkPackageOption pkgs "grow-agent" { };
 
     logLevel = lib.mkOption {
       type = lib.types.nonEmptyStr;

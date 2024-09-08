@@ -5,10 +5,10 @@
   ...
 }:
 let
-  cfg = config.grow.grafana;
+  cfg = config.services.grow-grafana;
 in
 {
-  options.grow.grafana = {
+  options.services.grow-grafana = {
     enable = lib.mkEnableOption "the grow Grafana instance";
     provision.enable = (lib.mkEnableOption "the provisioning of Grafana") // {
       default = true;

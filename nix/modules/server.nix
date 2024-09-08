@@ -5,11 +5,12 @@
   ...
 }:
 let
-  cfg = config.grow.server;
+  cfg = config.services.grow-server;
 in
 {
-  options.grow.server = {
+  options.services.grow-server = {
     enable = lib.mkEnableOption "the grow server.";
+    package = lib.mkPackageOption pkgs "grow-server" { };
 
     logLevel = lib.mkOption {
       type = lib.types.nonEmptyStr;
