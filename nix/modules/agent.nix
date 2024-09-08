@@ -290,7 +290,7 @@ in
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "exec";
-      ExecStart = "${pkgs.grow-agent}/bin/grow-agent";
+      ExecStart = "${cfg.package}/bin/grow-agent";
       StateDirectory = "grow";
     };
 

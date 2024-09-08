@@ -10,9 +10,7 @@
 
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-      };
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
@@ -28,13 +26,15 @@
       system:
       let
         pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ (import rust-overlay) ];
+        };
+        pkgsAarch64 = import nixpkgs {
           localSystem = system;
           crossSystem = "aarch64-linux";
           overlays = [ (import rust-overlay) ];
         };
-      in
-      {
-        packages = {
+        growPkgs = {
           inherit (pkgs.callPackage ./nix/packages { inherit crane; })
             agent
             server
@@ -42,6 +42,17 @@
             yesoreyeram-infinity-datasource
             ;
         };
+        growPkgsAarch64 = {
+          inherit (pkgsAarch64.callPackage ./nix/packages { inherit crane; })
+            agent
+            server
+            sensortest
+            yesoreyeram-infinity-datasource
+            ;
+        };
+      in
+      {
+        packages = growPkgs // (pkgs.lib.concatMapAttrs (n: v: { "${n}-aarch64" = v; }) growPkgsAarch64);
       }
     )
     // {
