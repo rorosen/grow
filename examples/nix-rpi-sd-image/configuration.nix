@@ -18,9 +18,7 @@ in
   sdImage.compressImage = false;
 
   # Place your SSH key(s) here
-  users.users.root.openssh.authorizedKeys.keys = [
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE8BYhhtM7cj2GqBtW3ftPGtlBazkpePGrMSQX4MG2QD rob@hp"
-  ];
+  users.users.root.openssh.authorizedKeys.keys = [ "" ];
 
   # https://github.com/NixOS/nixpkgs/issues/154163#issuecomment-1350599022
   nixpkgs.overlays = [
@@ -44,14 +42,24 @@ in
   services = {
     openssh.enable = true;
 
+    # Enable a pre-provisioned Grafana instance
     grow-grafana = {
       enable = true;
       provision.datasource.package = growPkgs.yesoreyeram-infinity-datasource-aarch64;
     };
+
+    # Enable the grow server
     grow-server = {
       enable = true;
       package = growPkgs.server-aarch64;
     };
+
+    # Enable and configure the grow agent
+    # This will
+    # - Measure with a BME680 air sensor at address 0x77 every 10 minutes
+    # - Measure with a BH1750FVI light sensor at address 0x23 every 20 minutes
+    # - Activate GPIO pin 24 at 10:00:00 UTC
+    # - Deactivate GPIO pin 24 at 04:00:00 UTC
     grow-agent = {
       enable = true;
       package = growPkgs.agent-aarch64;
