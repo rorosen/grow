@@ -111,15 +111,24 @@ impl TimeBasedController {
         cancel_token: CancellationToken,
         identifier: &'static str,
     ) -> Result<()> {
-        let mut timeout = Duration::from_secs(0);
+        const ACTION_ACTIVATE: &str = "Activating";
+        const ACTION_DEACTIVATE: &str = "Deactivating";
 
+        let mut timeout = Duration::from_secs(0);
         let set_pin = |value: u8, dur: chrono::Duration| -> Result<Duration> {
-            log::debug!("{identifier}: Activating control pin");
+            let actions = if value == GPIO_ACTIVATE {
+                (ACTION_ACTIVATE, ACTION_DEACTIVATE)
+            } else {
+                (ACTION_DEACTIVATE, ACTION_ACTIVATE)
+            };
+
+            log::info!("{identifier}: {} control pin", actions.0);
             self.handle
                 .set_value(value)
                 .context("Failed to set value of control pin")?;
             log::info!(
-                "Deactivating {identifier} in {:02}:{:02} h",
+                "{identifier}: {} control pin in {:02}:{:02}h",
+                actions.1,
                 dur.num_hours(),
                 dur.num_minutes() % 60
             );
@@ -130,6 +139,7 @@ impl TimeBasedController {
 
             Ok(ret)
         };
+
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(timeout)=> {
