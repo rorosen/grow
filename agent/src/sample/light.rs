@@ -48,33 +48,40 @@ impl LightSampler {
         }
 
         log::info!("Starting light sampler");
+        self.sample_and_send(&cancel_token).await?;
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(self.sample_rate) => {
-                    let mut measurements = vec![];
-
-                    for (label, sensor) in &mut self.sensors {
-                        match sensor.measure(label.into(), cancel_token.clone()).await {
-                            Ok(measurement) => {
-                                measurements.push(measurement);
-                            },
-                            Err(err) => {
-                                log::warn!("Failed to measure with {label} light sensor: {err}");
-                            }
-                        };
-                    }
-
-                    if !measurements.is_empty() {
-                        self.sender
-                            .send(measurements)
-                            .await
-                            .context("Failed to send light measurements")?;
-                    }
+                    self.sample_and_send(&cancel_token).await?;
                 }
                 _ = cancel_token.cancelled() => {
                     return Ok(IDENTIFIER);
                 }
             }
         }
+    }
+
+    async fn sample_and_send(&mut self, cancel_token: &CancellationToken) -> Result<()> {
+        let mut measurements = vec![];
+
+        for (label, sensor) in &mut self.sensors {
+            match sensor.measure(label.into(), cancel_token.clone()).await {
+                Ok(measurement) => {
+                    measurements.push(measurement);
+                }
+                Err(err) => {
+                    log::warn!("Failed to measure with {label} light sensor: {err}");
+                }
+            };
+        }
+
+        if !measurements.is_empty() {
+            self.sender
+                .send(measurements)
+                .await
+                .context("Failed to send light measurements")?;
+        }
+
+        Ok(())
     }
 }
