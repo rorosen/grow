@@ -27,7 +27,7 @@ falls back to read the config from `${CONFIGURATION_DIRECTORY}/config.json`. You
 the default configuration via the following command.
 
 ```shell
-TODO
+nix run github:rorosen/grow#agent -- --print-default-config
 ```
 
 However, notice that the default configuration does exactly nothing as everything is disabled by

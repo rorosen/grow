@@ -5,8 +5,7 @@
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
     nixos-hardware.url = "github:NixOs/nixos-hardware";
     grow = {
-      # url = "git+ssh://git@github.com/rorosen/grow";
-      url = "/home/rob/devel/grow";
+      url = "github:rorosen/grow";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
