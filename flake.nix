@@ -22,39 +22,44 @@
       rust-overlay,
       ...
     }:
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ (import rust-overlay) ];
-        };
-        pkgsAarch64 = import nixpkgs {
-          localSystem = system;
-          crossSystem = "aarch64-linux";
-          overlays = [ (import rust-overlay) ];
-        };
-        growPkgs = {
-          inherit (pkgs.callPackage ./nix/packages { inherit crane; })
-            agent
-            server
-            sensortest
-            yesoreyeram-infinity-datasource
-            ;
-        };
-        growPkgsAarch64 = {
-          inherit (pkgsAarch64.callPackage ./nix/packages { inherit crane; })
-            agent
-            server
-            sensortest
-            yesoreyeram-infinity-datasource
-            ;
-        };
-      in
-      {
-        packages = growPkgs // (pkgs.lib.concatMapAttrs (n: v: { "${n}-aarch64" = v; }) growPkgsAarch64);
-      }
-    )
+    flake-utils.lib.eachSystem
+      (with flake-utils.lib.system; [
+        x86_64-linux
+        aarch64-linux
+      ])
+      (
+        system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            overlays = [ (import rust-overlay) ];
+          };
+          pkgsAarch64 = import nixpkgs {
+            localSystem = system;
+            crossSystem = "aarch64-linux";
+            overlays = [ (import rust-overlay) ];
+          };
+          growPkgs = {
+            inherit (pkgs.callPackage ./nix/packages { inherit crane; })
+              agent
+              server
+              sensortest
+              yesoreyeram-infinity-datasource
+              ;
+          };
+          growPkgsAarch64 = {
+            inherit (pkgsAarch64.callPackage ./nix/packages { inherit crane; })
+              agent
+              server
+              sensortest
+              yesoreyeram-infinity-datasource
+              ;
+          };
+        in
+        {
+          packages = growPkgs // (pkgs.lib.concatMapAttrs (n: v: { "${n}-aarch64" = v; }) growPkgsAarch64);
+        }
+      )
     // {
       nixosModules = import ./nix/modules;
       overlays.default =
