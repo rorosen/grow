@@ -3,15 +3,13 @@
 Highly configurable software that helps you to control and monitor the environment of your plants.
 It is focused on indoor use, but can also be used outdoors or in mixed scenarios.
 
-## Why do I need this?
-
-You probably don't. However, some people become perfectionists when growing plants and want to get
-the most out of it. It can be very difficult to understand in hindsight why your chili peppers grew
-last year so much better than this year. Why can't you get your tomatoes to grow properly and what
-is it they're missing? These questions cannot be answered easily without being able to compare
-current data with archived data that is known to have produced good results or with recommended
-conditions. When you know what your plants need, you can make sure they have the best environmental
-conditions to grow via automated control.
+Some people become perfectionists when growing plants and want to get the most out of it. It can be
+very difficult to understand in hindsight why your chili peppers grew last year so much better than
+this year. Why can't you get your tomatoes to grow properly and what is it they're missing? These
+questions cannot be answered easily without being able to compare current data with archived data
+that is known to have produced good results or with recommended conditions. When you know what your
+plants need, you can make sure they have the best environmental conditions to grow via automated
+control.
 
 ## Features
 
@@ -60,11 +58,8 @@ setup the GPIO would probably trigger a relais with a plant lamp.
 
 The agent configuration only needs to mention the available items, things not listed in the config
 are disabled by default. Assuming that the air sensors have the addresses `0x76` and `0x77` while
-the light sensor addresses are `0x23` and `0x5C`, the minimal agent configuration would look as
+the light sensor addresses are `0x23` and `0x5C`, the minimal agent Nix configuration would look as
 follows.
-
-<details>
-<summary>Nix configuration</summary>
 
 ```nix
 {
@@ -107,48 +102,6 @@ follows.
   };
 }
 ```
-
-</details>
-
-<details>
-<summary>JSON configuration</summary>
-
-```json
-{
-  "grow": {
-    "agent": {
-      "config": {
-        "air": {
-          "sample": {
-            "sample_rate_secs": 600,
-            "sensors": {
-              "left": { "address": "0x77", "model": "Bme680" },
-              "right": { "address": "0x76", "model": "Bme680" }
-            }
-          }
-        },
-        "light": {
-          "control": {
-            "activate_time": "10:00:00",
-            "deactivate_time": "22:00:00",
-            "mode": "TimeBased",
-            "pin": 24
-          },
-          "sample": {
-            "sample_rate_secs": 1200,
-            "sensors": {
-              "left": { "address": "0x23", "model": "Bh1750Fvi" },
-              "right": { "address": "0x5C", "model": "Bh1750Fvi" }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-</details>
 
 This will
 
