@@ -21,7 +21,7 @@ boot.binfmt.emulatedSystems = [ "aarch64-linux" ];
 # Build the image
 nix build .\#packages.aarch64-linux.sdImage
 # Flash it to an SD card, replace sdX
-sudo dd if=result/sd-image/nixos-sd-image-*-aarch64-linux.img of=/dev/sdX bs=4M
+sudo dd if=$(ls result/sd-image/nixos-sd-image-*-aarch64-linux.img) of=/dev/sdX bs=4M
 ```
 
 Once the Pi is up and running, you can visit the Grafana instance on the HTTP port of the Pi. Log in

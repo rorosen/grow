@@ -96,8 +96,8 @@ mod tests {
     use std::{collections::HashMap, io::Write};
     use tempfile::NamedTempFile;
     use water_level::{
-        WaterLevelControlConfig, WaterLevelControlMode, WaterLevelSampleConfig,
-        WaterLevelSensorConfig, WaterLevelSensorModel,
+        WaterLevelControlConfig, WaterLevelSampleConfig, WaterLevelSensorConfig,
+        WaterLevelSensorModel,
     };
 
     #[test]
@@ -161,7 +161,9 @@ mod tests {
             },
             "water_level": {
                 "control": {
-                    "mode": "Off",
+                    "mode": "TimeBased",
+                    "activate_time": "9:00:00",
+                    "deactivate_time": "9:01:30",
                     "pumps": {
                         "main": 17
                     }
@@ -249,8 +251,11 @@ mod tests {
                 },
             },
             water_level: WaterLevelConfig {
-                control: WaterLevelControlConfig {
-                    mode: WaterLevelControlMode::Off,
+                control: WaterLevelControlConfig::TimeBased {
+                    activate_time: NaiveTime::from_hms_opt(9, 0, 0)
+                        .expect("Failed to craete NaiveTime"),
+                    deactivate_time: NaiveTime::from_hms_opt(9, 1, 30)
+                        .expect("Failed to craete NaiveTime"),
                     pumps: HashMap::from([("main".into(), 17)]),
                 },
                 sample: WaterLevelSampleConfig {

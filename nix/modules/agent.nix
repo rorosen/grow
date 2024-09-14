@@ -245,8 +245,27 @@ in
       water_level = {
         control = {
           mode = lib.mkOption {
-            type = lib.types.enum [ "Off" ];
+            type = lib.types.enum [
+              "Off"
+              "TimeBased"
+            ];
             default = "Off";
+          };
+          activate_time = lib.mkOption {
+            type = lib.types.nonEmptyStr;
+            example = "10:00:00";
+            description = ''
+              Time of the day to activate the control pins of the water pumps.
+              Only has an effect in `TimeBased` mode.
+            '';
+          };
+          deactivate_time = lib.mkOption {
+            type = lib.types.nonEmptyStr;
+            example = "22:00:00";
+            description = ''
+              Time of the day to deactivate the control pins of the water pumps.
+              Only has an effect in `TimeBased` mode.
+            '';
           };
           pumps = lib.mkOption {
             type = with lib.types; attrsOf ints.u8;

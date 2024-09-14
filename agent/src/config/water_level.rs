@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use chrono::NaiveTime;
 use serde::{Deserialize, Serialize};
 
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
@@ -11,18 +12,20 @@ pub struct WaterLevelConfig {
 }
 
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
-pub enum WaterLevelControlMode {
+#[serde(tag = "mode")]
+pub enum WaterLevelControlConfig {
     /// Disabled water level control.
     #[default]
     Off,
-}
-
-#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
-pub struct WaterLevelControlConfig {
-    /// The control mode.
-    pub mode: WaterLevelControlMode,
-    /// The water pumps in use.
-    pub pumps: HashMap<String, u32>,
+    /// Activate and deactivate all water pumps together based on time stamps.
+    TimeBased {
+        /// The time of the day when the water pumps should be switched on.
+        activate_time: NaiveTime,
+        /// The time of the day when the water pumps should be switched off.
+        deactivate_time: NaiveTime,
+        /// The identifier and corresponding control pin of a water pump.
+        pumps: HashMap<String, u32>,
+    },
 }
 
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]

@@ -24,9 +24,12 @@ impl LightController {
                     .context("Failed to get a handle to the GPIO line")?
                     .request(LineRequestFlags::OUTPUT, GPIO_DEACTIVATE, GPIO_CONSUMER)
                     .context("Failed to get access to the GPIO")?;
-                let controller =
-                    TimeBasedController::new(handle, config.activate_time, config.deactivate_time)
-                        .context("Failed to create time based controller")?;
+                let controller = TimeBasedController::new(
+                    vec![handle],
+                    config.activate_time,
+                    config.deactivate_time,
+                )
+                .context("Failed to create time based controller")?;
 
                 Ok(Self::TimeBased { controller })
             }

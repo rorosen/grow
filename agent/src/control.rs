@@ -84,23 +84,27 @@ impl CyclicController {
 }
 
 pub struct TimeBasedController {
-    handle: LineHandle,
+    handles: Vec<LineHandle>,
     activate_time: NaiveTime,
     deactivate_time: NaiveTime,
 }
 
 impl TimeBasedController {
     fn new(
-        handle: LineHandle,
+        handles: Vec<LineHandle>,
         activate_time: NaiveTime,
         deactivate_time: NaiveTime,
     ) -> Result<Self> {
+        if handles.is_empty() {
+            bail!("No GPIO handles configured");
+        }
+
         if activate_time == deactivate_time {
             bail!("Activate time and deactivate time cannot be equal");
         }
 
         Ok(Self {
-            handle,
+            handles,
             activate_time,
             deactivate_time,
         })
@@ -122,12 +126,15 @@ impl TimeBasedController {
                 (ACTION_DEACTIVATE, ACTION_ACTIVATE)
             };
 
-            log::info!("{identifier}: {} control pin", actions.0);
-            self.handle
-                .set_value(value)
-                .context("Failed to set value of control pin")?;
-            log::info!(
-                "{identifier}: {} control pin in {:02}:{:02}h",
+            log::debug!("{identifier}: {}", actions.0);
+            for handle in &self.handles {
+                handle
+                    .set_value(value)
+                    .context("Failed to set value of control pin")?;
+            }
+
+            log::debug!(
+                "{identifier}: {} in {:02}:{:02}h",
                 actions.1,
                 dur.num_hours(),
                 dur.num_minutes() % 60
