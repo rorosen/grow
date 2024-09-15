@@ -2,6 +2,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use gpio_cdev::{Chip, LineHandle, LineRequestFlags};
+use tokio_util::sync::CancellationToken;
 
 use crate::{
     config::air_pump::AirPumpControlConfig,
@@ -30,7 +31,7 @@ impl AirPumpController {
         }
     }
 
-    pub async fn run(self) -> Result<&'static str> {
+    pub async fn run(self, cancel_token: CancellationToken) -> Result<&'static str> {
         const IDENTIFIER: &str = "Air pump controller";
 
         match self {
@@ -43,6 +44,8 @@ impl AirPumpController {
                 handle
                     .set_value(GPIO_ACTIVATE)
                     .context("Failed to set value of control pin")?;
+
+                cancel_token.cancelled().await;
                 Ok(IDENTIFIER)
             }
         }

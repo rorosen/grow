@@ -40,6 +40,7 @@ impl CyclicController {
                 .set_value(GPIO_ACTIVATE)
                 .context("Failed to set value of control pin")?;
 
+            cancel_token.cancelled().await;
             return Ok(());
         }
 
@@ -49,6 +50,7 @@ impl CyclicController {
                 .set_value(GPIO_DEACTIVATE)
                 .context("Failed to set value of control pin")?;
 
+            cancel_token.cancelled().await;
             return Ok(());
         }
 

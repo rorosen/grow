@@ -42,18 +42,16 @@ impl FanController {
         const IDENTIFIER: &str = "Fan controller";
 
         match self {
-            FanController::Disabled => {
-                log::info!("Fan controller is disabled");
-                Ok(IDENTIFIER)
-            }
+            FanController::Disabled => log::info!("Fan controller is disabled"),
             FanController::Cyclic { mut controller } => {
                 log::info!("Starting fan controller");
                 controller
                     .run(cancel_token, IDENTIFIER)
                     .await
                     .context("Failed to run fan controller")?;
-                Ok(IDENTIFIER)
             }
         }
+
+        Ok(IDENTIFIER)
     }
 }

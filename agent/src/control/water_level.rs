@@ -28,11 +28,9 @@ impl WaterLevelController {
                     .map(|pin| {
                         let handle = chip
                             .get_line(*pin)
-                            .with_context(|| format!("Failed to get a handle to GPIO line {pin}"))?
+                            .with_context(|| format!("Failed to get handle to GPIO line {pin}"))?
                             .request(LineRequestFlags::OUTPUT, GPIO_DEACTIVATE, GPIO_CONSUMER)
-                            .with_context(|| {
-                                format!("Failed to get a handle to GPIO line {pin}")
-                            })?;
+                            .with_context(|| format!("Failed to get access to GPIO {pin}"))?;
 
                         Ok(handle)
                     })
@@ -51,18 +49,16 @@ impl WaterLevelController {
         const IDENTIFIER: &str = "Water level controller";
 
         match self {
-            WaterLevelController::Disabled => {
-                log::info!("Water level controller is disabled");
-                Ok(IDENTIFIER)
-            }
+            WaterLevelController::Disabled => log::info!("Water level controller is disabled"),
             WaterLevelController::TimeBased { mut controller } => {
-                log::info!("Starting light controller");
+                log::info!("Starting water level controller");
                 controller
                     .run(cancel_token, IDENTIFIER)
                     .await
                     .context("Failed to run light controller")?;
-                Ok(IDENTIFIER)
             }
         }
+
+        Ok(IDENTIFIER)
     }
 }

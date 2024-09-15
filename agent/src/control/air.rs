@@ -42,18 +42,16 @@ impl AirController {
         const IDENTIFIER: &str = "Air controller";
 
         match self {
-            AirController::Disabled => {
-                log::info!("Air controller is disabled");
-                Ok(IDENTIFIER)
-            }
+            AirController::Disabled => log::info!("Air controller is disabled"),
             AirController::Cyclic { mut controller } => {
                 log::info!("Starting air controller");
                 controller
                     .run(cancel_token, IDENTIFIER)
                     .await
                     .context("Failed to run air controller")?;
-                Ok(IDENTIFIER)
             }
         }
+
+        Ok(IDENTIFIER)
     }
 }

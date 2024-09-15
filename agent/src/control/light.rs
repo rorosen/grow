@@ -41,18 +41,16 @@ impl LightController {
         const IDENTIFIER: &str = "Light controller";
 
         match self {
-            LightController::Disabled => {
-                log::info!("Light controller is disabled");
-                Ok(IDENTIFIER)
-            }
+            LightController::Disabled => log::info!("Light controller is disabled"),
             LightController::TimeBased { mut controller } => {
                 log::info!("Starting light controller");
                 controller
                     .run(cancel_token, IDENTIFIER)
                     .await
                     .context("Failed to run light controller")?;
-                Ok(IDENTIFIER)
             }
         }
+
+        Ok(IDENTIFIER)
     }
 }

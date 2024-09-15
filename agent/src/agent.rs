@@ -24,10 +24,10 @@ pub struct Agent {
 impl Agent {
     pub async fn new() -> Result<Self> {
         let state_dir =
-            Self::get_systemd_dir("STATE_DIRECTORY").context("Failed to get state directory")?;
+            Self::first_systemd_dir("STATE_DIRECTORY").context("Failed to get state directory")?;
         let config_path = env::var("GROW_AGENT_CONFIG_PATH")
             .or_else(|_| -> Result<String> {
-                let config_dir = Self::get_systemd_dir("CONFIGURATION_DIRECTORY")?;
+                let config_dir = Self::first_systemd_dir("CONFIGURATION_DIRECTORY")?;
                 Ok(format!("{config_dir}/config.json"))
             })
             .context("failed to get config path")?;
@@ -42,7 +42,7 @@ impl Agent {
         Ok(Self { config, state_dir })
     }
 
-    fn get_systemd_dir(name: &str) -> Result<String> {
+    fn first_systemd_dir(name: &str) -> Result<String> {
         let dirs =
             env::var(name).with_context(|| format!("Failed to read {name} from environment"))?;
         let dir = dirs
@@ -103,7 +103,7 @@ impl Agent {
         let cancel_token = CancellationToken::new();
         let mut set = JoinSet::new();
         set.spawn(air_manager.run(cancel_token.clone()));
-        set.spawn(air_pump_controller.run());
+        set.spawn(air_pump_controller.run(cancel_token.clone()));
         set.spawn(fan_controller.run(cancel_token.clone()));
         set.spawn(light_manager.run(cancel_token.clone()));
         set.spawn(water_manager.run(cancel_token.clone()));
@@ -111,11 +111,11 @@ impl Agent {
         loop {
             tokio::select! {
                 _ = sigint.recv() => {
-                    log::info!("Shutting down on sigint");
+                    log::info!("Shutting down on sigint...");
                     cancel_token.cancel();
                 }
                 _ = sigterm.recv() => {
-                    log::info!("Shutting down on sigterm");
+                    log::info!("Shutting down on sigterm...");
                     cancel_token.cancel();
                 }
                 res = set.join_next() => {
