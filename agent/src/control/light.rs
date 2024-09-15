@@ -1,54 +1,65 @@
-use std::path::Path;
+use std::{path::Path, time::Duration};
 
 use anyhow::{Context, Result};
-use gpio_cdev::{Chip, LineRequestFlags};
 use tokio_util::sync::CancellationToken;
 
 use crate::config::light::LightControlConfig;
 
-use super::{TimeBasedController, GPIO_CONSUMER, GPIO_DEACTIVATE};
+use super::{Control, CyclicController, TimeBasedController};
 
-pub enum LightController {
-    Disabled,
-    TimeBased { controller: TimeBasedController },
+pub struct LightController {
+    inner: Option<Box<dyn Control + Send>>,
 }
 
 impl LightController {
     pub fn new(config: &LightControlConfig, gpio_path: impl AsRef<Path>) -> Result<Self> {
-        match config {
-            LightControlConfig::Off => Ok(Self::Disabled),
+        let controller: Option<Box<dyn Control + Send>> = match config {
+            LightControlConfig::Off => None,
+            LightControlConfig::Cyclic {
+                pin,
+                on_duration_secs,
+                off_duration_secs,
+            } => {
+                let controller = Box::new(
+                    CyclicController::new(
+                        gpio_path,
+                        *pin,
+                        Duration::from_secs(*on_duration_secs),
+                        Duration::from_secs(*off_duration_secs),
+                    )
+                    .context("Failed to create cyclic controller")?,
+                );
+
+                Some(controller)
+            }
             LightControlConfig::TimeBased {
                 pin,
                 activate_time,
                 deactivate_time,
             } => {
-                let mut chip = Chip::new(gpio_path).context("Failed to open GPIO chip")?;
-                let handle = chip
-                    .get_line(*pin)
-                    .context("Failed to get a handle to the GPIO line")?
-                    .request(LineRequestFlags::OUTPUT, GPIO_DEACTIVATE, GPIO_CONSUMER)
-                    .context("Failed to get access to the GPIO")?;
-                let controller =
-                    TimeBasedController::new(vec![handle], *activate_time, *deactivate_time)
-                        .context("Failed to create time based controller")?;
+                let controller = Box::new(
+                    TimeBasedController::new(gpio_path, *pin, *activate_time, *deactivate_time)
+                        .context("Failed to create time based controller")?,
+                );
 
-                Ok(Self::TimeBased { controller })
+                Some(controller)
             }
-        }
+        };
+
+        Ok(Self { inner: controller })
     }
 
     pub async fn run(self, cancel_token: CancellationToken) -> Result<&'static str> {
         const IDENTIFIER: &str = "Light controller";
 
-        match self {
-            LightController::Disabled => log::info!("Light controller is disabled"),
-            LightController::TimeBased { mut controller } => {
-                log::info!("Starting light controller");
-                controller
-                    .run(cancel_token, IDENTIFIER)
-                    .await
-                    .context("Failed to run light controller")?;
-            }
+        if let Some(mut controller) = self.inner {
+            log::info!("Starting air pump controller");
+            controller
+                .run(cancel_token, IDENTIFIER)
+                .await
+                .context("Failed to run air pump controller")?;
+        } else {
+            log::info!("Air pump controller is disabled");
         }
 
         Ok(IDENTIFIER)

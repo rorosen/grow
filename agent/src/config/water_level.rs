@@ -17,14 +17,25 @@ pub enum WaterLevelControlConfig {
     /// Disabled water level control.
     #[default]
     Off,
-    /// Activate and deactivate all water pumps together based on time stamps.
+    /// Cyclic activation and deactivation of the control pin.
+    Cyclic {
+        /// The GPIO pin used to control the water level, e.g. via a water pump.
+        pin: u32,
+        /// The duration in seconds for which the control pin should
+        /// be activated (0 means never).
+        on_duration_secs: u64,
+        /// The duration in seconds for which the control pin should
+        /// be deactivated (0 means never).
+        off_duration_secs: u64,
+    },
+    /// Activate and deactivate the control pin based on time stamps.
     TimeBased {
+        /// The GPIO pin used to control the water level, e.g. via a water pump.
+        pin: u32,
         /// The time of the day when the water pumps should be switched on.
         activate_time: NaiveTime,
         /// The time of the day when the water pumps should be switched off.
         deactivate_time: NaiveTime,
-        /// The identifier and corresponding control pin of a water pump.
-        pumps: HashMap<String, u32>,
     },
 }
 

@@ -1,7 +1,8 @@
 use anyhow::{bail, Context, Result};
+use async_trait::async_trait;
 use chrono::{NaiveTime, Utc};
-use gpio_cdev::LineHandle;
-use std::time::Duration;
+use gpio_cdev::{Chip, LineHandle, LineRequestFlags};
+use std::{path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
 
 pub mod air;
@@ -14,21 +15,45 @@ const GPIO_DEACTIVATE: u8 = 0;
 const GPIO_ACTIVATE: u8 = 1;
 const GPIO_CONSUMER: &str = "grow-agent";
 
-pub struct CyclicController {
+#[async_trait]
+trait Control {
+    async fn run(
+        &mut self,
+        cancel_token: CancellationToken,
+        identifier: &'static str,
+    ) -> Result<()>;
+}
+
+struct CyclicController {
     handle: LineHandle,
     on_duration: Duration,
     off_duration: Duration,
 }
 
 impl CyclicController {
-    fn new(handle: LineHandle, on_duration: Duration, off_duration: Duration) -> Self {
-        Self {
+    fn new(
+        gpio_path: impl AsRef<Path>,
+        pin: u32,
+        on_duration: Duration,
+        off_duration: Duration,
+    ) -> Result<Self> {
+        let mut chip = Chip::new(gpio_path).context("Failed to open GPIO chip")?;
+        let handle = chip
+            .get_line(pin)
+            .with_context(|| format!("Failed to get handle to GPIO line {pin}"))?
+            .request(LineRequestFlags::OUTPUT, GPIO_DEACTIVATE, GPIO_CONSUMER)
+            .with_context(|| format!("Failed to get access to GPIO {pin}"))?;
+
+        Ok(Self {
             handle,
             on_duration,
             off_duration,
-        }
+        })
     }
+}
 
+#[async_trait]
+impl Control for CyclicController {
     async fn run(
         &mut self,
         cancel_token: CancellationToken,
@@ -89,33 +114,40 @@ impl CyclicController {
     }
 }
 
-pub struct TimeBasedController {
-    handles: Vec<LineHandle>,
+struct TimeBasedController {
+    handle: LineHandle,
     activate_time: NaiveTime,
     deactivate_time: NaiveTime,
 }
 
 impl TimeBasedController {
     fn new(
-        handles: Vec<LineHandle>,
+        gpio_path: impl AsRef<Path>,
+        pin: u32,
         activate_time: NaiveTime,
         deactivate_time: NaiveTime,
     ) -> Result<Self> {
-        if handles.is_empty() {
-            bail!("No GPIO handles configured");
-        }
-
         if activate_time == deactivate_time {
             bail!("Activate time and deactivate time cannot be equal");
         }
 
+        let mut chip = Chip::new(gpio_path).context("Failed to open GPIO chip")?;
+        let handle = chip
+            .get_line(pin)
+            .with_context(|| format!("Failed to get handle to GPIO line {pin}"))?
+            .request(LineRequestFlags::OUTPUT, GPIO_DEACTIVATE, GPIO_CONSUMER)
+            .with_context(|| format!("Failed to get access to GPIO {pin}"))?;
+
         Ok(Self {
-            handles,
+            handle,
             activate_time,
             deactivate_time,
         })
     }
+}
 
+#[async_trait]
+impl Control for TimeBasedController {
     async fn run(
         &mut self,
         cancel_token: CancellationToken,
@@ -132,15 +164,13 @@ impl TimeBasedController {
                 (ACTION_DEACTIVATE, ACTION_ACTIVATE)
             };
 
-            log::debug!("{identifier}: {}", actions.0);
-            for handle in &self.handles {
-                handle
-                    .set_value(value)
-                    .context("Failed to set value of control pin")?;
-            }
+            log::debug!("{identifier}: {} control pin", actions.0);
+            self.handle
+                .set_value(value)
+                .context("Failed to set value of control pin")?;
 
             log::debug!(
-                "{identifier}: {} in {:02}:{:02}:{:02}h",
+                "{identifier}: {} control pin in {:02}:{:02}:{:02}h",
                 actions.1,
                 dur.num_hours(),
                 dur.num_minutes() % 60,

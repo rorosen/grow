@@ -127,16 +127,18 @@ mod tests {
             },
             "air_pump": {
                 "control": {
-                    "mode": "AlwaysOn",
-                    "pin": 24
+                    "mode": "Cyclic",
+                    "pin": 24,
+                    "on_duration_secs": 1,
+                    "off_duration_secs": 0
                 },
             },
             "fan": {
                 "control": {
                     "mode": "Cyclic",
                     "pin": 23,
-                    "on_duration_secs": 1,
-                    "off_duration_secs": 0
+                    "on_duration_secs": 0,
+                    "off_duration_secs": 1
                 },
             },
             "light": {
@@ -163,11 +165,9 @@ mod tests {
             "water_level": {
                 "control": {
                     "mode": "TimeBased",
+                    "pin": 17,
                     "activate_time": "9:00:00",
-                    "deactivate_time": "9:01:30",
-                    "pumps": {
-                        "main": 17
-                    }
+                    "deactivate_time": "9:01:30"
                 },
                 "sample": {
                     "sample_rate_secs": 86400,
@@ -212,13 +212,17 @@ mod tests {
                 },
             },
             air_pump: AirPumpConfig {
-                control: AirPumpControlConfig::AlwaysOn { pin: 24 },
+                control: AirPumpControlConfig::Cyclic {
+                    pin: 24,
+                    on_duration_secs: 1,
+                    off_duration_secs: 0,
+                },
             },
             fan: FanConfig {
                 control: FanControlConfig::Cyclic {
                     pin: 23,
-                    on_duration_secs: 1,
-                    off_duration_secs: 0,
+                    on_duration_secs: 0,
+                    off_duration_secs: 1,
                 },
             },
             light: LightConfig {
@@ -251,11 +255,11 @@ mod tests {
             },
             water_level: WaterLevelConfig {
                 control: WaterLevelControlConfig::TimeBased {
+                    pin: 17,
                     activate_time: NaiveTime::from_hms_opt(9, 0, 0)
                         .expect("Failed to craete NaiveTime"),
                     deactivate_time: NaiveTime::from_hms_opt(9, 1, 30)
                         .expect("Failed to craete NaiveTime"),
-                    pumps: HashMap::from([("main".into(), 17)]),
                 },
                 sample: WaterLevelSampleConfig {
                     sample_rate_secs: 86400,

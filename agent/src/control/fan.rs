@@ -1,55 +1,64 @@
 use anyhow::{Context, Result};
-use gpio_cdev::{Chip, LineRequestFlags};
 use std::{path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
 
 use crate::config::fan::FanControlConfig;
 
-use super::{CyclicController, GPIO_CONSUMER, GPIO_DEACTIVATE};
+use super::{Control, CyclicController, TimeBasedController};
 
-pub enum FanController {
-    Disabled,
-    Cyclic { controller: CyclicController },
+pub struct FanController {
+    inner: Option<Box<dyn Control + Send>>,
 }
 
 impl FanController {
     pub fn new(config: &FanControlConfig, gpio_path: impl AsRef<Path>) -> Result<Self> {
-        match config {
-            FanControlConfig::Off => Ok(Self::Disabled),
+        let controller: Option<Box<dyn Control + Send>> = match config {
+            FanControlConfig::Off => None,
             FanControlConfig::Cyclic {
                 pin,
                 on_duration_secs,
                 off_duration_secs,
             } => {
-                let mut chip = Chip::new(gpio_path).context("Failed to open GPIO chip")?;
-                let handle = chip
-                    .get_line(*pin)
-                    .context("Failed to get a handle to the GPIO line")?
-                    .request(LineRequestFlags::OUTPUT, GPIO_DEACTIVATE, GPIO_CONSUMER)
-                    .context("Failed to get access to the GPIO")?;
-                let controller = CyclicController::new(
-                    handle,
-                    Duration::from_secs(*on_duration_secs),
-                    Duration::from_secs(*off_duration_secs),
+                let controller = Box::new(
+                    CyclicController::new(
+                        gpio_path,
+                        *pin,
+                        Duration::from_secs(*on_duration_secs),
+                        Duration::from_secs(*off_duration_secs),
+                    )
+                    .context("Failed to create cyclic controller")?,
                 );
 
-                Ok(Self::Cyclic { controller })
+                Some(controller)
             }
-        }
+            FanControlConfig::TimeBased {
+                pin,
+                activate_time,
+                deactivate_time,
+            } => {
+                let controller = Box::new(
+                    TimeBasedController::new(gpio_path, *pin, *activate_time, *deactivate_time)
+                        .context("Failed to create time based controller")?,
+                );
+
+                Some(controller)
+            }
+        };
+
+        Ok(Self { inner: controller })
     }
 
     pub async fn run(self, cancel_token: CancellationToken) -> Result<&'static str> {
         const IDENTIFIER: &str = "Fan controller";
 
-        match self {
-            FanController::Disabled => log::info!("Fan controller is disabled"),
-            FanController::Cyclic { mut controller } => {
-                log::info!("Starting fan controller");
-                controller
-                    .run(cancel_token, IDENTIFIER)
-                    .await
-                    .context("Failed to run fan controller")?;
-            }
+        if let Some(mut controller) = self.inner {
+            log::info!("Starting fan controller");
+            controller
+                .run(cancel_token, IDENTIFIER)
+                .await
+                .context("Failed to run fan controller")?;
+        } else {
+            log::info!("Fan controller is disabled");
         }
 
         Ok(IDENTIFIER)

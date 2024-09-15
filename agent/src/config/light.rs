@@ -16,13 +16,24 @@ pub enum LightControlConfig {
     /// Disabled light control.
     #[default]
     Off,
-    /// Activate and deactivate the light control pin based on time stamps.
-    TimeBased {
-        /// The gpio pin used to control the light.
+    /// Cyclic activation and deactivation of the control pin.
+    Cyclic {
+        /// The GPIO pin used to control the light.
         pin: u32,
-        /// The time of the day when the light should be switched on.
+        /// The duration in seconds for which the control pin should be
+        /// activated (0 means never).
+        on_duration_secs: u64,
+        /// The duration in seconds for which the control pin should be
+        /// deactivated (0 means never).
+        off_duration_secs: u64,
+    },
+    /// Activate and deactivate the control pin based on time stamps.
+    TimeBased {
+        /// The GPIO pin used to control the light.
+        pin: u32,
+        /// The time of the day when the control pin should be switched on.
         activate_time: NaiveTime,
-        /// The time of the day when the light should be switched off.
+        /// The time of the day when the control pin should be switched off.
         deactivate_time: NaiveTime,
     },
 }

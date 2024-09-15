@@ -1,53 +1,67 @@
-use std::path::Path;
+use std::{path::Path, time::Duration};
 
 use anyhow::{Context, Result};
-use gpio_cdev::{Chip, LineHandle, LineRequestFlags};
 use tokio_util::sync::CancellationToken;
 
-use crate::{
-    config::air_pump::AirPumpControlConfig,
-    control::{GPIO_ACTIVATE, GPIO_CONSUMER},
-};
+use crate::config::air_pump::AirPumpControlConfig;
 
-pub enum AirPumpController {
-    Disabled,
-    Permanent { handle: LineHandle },
+use super::{Control, CyclicController, TimeBasedController};
+
+pub struct AirPumpController {
+    inner: Option<Box<dyn Control + Send>>,
 }
 
 impl AirPumpController {
     pub fn new(config: &AirPumpControlConfig, gpio_path: impl AsRef<Path>) -> Result<Self> {
-        match config {
-            AirPumpControlConfig::Off => Ok(Self::Disabled),
-            AirPumpControlConfig::AlwaysOn { pin } => {
-                let mut chip = Chip::new(gpio_path).context("Failed to open GPIO chip")?;
-                let handle = chip
-                    .get_line(*pin)
-                    .context("Failed to get a handle to the GPIO line")?
-                    .request(LineRequestFlags::OUTPUT, GPIO_ACTIVATE, GPIO_CONSUMER)
-                    .context("Failed to get access to the GPIO")?;
+        let controller: Option<Box<dyn Control + Send>> = match config {
+            AirPumpControlConfig::Off => None,
+            AirPumpControlConfig::Cyclic {
+                pin,
+                on_duration_secs,
+                off_duration_secs,
+            } => {
+                let controller = Box::new(
+                    CyclicController::new(
+                        gpio_path,
+                        *pin,
+                        Duration::from_secs(*on_duration_secs),
+                        Duration::from_secs(*off_duration_secs),
+                    )
+                    .context("Failed to create cyclic controller")?,
+                );
 
-                Ok(Self::Permanent { handle })
+                Some(controller)
             }
-        }
+            AirPumpControlConfig::TimeBased {
+                pin,
+                activate_time,
+                deactivate_time,
+            } => {
+                let controller = Box::new(
+                    TimeBasedController::new(gpio_path, *pin, *activate_time, *deactivate_time)
+                        .context("Failed to create time based controller")?,
+                );
+
+                Some(controller)
+            }
+        };
+
+        Ok(Self { inner: controller })
     }
 
     pub async fn run(self, cancel_token: CancellationToken) -> Result<&'static str> {
         const IDENTIFIER: &str = "Air pump controller";
 
-        match self {
-            Self::Disabled => {
-                log::info!("Air pump controller is disabled");
-                Ok(IDENTIFIER)
-            }
-            Self::Permanent { handle } => {
-                log::info!("Air pump controller: Activating control pin");
-                handle
-                    .set_value(GPIO_ACTIVATE)
-                    .context("Failed to set value of control pin")?;
-
-                cancel_token.cancelled().await;
-                Ok(IDENTIFIER)
-            }
+        if let Some(mut controller) = self.inner {
+            log::info!("Starting air pump controller");
+            controller
+                .run(cancel_token, IDENTIFIER)
+                .await
+                .context("Failed to run air pump controller")?;
+        } else {
+            log::info!("Air pump controller is disabled");
         }
+
+        Ok(IDENTIFIER)
     }
 }

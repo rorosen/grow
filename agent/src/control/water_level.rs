@@ -1,62 +1,65 @@
-use std::path::Path;
+use std::{path::Path, time::Duration};
 
 use anyhow::{Context, Result};
-use gpio_cdev::{Chip, LineHandle, LineRequestFlags};
 use tokio_util::sync::CancellationToken;
 
 use crate::config::water_level::WaterLevelControlConfig;
 
-use super::{TimeBasedController, GPIO_CONSUMER, GPIO_DEACTIVATE};
+use super::{Control, CyclicController, TimeBasedController};
 
-pub enum WaterLevelController {
-    Disabled,
-    TimeBased { controller: TimeBasedController },
+pub struct WaterLevelController {
+    inner: Option<Box<dyn Control + Send>>,
 }
 
 impl WaterLevelController {
     pub fn new(config: &WaterLevelControlConfig, gpio_path: impl AsRef<Path>) -> Result<Self> {
-        match config {
-            WaterLevelControlConfig::Off => Ok(Self::Disabled),
+        let controller: Option<Box<dyn Control + Send>> = match config {
+            WaterLevelControlConfig::Off => None,
+            WaterLevelControlConfig::Cyclic {
+                pin,
+                on_duration_secs,
+                off_duration_secs,
+            } => {
+                let controller = Box::new(
+                    CyclicController::new(
+                        gpio_path,
+                        *pin,
+                        Duration::from_secs(*on_duration_secs),
+                        Duration::from_secs(*off_duration_secs),
+                    )
+                    .context("Failed to create cyclic controller")?,
+                );
+
+                Some(controller)
+            }
             WaterLevelControlConfig::TimeBased {
+                pin,
                 activate_time,
                 deactivate_time,
-                pumps,
             } => {
-                let mut chip = Chip::new(gpio_path).context("Failed to open GPIO chip")?;
-                let handles: Result<Vec<LineHandle>> = pumps
-                    .values()
-                    .map(|pin| {
-                        let handle = chip
-                            .get_line(*pin)
-                            .with_context(|| format!("Failed to get handle to GPIO line {pin}"))?
-                            .request(LineRequestFlags::OUTPUT, GPIO_DEACTIVATE, GPIO_CONSUMER)
-                            .with_context(|| format!("Failed to get access to GPIO {pin}"))?;
+                let controller = Box::new(
+                    TimeBasedController::new(gpio_path, *pin, *activate_time, *deactivate_time)
+                        .context("Failed to create time based controller")?,
+                );
 
-                        Ok(handle)
-                    })
-                    .collect();
-
-                let controller =
-                    TimeBasedController::new(handles?, *activate_time, *deactivate_time)
-                        .context("Failed to create time based controller")?;
-
-                Ok(Self::TimeBased { controller })
+                Some(controller)
             }
-        }
+        };
+
+        Ok(Self { inner: controller })
     }
 
     pub async fn run(self, cancel_token: CancellationToken) -> Result<&'static str> {
         const IDENTIFIER: &str = "Water level controller";
 
-        match self {
-            WaterLevelController::Disabled => log::info!("Water level controller is disabled"),
-            WaterLevelController::TimeBased { mut controller } => {
-                log::info!("Starting water level controller");
-                controller
-                    .run(cancel_token, IDENTIFIER)
-                    .await
-                    .context("Failed to run light controller")?;
-            }
+        if let Some(mut controller) = self.inner {
+            log::info!("Starting air pump controller");
+            controller
+                .run(cancel_token, IDENTIFIER)
+                .await
+                .context("Failed to run air pump controller")?;
+        } else {
+            log::info!("Air pump controller is disabled");
         }
 
         Ok(IDENTIFIER)
