@@ -68,9 +68,9 @@ impl Agent {
         .context("Failed to initialize data store")?;
 
         let air_pump_controller =
-            AirPumpController::new(&self.config.air_pump_control, &self.config.gpio_path)
+            AirPumpController::new(&self.config.air_pump.control, &self.config.gpio_path)
                 .context("Failed to initialize air pump controller")?;
-        let fan_controller = FanController::new(&self.config.fan, &self.config.gpio_path)
+        let fan_controller = FanController::new(&self.config.fan.control, &self.config.gpio_path)
             .context("Failed to initialize fan controller")?;
 
         let air_manager = AirManager::new(
@@ -124,7 +124,7 @@ impl Agent {
                             let id = ret
                                 .context("Agent task panicked")?
                                 .context("Failed to run agent task")?;
-                            log::info!("{id} task terminated successfully");
+                            log::debug!("{id} task terminated successfully");
                         },
                         None => {
                             log::info!("All tasks terminated successfully");

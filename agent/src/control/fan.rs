@@ -3,7 +3,7 @@ use gpio_cdev::{Chip, LineRequestFlags};
 use std::{path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
 
-use crate::config::fan::{FanControlConfig, FanControlMode};
+use crate::config::fan::FanControlConfig;
 
 use super::{CyclicController, GPIO_CONSUMER, GPIO_DEACTIVATE};
 
@@ -14,19 +14,23 @@ pub enum FanController {
 
 impl FanController {
     pub fn new(config: &FanControlConfig, gpio_path: impl AsRef<Path>) -> Result<Self> {
-        match config.mode {
-            FanControlMode::Off => Ok(Self::Disabled),
-            FanControlMode::Cyclic => {
+        match config {
+            FanControlConfig::Off => Ok(Self::Disabled),
+            FanControlConfig::Cyclic {
+                pin,
+                on_duration_secs,
+                off_duration_secs,
+            } => {
                 let mut chip = Chip::new(gpio_path).context("Failed to open GPIO chip")?;
                 let handle = chip
-                    .get_line(config.pin)
+                    .get_line(*pin)
                     .context("Failed to get a handle to the GPIO line")?
                     .request(LineRequestFlags::OUTPUT, GPIO_DEACTIVATE, GPIO_CONSUMER)
                     .context("Failed to get access to the GPIO")?;
                 let controller = CyclicController::new(
                     handle,
-                    Duration::from_secs(config.on_duration_secs),
-                    Duration::from_secs(config.off_duration_secs),
+                    Duration::from_secs(*on_duration_secs),
+                    Duration::from_secs(*off_duration_secs),
                 );
 
                 Ok(Self::Cyclic { controller })

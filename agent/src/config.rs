@@ -4,9 +4,9 @@ use std::{
 };
 
 use air::AirConfig;
-use air_pump::AirPumpControlConfig;
+use air_pump::AirPumpConfig;
 use anyhow::{Context, Result};
-use fan::FanControlConfig;
+use fan::FanConfig;
 use light::LightConfig;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use water_level::WaterLevelConfig;
@@ -28,9 +28,9 @@ pub struct Config {
     #[serde(default)]
     pub air: AirConfig,
     #[serde(default)]
-    pub air_pump_control: AirPumpControlConfig,
+    pub air_pump: AirPumpConfig,
     #[serde(default)]
-    pub fan: FanControlConfig,
+    pub fan: FanConfig,
     #[serde(default)]
     pub light: LightConfig,
     #[serde(default)]
@@ -52,8 +52,8 @@ impl Default for Config {
             gpio_path: default_gpio_path(),
             grow_id: default_grow_id(),
             air: AirConfig::default(),
-            air_pump_control: AirPumpControlConfig::default(),
-            fan: FanControlConfig::default(),
+            air_pump: AirPumpConfig::default(),
+            fan: FanConfig::default(),
             light: LightConfig::default(),
             water_level: WaterLevelConfig::default(),
         }
@@ -85,14 +85,11 @@ where
 mod tests {
     use super::*;
 
-    use air::{AirControlConfig, AirControlMode, AirSampleConfig, AirSensorConfig, AirSensorModel};
-    use air_pump::AirPumpControlMode;
+    use air::{AirControlConfig, AirSampleConfig, AirSensorConfig, AirSensorModel};
+    use air_pump::AirPumpControlConfig;
     use chrono::NaiveTime;
-    use fan::FanControlMode;
-    use light::{
-        LightControlConfig, LightControlMode, LightSampleConfig, LightSensorConfig,
-        LightSensorModel,
-    };
+    use fan::FanControlConfig;
+    use light::{LightControlConfig, LightSampleConfig, LightSensorConfig, LightSensorModel};
     use std::{collections::HashMap, io::Write};
     use tempfile::NamedTempFile;
     use water_level::{
@@ -128,15 +125,19 @@ mod tests {
                     }
                 }
             },
-            "air_pump_control": {
-                "mode": "AlwaysOn",
-                "pin": 24
+            "air_pump": {
+                "control": {
+                    "mode": "AlwaysOn",
+                    "pin": 24
+                },
             },
             "fan": {
-                "mode": "Cyclic",
-                "pin": 23,
-                "on_duration_secs": 1,
-                "off_duration_secs": 0
+                "control": {
+                    "mode": "Cyclic",
+                    "pin": 23,
+                    "on_duration_secs": 1,
+                    "off_duration_secs": 0
+                },
             },
             "light": {
                 "control": {
@@ -185,8 +186,7 @@ mod tests {
             gpio_path: PathBuf::from("/dev/gpiochip69"),
             grow_id: String::from("tomatoes"),
             air: AirConfig {
-                control: AirControlConfig {
-                    mode: AirControlMode::Cyclic,
+                control: AirControlConfig::Cyclic {
                     pin: 25,
                     on_duration_secs: 1,
                     off_duration_secs: 0,
@@ -211,19 +211,18 @@ mod tests {
                     ]),
                 },
             },
-            air_pump_control: AirPumpControlConfig {
-                mode: AirPumpControlMode::AlwaysOn,
-                pin: 24,
+            air_pump: AirPumpConfig {
+                control: AirPumpControlConfig::AlwaysOn { pin: 24 },
             },
-            fan: FanControlConfig {
-                mode: FanControlMode::Cyclic,
-                pin: 23,
-                on_duration_secs: 1,
-                off_duration_secs: 0,
+            fan: FanConfig {
+                control: FanControlConfig::Cyclic {
+                    pin: 23,
+                    on_duration_secs: 1,
+                    off_duration_secs: 0,
+                },
             },
             light: LightConfig {
-                control: LightControlConfig {
-                    mode: LightControlMode::TimeBased,
+                control: LightControlConfig::TimeBased {
                     pin: 6,
                     activate_time: NaiveTime::from_hms_opt(10, 0, 0)
                         .expect("Failed to craete NaiveTime"),
@@ -314,8 +313,7 @@ mod tests {
 
         let expected = Config {
             light: LightConfig {
-                control: LightControlConfig {
-                    mode: LightControlMode::TimeBased,
+                control: LightControlConfig::TimeBased {
                     pin: 6,
                     activate_time: NaiveTime::from_hms_opt(10, 0, 0)
                         .expect("Failed to craete NaiveTime"),

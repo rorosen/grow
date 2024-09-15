@@ -50,7 +50,7 @@ impl AirManager {
                             let id = ret
                                 .context("Air manager task panicked")?
                                 .context("Failed to run air manager task")?;
-                            log::info!("{id} task terminated successfully");
+                            log::debug!("{id} task terminated successfully");
                         },
                         None => return Ok(IDENTIFIER),
                     }

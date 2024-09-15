@@ -138,7 +138,7 @@ in
         };
       };
 
-      air_pump_control = {
+      air_pump.control = {
         mode = lib.mkOption {
           type = lib.types.enum [
             "Off"
@@ -155,7 +155,7 @@ in
         };
       };
 
-      fan = {
+      fan.control = {
         mode = lib.mkOption {
           type = lib.types.enum [
             "Off"

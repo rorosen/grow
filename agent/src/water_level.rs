@@ -52,7 +52,7 @@ impl WaterLevelManager {
                             let id = ret
                                 .context("Water level manager task panicked")?
                                 .context("Failed to run water level manager task")?;
-                            log::info!("{id} task terminated successfully");
+                            log::debug!("{id} task terminated successfully");
                         },
                         None => return Ok(IDENTIFIER),
                     }

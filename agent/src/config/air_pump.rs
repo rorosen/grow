@@ -1,19 +1,17 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
-pub enum AirPumpControlMode {
-    /// Disabled air pump control.
-    #[default]
-    Off,
-    /// Activate the air pump permanently.
-    AlwaysOn,
+pub struct AirPumpConfig {
+    #[serde(default)]
+    pub control: AirPumpControlConfig,
 }
 
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
-pub struct AirPumpControlConfig {
-    /// The control mode.
-    pub mode: AirPumpControlMode,
-    /// The gpio pin used to control the air pump.
-    #[serde(default)]
-    pub pin: u32,
+#[serde(tag = "mode")]
+pub enum AirPumpControlConfig {
+    /// Disabled air pump control.
+    #[default]
+    Off,
+    /// Activate the air pump control pin permanently.
+    AlwaysOn { pin: u32 },
 }

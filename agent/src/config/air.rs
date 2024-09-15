@@ -10,26 +10,22 @@ pub struct AirConfig {
 }
 
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
-pub enum AirControlMode {
+#[serde(tag = "mode")]
+pub enum AirControlConfig {
     /// Disabled exhaust fan control.
     #[default]
     Off,
     /// Cyclic exhaust fan control.
-    Cyclic,
-}
-
-#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
-pub struct AirControlConfig {
-    /// The control mode.
-    pub mode: AirControlMode,
-    /// The GPIO pin used to control the air quality via an exhaust fan.
-    pub pin: u32,
-    /// The duration in seconds for which the exhaust fan control pin should
-    /// be activated (0 means never). Only has an effect in cyclic mode.
-    pub on_duration_secs: u64,
-    /// The duration in seconds for which the exhaust fan control pin should
-    /// be deactivated (0 means never). Only has an effect in cyclic mode.
-    pub off_duration_secs: u64,
+    Cyclic {
+        /// The GPIO pin used to control the air quality via an exhaust fan.
+        pin: u32,
+        /// The duration in seconds for which the exhaust fan control pin should
+        /// be activated (0 means never). Only has an effect in cyclic mode.
+        on_duration_secs: u64,
+        /// The duration in seconds for which the exhaust fan control pin should
+        /// be deactivated (0 means never). Only has an effect in cyclic mode.
+        off_duration_secs: u64,
+    },
 }
 
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]

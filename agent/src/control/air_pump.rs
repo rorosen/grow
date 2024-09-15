@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use gpio_cdev::{Chip, LineHandle, LineRequestFlags};
 
 use crate::{
-    config::air_pump::{AirPumpControlConfig, AirPumpControlMode},
+    config::air_pump::AirPumpControlConfig,
     control::{GPIO_ACTIVATE, GPIO_CONSUMER},
 };
 
@@ -15,12 +15,12 @@ pub enum AirPumpController {
 
 impl AirPumpController {
     pub fn new(config: &AirPumpControlConfig, gpio_path: impl AsRef<Path>) -> Result<Self> {
-        match config.mode {
-            AirPumpControlMode::Off => Ok(Self::Disabled),
-            AirPumpControlMode::AlwaysOn => {
+        match config {
+            AirPumpControlConfig::Off => Ok(Self::Disabled),
+            AirPumpControlConfig::AlwaysOn { pin } => {
                 let mut chip = Chip::new(gpio_path).context("Failed to open GPIO chip")?;
                 let handle = chip
-                    .get_line(config.pin)
+                    .get_line(*pin)
                     .context("Failed to get a handle to the GPIO line")?
                     .request(LineRequestFlags::OUTPUT, GPIO_ACTIVATE, GPIO_CONSUMER)
                     .context("Failed to get access to the GPIO")?;
