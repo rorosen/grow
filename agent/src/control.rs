@@ -39,6 +39,8 @@ impl CyclicController {
             self.handle
                 .set_value(GPIO_ACTIVATE)
                 .context("Failed to set value of control pin")?;
+
+            return Ok(());
         }
 
         if self.on_duration.is_zero() {
@@ -46,6 +48,8 @@ impl CyclicController {
             self.handle
                 .set_value(GPIO_DEACTIVATE)
                 .context("Failed to set value of control pin")?;
+
+            return Ok(());
         }
 
         log::debug!("{identifier}: Activating control pin");
@@ -134,10 +138,11 @@ impl TimeBasedController {
             }
 
             log::debug!(
-                "{identifier}: {} in {:02}:{:02}h",
+                "{identifier}: {} in {:02}:{:02}:{:02}h",
                 actions.1,
                 dur.num_hours(),
-                dur.num_minutes() % 60
+                dur.num_minutes() % 60,
+                dur.num_seconds() % 60
             );
 
             let ret = dur
