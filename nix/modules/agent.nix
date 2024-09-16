@@ -307,6 +307,7 @@ in
 
   config.systemd.services.grow-agent = lib.mkIf cfg.enable {
     wantedBy = [ "multi-user.target" ];
+    after = [ "time-sync.target" ];
     serviceConfig = {
       Type = "exec";
       ExecStart = "${cfg.package}/bin/grow-agent";
