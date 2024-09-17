@@ -90,46 +90,104 @@ impl DataStore {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use chrono::Utc;
-//     use sqlx::{pool::PoolOptions, sqlite::SqliteConnectOptions, ConnectOptions, Row};
-//
-//     #[sqlx::test]
-//     async fn store_air_measurement_ok(
-//         opts: PoolOptions<Sqlite>,
-//         copts: SqliteConnectOptions,
-//     ) -> sqlx::Result<()> {
-//         let db_url = copts.get_filename().as_os_str().to_str().unwrap();
-//         let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-//         let migrations_dir = std::path::Path::new(&crate_dir).join("./migrations");
-//         let store = DataStore::new(&db_url, &migrations_dir).await.unwrap();
-//
-//         let measure_time = Utc::now();
-//         let measurements = vec![AirMeasurement {
-//             measure_time,
-//             label: None,
-//             temperature: 21.,
-//             humidity: 56.,
-//             pressure: 1021.,
-//             resistance: None,
-//         }];
-//
-//         store.add_air_measurements(measurements).await.unwrap();
-//         let mut pool = copts.connect().await?;
-//         let m = sqlx::query("select * from air_measurements")
-//             .fetch_one(&store.pool)
-//             .await
-//             .unwrap();
-//         println!("{}", m.is_empty());
-//         println!("{}", m.len());
-//         let t = m.get::<f64, _>("temperature");
-//         println!("{t}");
-//         let t = m.get::<String, _>("measure_time");
-//         println!("{t}");
-//         // println!("{m:?}");
-//
-//         Ok(())
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    #[sqlx::test]
+    async fn add_air_measurement_ok() {
+        let store = DataStore::new("sqlite::memory:").await.unwrap();
+        let measure_time = Utc::now().timestamp();
+        let measurements = vec![
+            AirMeasurement {
+                measure_time,
+                label: "test".into(),
+                temperature: Some(21.),
+                humidity: Some(56.123),
+                pressure: Some(1021.),
+                resistance: None,
+            },
+            AirMeasurement {
+                measure_time: measure_time + 100,
+                label: "test".into(),
+                temperature: Some(69.),
+                humidity: None,
+                pressure: Some(666.777),
+                resistance: None,
+            },
+        ];
+
+        store
+            .add_air_measurements(measurements.clone())
+            .await
+            .unwrap();
+        let retrieved_measurements =
+            sqlx::query_as::<_, AirMeasurement>("SELECT * FROM air_measurements")
+                .fetch_all(&store.pool)
+                .await
+                .unwrap();
+
+        assert_eq!(measurements, retrieved_measurements);
+    }
+
+    #[sqlx::test]
+    async fn add_light_measurement_ok() {
+        let store = DataStore::new("sqlite::memory:").await.unwrap();
+        let measure_time = Utc::now().timestamp();
+        let measurements = vec![
+            LightMeasurement {
+                measure_time,
+                label: "test".into(),
+                illuminance: Some(123.123),
+            },
+            LightMeasurement {
+                measure_time,
+                label: "another_test".into(),
+                illuminance: Some(12.34),
+            },
+        ];
+
+        store
+            .add_light_measurements(measurements.clone())
+            .await
+            .unwrap();
+        let retrieved_measurements =
+            sqlx::query_as::<_, LightMeasurement>("SELECT * FROM light_measurements")
+                .fetch_all(&store.pool)
+                .await
+                .unwrap();
+
+        assert_eq!(measurements, retrieved_measurements);
+    }
+
+    #[sqlx::test]
+    async fn add_water_level_measurement_ok() {
+        let store = DataStore::new("sqlite::memory:").await.unwrap();
+        let measure_time = Utc::now().timestamp();
+        let measurements = vec![
+            WaterLevelMeasurement {
+                measure_time,
+                label: "foo".into(),
+                distance: Some(987),
+            },
+            WaterLevelMeasurement {
+                measure_time,
+                label: "bar".into(),
+                distance: Some(923),
+            },
+        ];
+
+        store
+            .add_water_level_measurements(measurements.clone())
+            .await
+            .unwrap();
+        let retrieved_measurements =
+            sqlx::query_as::<_, WaterLevelMeasurement>("SELECT * FROM water_level_measurements")
+                .fetch_all(&store.pool)
+                .await
+                .unwrap();
+
+        assert_eq!(measurements, retrieved_measurements);
+    }
+}
