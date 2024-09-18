@@ -6,48 +6,91 @@
 }:
 let
   cfg = config.services.grow-agent;
-  airSensorModule = lib.types.submodule (_: {
-    options = {
-      model = lib.mkOption {
-        type = lib.types.enum [ "Bme680" ];
-        description = "The model of the air sensor";
-      };
-      address = lib.mkOption {
-        type = lib.types.nonEmptyStr;
-        description = "The address of the air sensor";
-      };
+  controlOptions = {
+    mode = lib.mkOption {
+      type = lib.types.enum [
+        "Off"
+        "Cyclic"
+        "TimeBased"
+      ];
+      example = "Cyclic";
+      default = "Off";
     };
-  });
+    pin = lib.mkOption {
+      type = lib.types.ints.u8;
+      example = 24;
+      description = "The GPIO pin used to control the air pump.";
+    };
+    on_duration_secs = lib.mkOption {
+      type = lib.types.ints.unsigned;
+      example = 300;
+      description = ''
+        The duration in seconds for which the air pump control pin should
+        be activated (0 means never). Only has an effect in cyclic mode.
+      '';
+    };
+    off_duration_secs = lib.mkOption {
+      type = lib.types.ints.unsigned;
+      example = 600;
+      description = ''
+        The duration in seconds for which the air pump control pin should
+        be deactivated (0 means never). Only has an effect in cyclic mode.
+      '';
+    };
+    activate_time = lib.mkOption {
+      type = lib.types.nonEmptyStr;
+      example = "10:00:00";
+      description = "Time of the day to activate the light control pin.";
+    };
+    deactivate_time = lib.mkOption {
+      type = lib.types.nonEmptyStr;
+      example = "22:00:00";
+      description = "Time of the day to deactivate the light control pin.";
+    };
+  };
 
-  lightSensorModule = lib.types.submodule (_: {
-    options = {
-      model = lib.mkOption {
-        type = lib.types.enum [ "Bh1750Fvi" ];
-        description = "The model of the light sensor";
-      };
-      address = lib.mkOption {
-        type = lib.types.nonEmptyStr;
-        description = "The address of the light sensor";
-      };
+  mkSampleOptions = models: {
+    sample_rate_secs = lib.mkOption {
+      type = lib.types.ints.unsigned;
+      example = 1800;
+      description = "Rate in which the sensors will be sampled.";
     };
-  });
+    sensors = lib.mkOption {
+      type =
+        with lib.types;
+        attrsOf (submodule {
+          options = {
+            model = lib.mkOption {
+              type = lib.types.enum models;
+              description = "The model of the sensor";
+            };
+            address = lib.mkOption {
+              type = lib.types.nonEmptyStr;
+              description = "The address of the sensor";
+            };
+          };
+        });
+      default = { };
+      example = lib.literalExpression ''
+        {
+          left = {
+              model = "some_model";
+              address = "0x79";
+          };
+          right = {
+              model = "another_model";
+              address = "0x46";
+          };
+        }
+      '';
+      description = "The sensors to use.";
+    };
+  };
 
-  waterLevelSensorModule = lib.types.submodule (_: {
-    options = {
-      model = lib.mkOption {
-        type = lib.types.enum [ "Vl53L0X" ];
-        description = "The model of the water level sensor";
-      };
-      address = lib.mkOption {
-        type = lib.types.nonEmptyStr;
-        description = "The address of the water level sensor";
-      };
-    };
-  });
 in
 {
   options.services.grow-agent = {
-    enable = lib.mkEnableOption "the grow agent.";
+    enable = lib.mkEnableOption "the grow agent";
     package = lib.mkPackageOption pkgs "grow-agent" { };
 
     logLevel = lib.mkOption {
@@ -79,247 +122,85 @@ in
       };
 
       air = {
-        control = {
-          mode = lib.mkOption {
-            type = lib.types.enum [
-              "Off"
-              "Cyclic"
-            ];
-            default = "Off";
-            description = "Control mode of the exhaust fan controller.";
-          };
-          pin = lib.mkOption {
-            type = lib.types.ints.u8;
-            default = 0;
-            example = 25;
-            description = "The GPIO pin used to control the exhaust fan.";
-          };
-          on_duration_secs = lib.mkOption {
-            type = lib.types.ints.unsigned;
-            default = 1;
-            description = ''
-              The duration in seconds for which the exhaust fan control pin should
-              be activated (0 means never). Only has an effect in cyclic mode.
-            '';
-          };
-          off_duration_secs = lib.mkOption {
-            type = lib.types.ints.unsigned;
-            default = 0;
-            description = ''
-              The duration in seconds for which the exhaust fan control pin should
-              be deactivated (0 means never). Only has an effect in cyclic mode.
-            '';
-          };
-        };
-
-        sample = {
-          sample_rate_secs = lib.mkOption {
-            type = lib.types.ints.unsigned;
-            default = 1800;
-            description = "Rate in which the air sensors will be sampled.";
-          };
-          sensors = lib.mkOption {
-            type = lib.types.attrsOf airSensorModule;
-            default = { };
-            example = lib.literalExpression ''
-              {
-                left = {
-                    model = "Bme680";
-                    address = "0x77";
-                };
-                right = {
-                    model = "Bme680";
-                    address = "0x76";
-                };
-              }
-            '';
-            description = "The air sensors to use.";
-          };
-        };
+        control = controlOptions;
+        sample = mkSampleOptions [ "Bme680" ];
       };
 
-      air_pump.control = {
-        mode = lib.mkOption {
-          type = lib.types.enum [
-            "Off"
-            "AlwaysOn"
-          ];
-          default = "Off";
-          description = "The air pump control mode.";
-        };
-        pin = lib.mkOption {
-          type = lib.types.ints.u8;
-          default = 0;
-          example = 24;
-          description = "The GPIO pin used to control the air pump.";
-        };
-      };
-
-      fan.control = {
-        mode = lib.mkOption {
-          type = lib.types.enum [
-            "Off"
-            "Cyclic"
-          ];
-          default = "Off";
-          description = "The fan control mode.";
-        };
-        pin = lib.mkOption {
-          type = lib.types.ints.u8;
-          default = 0;
-          example = 23;
-          description = "The GPIO pin used to control the fan.";
-        };
-        on_duration_secs = lib.mkOption {
-          type = lib.types.ints.unsigned;
-          default = 1;
-          description = ''
-            The duration in seconds for which the fan control pin should be
-            activated (0 means never). Only has an effect in cyclic control mode.
-          '';
-        };
-        off_duration_secs = lib.mkOption {
-          type = lib.types.ints.unsigned;
-          default = 0;
-          description = ''
-            The duration in seconds for which the fan control pin should be
-            deactivated (0 means never). Only has an effect in cyclic control mode.
-          '';
-        };
-      };
+      air_pump.control = controlOptions;
+      fan.control = controlOptions;
 
       light = {
-        control = {
-          mode = lib.mkOption {
-            type = lib.types.enum [
-              "Off"
-              "TimeBased"
-            ];
-            default = "Off";
-            description = "The light control mode.";
-          };
-          pin = lib.mkOption {
-            type = lib.types.ints.u8;
-            default = 0;
-            example = 6;
-            description = "The GPIO pin used to control the light.";
-          };
-          activate_time = lib.mkOption {
-            type = lib.types.nonEmptyStr;
-            default = "10:00:00";
-            description = "Time of the day to activate the light control pin.";
-          };
-          deactivate_time = lib.mkOption {
-            type = lib.types.nonEmptyStr;
-            default = "22:00:00";
-            description = "Time of the day to deactivate the light control pin.";
-          };
-        };
-
-        sample = {
-          sample_rate_secs = lib.mkOption {
-            type = lib.types.ints.unsigned;
-            default = 1800;
-            description = "Rate in which the light sensors will be sampled.";
-          };
-          sensors = lib.mkOption {
-            type = lib.types.attrsOf lightSensorModule;
-            default = { };
-            example = lib.literalExpression ''
-              {
-                left = {
-                    model = "Bh1750Fvi";
-                    address = "0x23";
-                };
-                right = {
-                    model = "Bh1750Fvi";
-                    address = "0x5C";
-                };
-              }
-            '';
-            description = "The light sensors to use.";
-          };
-        };
+        sample = mkSampleOptions [ "Bh1750Fvi" ];
+        control = controlOptions;
       };
 
       water_level = {
-        control = {
-          mode = lib.mkOption {
-            type = lib.types.enum [
-              "Off"
-              "TimeBased"
-            ];
-            default = "Off";
-          };
-          activate_time = lib.mkOption {
-            type = lib.types.nonEmptyStr;
-            example = "10:00:00";
-            description = ''
-              Time of the day to activate the control pins of the water pumps.
-              Only has an effect in `TimeBased` mode.
-            '';
-          };
-          deactivate_time = lib.mkOption {
-            type = lib.types.nonEmptyStr;
-            example = "22:00:00";
-            description = ''
-              Time of the day to deactivate the control pins of the water pumps.
-              Only has an effect in `TimeBased` mode.
-            '';
-          };
-          pumps = lib.mkOption {
-            type = with lib.types; attrsOf ints.u8;
-            default = { };
-            example = lib.literalExpression ''
-              {
-                main = 17;
-              }
-            '';
-            description = ''
-              The label of each water pump with the associated GPIO pin to control the pump.
-            '';
-          };
-        };
-
-        sample = {
-          sample_rate_secs = lib.mkOption {
-            type = lib.types.ints.unsigned;
-            default = 1800;
-            description = "Rate in which the water level sensors will be sampled.";
-          };
-          sensors = lib.mkOption {
-            type = lib.types.attrsOf waterLevelSensorModule;
-            default = { };
-            example = lib.literalExpression ''
-              {
-                main = {
-                    model = "Vl53L0X";
-                    address = "0x29";
-                };
-              }
-            '';
-            description = "The water level sensors to use.";
-          };
-        };
+        sample = mkSampleOptions [ "Vl53L0X" ];
+        control = controlOptions;
       };
     };
   };
 
-  config.systemd.services.grow-agent = lib.mkIf cfg.enable {
-    wantedBy = [ "multi-user.target" ];
-    after = [ "time-sync.target" ];
-    serviceConfig = {
-      Type = "exec";
-      ExecStart = "${cfg.package}/bin/grow-agent";
-      StateDirectory = "grow";
-    };
+  config.systemd.services.grow-agent =
+    let
+      mkControlConfig =
+        opts:
+        if opts.mode == "TimeBased" then
+          {
+            inherit (opts)
+              mode
+              pin
+              activate_time
+              deactivate_time
+              ;
+          }
+        else if opts.mode == "Cyclic" then
+          {
+            inherit (opts)
+              mode
+              pin
+              on_duration_secs
+              off_duration_secs
+              ;
+          }
+        else
+          { inherit (opts) mode; };
 
-    environment =
-      {
-        RUST_LOG = cfg.logLevel;
-      }
-      // (lib.optionalAttrs cfg.config.enable {
-        GROW_AGENT_CONFIG_PATH = pkgs.writeText "grow-agent-config.json" (builtins.toJSON cfg.config);
-      });
-  };
+      mkSampleConfig =
+        opts: lib.optionalAttrs (opts.sensors != { }) { inherit (opts) sample_rate_secs sensors; };
+
+      agentConfig = {
+        air = {
+          control = mkControlConfig cfg.config.air.control;
+          sample = mkSampleConfig cfg.config.air.sample;
+        };
+        air_pump.control = mkControlConfig cfg.config.air_pump.control;
+        fan.control = mkControlConfig cfg.config.fan.control;
+        light = {
+          control = mkControlConfig cfg.config.light.control;
+          sample = mkSampleConfig cfg.config.light.sample;
+        };
+        water_level = {
+          control = mkControlConfig cfg.config.water_level.control;
+          sample = mkSampleConfig cfg.config.water_level.sample;
+        };
+      };
+    in
+    lib.mkIf cfg.enable {
+      wantedBy = [ "multi-user.target" ];
+      after = [ "time-sync.target" ];
+      serviceConfig = {
+        Type = "exec";
+        ExecStart = "${cfg.package}/bin/grow-agent";
+        StateDirectory = "grow";
+      };
+
+      environment =
+        {
+          RUST_LOG = cfg.logLevel;
+        }
+        // (lib.optionalAttrs cfg.config.enable {
+          GROW_AGENT_CONFIG_PATH = pkgs.writeText "grow-agent-config.json" (builtins.toJSON agentConfig);
+        });
+    };
 }
