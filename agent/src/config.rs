@@ -16,6 +16,7 @@ pub mod air_pump;
 pub mod fan;
 pub mod light;
 pub mod water_level;
+pub mod control;
 
 #[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -85,15 +86,14 @@ where
 mod tests {
     use super::*;
 
-    use air::{AirControlConfig, AirSampleConfig, AirSensorConfig, AirSensorModel};
-    use air_pump::AirPumpControlConfig;
+    use air::{AirSampleConfig, AirSensorConfig, AirSensorModel};
     use chrono::NaiveTime;
-    use fan::FanControlConfig;
-    use light::{LightControlConfig, LightSampleConfig, LightSensorConfig, LightSensorModel};
+    use control::ControlConfig;
+    use light::{ LightSampleConfig, LightSensorConfig, LightSensorModel};
     use std::{collections::HashMap, io::Write};
     use tempfile::NamedTempFile;
     use water_level::{
-        WaterLevelControlConfig, WaterLevelSampleConfig, WaterLevelSensorConfig,
+        WaterLevelSampleConfig, WaterLevelSensorConfig,
         WaterLevelSensorModel,
     };
 
@@ -186,7 +186,7 @@ mod tests {
             gpio_path: PathBuf::from("/dev/gpiochip69"),
             grow_id: String::from("tomatoes"),
             air: AirConfig {
-                control: AirControlConfig::Cyclic {
+                control: ControlConfig::Cyclic {
                     pin: 25,
                     on_duration_secs: 1,
                     off_duration_secs: 0,
@@ -212,21 +212,21 @@ mod tests {
                 },
             },
             air_pump: AirPumpConfig {
-                control: AirPumpControlConfig::Cyclic {
+                control: ControlConfig::Cyclic {
                     pin: 24,
                     on_duration_secs: 1,
                     off_duration_secs: 0,
                 },
             },
             fan: FanConfig {
-                control: FanControlConfig::Cyclic {
+                control: ControlConfig::Cyclic {
                     pin: 23,
                     on_duration_secs: 0,
                     off_duration_secs: 1,
                 },
             },
             light: LightConfig {
-                control: LightControlConfig::TimeBased {
+                control: ControlConfig::TimeBased {
                     pin: 6,
                     activate_time: NaiveTime::from_hms_opt(10, 0, 0)
                         .expect("Failed to craete NaiveTime"),
@@ -254,7 +254,7 @@ mod tests {
                 },
             },
             water_level: WaterLevelConfig {
-                control: WaterLevelControlConfig::TimeBased {
+                control: ControlConfig::TimeBased {
                     pin: 17,
                     activate_time: NaiveTime::from_hms_opt(9, 0, 0)
                         .expect("Failed to craete NaiveTime"),
@@ -317,7 +317,7 @@ mod tests {
 
         let expected = Config {
             light: LightConfig {
-                control: LightControlConfig::TimeBased {
+                control: ControlConfig::TimeBased {
                     pin: 6,
                     activate_time: NaiveTime::from_hms_opt(10, 0, 0)
                         .expect("Failed to craete NaiveTime"),

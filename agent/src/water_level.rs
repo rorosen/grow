@@ -1,8 +1,8 @@
 use std::path::Path;
 
-use crate::{config::water_level::WaterLevelConfig, datastore::DataStore};
+use crate::{config::water_level::WaterLevelConfig, control::Controller, datastore::DataStore};
 
-use super::{control::water_level::WaterLevelController, sample::water_level::WaterLevelSampler};
+use super::sample::water_level::WaterLevelSampler;
 use anyhow::{Context, Result};
 use grow_measure::water_level::WaterLevelMeasurement;
 use tokio::{sync::mpsc, task::JoinSet};
@@ -10,7 +10,7 @@ use tokio_util::sync::CancellationToken;
 
 pub struct WaterLevelManager {
     receiver: mpsc::Receiver<Vec<WaterLevelMeasurement>>,
-    controller: WaterLevelController,
+    controller: Controller,
     sampler: WaterLevelSampler,
     store: DataStore,
 }
@@ -23,7 +23,7 @@ impl WaterLevelManager {
         gpio_path: impl AsRef<Path>,
     ) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
-        let controller = WaterLevelController::new(&config.control, &gpio_path)
+        let controller = Controller::new(&config.control, &gpio_path)
             .context("Failed to initialize water level controller")?;
         let sampler = WaterLevelSampler::new(&config.sample, sender, &i2c_path)
             .await
@@ -37,9 +37,7 @@ impl WaterLevelManager {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<&'static str> {
-        const IDENTIFIER: &str = "Water level manager";
-
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
         let mut set = JoinSet::new();
         set.spawn(self.controller.run(cancel_token.clone()));
         set.spawn(self.sampler.run(cancel_token));
@@ -49,12 +47,10 @@ impl WaterLevelManager {
                 res = set.join_next() => {
                     match res {
                         Some(ret) => {
-                            let id = ret
-                                .context("Water level manager task panicked")?
-                                .context("Failed to run water level manager task")?;
-                            log::debug!("{id} task terminated successfully");
+                            ret.context("Agent task panicked")?
+                                .context("Failed to run agent task")?;
                         },
-                        None => return Ok(IDENTIFIER),
+                        None => return Ok(()),
                     }
                 }
                 Some(measurements) = self.receiver.recv() => {

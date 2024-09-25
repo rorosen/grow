@@ -1,5 +1,5 @@
-use super::{control::air::AirController, sample::air::AirSampler};
-use crate::{config::air::AirConfig, datastore::DataStore};
+use super::sample::air::AirSampler;
+use crate::{config::air::AirConfig, control::Controller, datastore::DataStore};
 use anyhow::{Context, Result};
 use grow_measure::air::AirMeasurement;
 use std::path::Path;
@@ -8,7 +8,7 @@ use tokio_util::sync::CancellationToken;
 
 pub struct AirManager {
     receiver: mpsc::Receiver<Vec<AirMeasurement>>,
-    controller: AirController,
+    controller: Controller,
     sampler: AirSampler,
     store: DataStore,
 }
@@ -21,7 +21,7 @@ impl AirManager {
         gpio_path: impl AsRef<Path>,
     ) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
-        let controller = AirController::new(&config.control, &gpio_path)
+        let controller = Controller::new(&config.control, &gpio_path)
             .context("Failed to initialize exhaust fan controller")?;
         let sampler = AirSampler::new(&config.sample, sender, &i2c_path)
             .await
@@ -35,9 +35,7 @@ impl AirManager {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<&'static str> {
-        const IDENTIFIER: &str = "Air manager";
-
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
         let mut set = JoinSet::new();
         set.spawn(self.controller.run(cancel_token.clone()));
         set.spawn(self.sampler.run(cancel_token));
@@ -47,12 +45,10 @@ impl AirManager {
                 res = set.join_next() => {
                     match res {
                         Some(ret) => {
-                            let id = ret
-                                .context("Air manager task panicked")?
-                                .context("Failed to run air manager task")?;
-                            log::debug!("{id} task terminated successfully");
+                            ret.context("Agent task panicked")?
+                                .context("Failed to run agent task")?;
                         },
-                        None => return Ok(IDENTIFIER),
+                        None => return Ok(()),
                     }
                 }
                 Some(measurements) = self.receiver.recv() => {

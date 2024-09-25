@@ -5,11 +5,7 @@ use gpio_cdev::{Chip, LineHandle, LineRequestFlags};
 use std::{path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
 
-pub mod air;
-pub mod air_pump;
-pub mod fan;
-pub mod light;
-pub mod water_level;
+use crate::config::control::ControlConfig;
 
 const GPIO_DEACTIVATE: u8 = 0;
 const GPIO_ACTIVATE: u8 = 1;
@@ -20,8 +16,64 @@ trait Control {
     async fn run(
         &mut self,
         cancel_token: CancellationToken,
-        identifier: &'static str,
     ) -> Result<()>;
+}
+
+pub struct Controller {
+    inner: Option<Box<dyn Control + Send>>,
+}
+
+impl Controller {
+    pub fn new(config: &ControlConfig, gpio_path: impl AsRef<Path>) -> Result<Self> {
+        let controller: Option<Box<dyn Control + Send>> = match config {
+            ControlConfig::Off => None,
+            ControlConfig::Cyclic {
+                pin,
+                on_duration_secs,
+                off_duration_secs,
+            } => {
+                let controller = Box::new(
+                    CyclicController::new(
+                        gpio_path,
+                        *pin,
+                        Duration::from_secs(*on_duration_secs),
+                        Duration::from_secs(*off_duration_secs),
+                    )
+                    .context("Failed to create cyclic controller")?,
+                );
+
+                Some(controller)
+            }
+            ControlConfig::TimeBased {
+                pin,
+                activate_time,
+                deactivate_time,
+            } => {
+                let controller = Box::new(
+                    TimeBasedController::new(gpio_path, *pin, *activate_time, *deactivate_time)
+                        .context("Failed to create time based controller")?,
+                );
+
+                Some(controller)
+            }
+        };
+
+        Ok(Self { inner: controller })
+    }
+
+    pub async fn run(self, cancel_token: CancellationToken) -> Result<()> {
+        if let Some(mut controller) = self.inner {
+            log::info!("Starting air pump controller");
+            controller
+                .run(cancel_token)
+                .await
+                .context("Failed to run air pump controller")?;
+        } else {
+            log::info!("Air pump controller is disabled");
+        }
+
+        Ok(())
+    }
 }
 
 struct CyclicController {
@@ -57,10 +109,10 @@ impl Control for CyclicController {
     async fn run(
         &mut self,
         cancel_token: CancellationToken,
-        identifier: &'static str,
     ) -> Result<()> {
+        //TODO: use tracing
         if self.off_duration.is_zero() {
-            log::info!("{identifier}: Activating control pin permanently");
+            // log::info!("{identifier}: Activating control pin permanently");
             self.handle
                 .set_value(GPIO_ACTIVATE)
                 .context("Failed to set value of control pin")?;
@@ -70,7 +122,7 @@ impl Control for CyclicController {
         }
 
         if self.on_duration.is_zero() {
-            log::info!("{identifier}: Deactivating control pin permanently");
+            // log::info!("{identifier}: Deactivating control pin permanently");
             self.handle
                 .set_value(GPIO_DEACTIVATE)
                 .context("Failed to set value of control pin")?;
@@ -79,7 +131,7 @@ impl Control for CyclicController {
             return Ok(());
         }
 
-        log::debug!("{identifier}: Activating control pin");
+        // log::debug!("{identifier}: Activating control pin");
         self.handle
             .set_value(GPIO_ACTIVATE)
             .context("Failed to set value of control pin")?;
@@ -93,13 +145,13 @@ impl Control for CyclicController {
                         .context("Failed to get value of control pin")?;
 
                     if value == GPIO_ACTIVATE {
-                        log::debug!("{identifier}: Deactivating control pin");
+                        // log::debug!("{identifier}: Deactivating control pin");
                         self.handle
                             .set_value(GPIO_DEACTIVATE)
                             .context("Failed to set value of control pin")?;
                         timeout = self.on_duration;
                     } else {
-                        log::debug!("{identifier}: Activating control pin");
+                        // log::debug!("{identifier}: Activating control pin");
                         self.handle
                             .set_value(GPIO_ACTIVATE)
                             .context("Failed to set value of control pin")?;
@@ -151,31 +203,31 @@ impl Control for TimeBasedController {
     async fn run(
         &mut self,
         cancel_token: CancellationToken,
-        identifier: &'static str,
     ) -> Result<()> {
+        //TODO: use tracing
         const ACTION_ACTIVATE: &str = "Activating";
         const ACTION_DEACTIVATE: &str = "Deactivating";
 
         let mut timeout = Duration::from_secs(0);
         let set_pin = |value: u8, dur: chrono::Duration| -> Result<Duration> {
-            let actions = if value == GPIO_ACTIVATE {
+            let _actions = if value == GPIO_ACTIVATE {
                 (ACTION_ACTIVATE, ACTION_DEACTIVATE)
             } else {
                 (ACTION_DEACTIVATE, ACTION_ACTIVATE)
             };
 
-            log::debug!("{identifier}: {} control pin", actions.0);
+            // log::debug!("{identifier}: {} control pin", actions.0);
             self.handle
                 .set_value(value)
                 .context("Failed to set value of control pin")?;
 
-            log::debug!(
-                "{identifier}: {} control pin in {:02}:{:02}:{:02}h",
-                actions.1,
-                dur.num_hours(),
-                dur.num_minutes() % 60,
-                dur.num_seconds() % 60
-            );
+            // log::debug!(
+                // "{identifier}: {} control pin in {:02}:{:02}:{:02}h",
+                // actions.1,
+                // dur.num_hours(),
+                // dur.num_minutes() % 60,
+                // dur.num_seconds() % 60
+            // );
 
             let ret = dur
                 .to_std()

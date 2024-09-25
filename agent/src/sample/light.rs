@@ -45,12 +45,10 @@ impl LightSampler {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<&'static str> {
-        const IDENTIFIER: &str = "Light sampler";
-
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
         if self.sensors.is_empty() {
             log::info!("No light sensors configured - light sampler is disabled");
-            return Ok(IDENTIFIER);
+            return Ok(());
         }
 
         log::debug!("Starting light sampler");
@@ -78,7 +76,7 @@ impl LightSampler {
                     }
                 }
                 _ = cancel_token.cancelled() => {
-                    return Ok(IDENTIFIER);
+                    return Ok(());
                 }
             }
         }

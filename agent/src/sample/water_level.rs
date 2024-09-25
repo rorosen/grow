@@ -45,12 +45,10 @@ impl WaterLevelSampler {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<&'static str> {
-        const IDENTIFIER: &str = "Water level sampler";
-
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
         if self.sensors.is_empty() {
             log::info!("No water level sensors configured - water level sampler is disabled");
-            return Ok(IDENTIFIER);
+            return Ok(());
         }
 
         log::debug!("Starting water level sampler");
@@ -78,7 +76,7 @@ impl WaterLevelSampler {
                     }
                 }
                 _ = cancel_token.cancelled() => {
-                    return Ok(IDENTIFIER);
+                    return Ok(());
                 }
             }
         }

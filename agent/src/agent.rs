@@ -1,12 +1,8 @@
 use std::env;
 
 use crate::{
-    air::AirManager,
-    config::Config,
-    control::{air_pump::AirPumpController, fan::FanController},
-    datastore::DataStore,
-    light::LightManager,
-    water_level::WaterLevelManager,
+    air::AirManager, config::Config, control::Controller, datastore::DataStore,
+    light::LightManager, water_level::WaterLevelManager,
 };
 use anyhow::{Context, Result};
 use tokio::{
@@ -68,9 +64,9 @@ impl Agent {
         .context("Failed to initialize data store")?;
 
         let air_pump_controller =
-            AirPumpController::new(&self.config.air_pump.control, &self.config.gpio_path)
+            Controller::new(&self.config.air_pump.control, &self.config.gpio_path)
                 .context("Failed to initialize air pump controller")?;
-        let fan_controller = FanController::new(&self.config.fan.control, &self.config.gpio_path)
+        let fan_controller = Controller::new(&self.config.fan.control, &self.config.gpio_path)
             .context("Failed to initialize fan controller")?;
 
         let air_manager = AirManager::new(
@@ -121,10 +117,8 @@ impl Agent {
                 res = set.join_next() => {
                     match res {
                         Some(ret) => {
-                            let id = ret
-                                .context("Agent task panicked")?
+                            ret.context("Agent task panicked")?
                                 .context("Failed to run agent task")?;
-                            log::debug!("{id} task terminated successfully");
                         },
                         None => {
                             log::info!("All tasks terminated successfully");

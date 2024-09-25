@@ -1,8 +1,8 @@
 use std::path::Path;
 
-use crate::{config::light::LightConfig, datastore::DataStore};
+use crate::{config::light::LightConfig, control::Controller, datastore::DataStore};
 
-use super::{control::light::LightController, sample::light::LightSampler};
+use super::sample::light::LightSampler;
 use anyhow::{Context, Result};
 use grow_measure::light::LightMeasurement;
 use tokio::{sync::mpsc, task::JoinSet};
@@ -10,7 +10,7 @@ use tokio_util::sync::CancellationToken;
 
 pub struct LightManager {
     receiver: mpsc::Receiver<Vec<LightMeasurement>>,
-    controller: LightController,
+    controller: Controller,
     sampler: LightSampler,
     store: DataStore,
 }
@@ -23,7 +23,7 @@ impl LightManager {
         gpio_path: impl AsRef<Path>,
     ) -> Result<Self> {
         let (sender, receiver) = mpsc::channel(8);
-        let controller = LightController::new(&config.control, &gpio_path)
+        let controller = Controller::new(&config.control, &gpio_path)
             .context("Failed to initialize light controller")?;
         let sampler = LightSampler::new(&config.sample, sender, &i2c_path)
             .await
@@ -37,9 +37,7 @@ impl LightManager {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<&'static str> {
-        const IDENTIFIER: &str = "Light manager";
-
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
         let mut set = JoinSet::new();
         set.spawn(self.controller.run(cancel_token.clone()));
         set.spawn(self.sampler.run(cancel_token));
@@ -49,12 +47,10 @@ impl LightManager {
                 res = set.join_next() => {
                     match res {
                         Some(ret) => {
-                            let id = ret
-                                .context("Light manager task panicked")?
-                                .context("Failed to run light manager task")?;
-                            log::debug!("{id} task terminated successfully");
+                            ret.context("Agent task panicked")?
+                                .context("Failed to run agent task")?;
                         },
-                        None => return Ok(IDENTIFIER),
+                        None => return Ok(()),
                     }
                 }
                 Some(measurements) = self.receiver.recv() => {

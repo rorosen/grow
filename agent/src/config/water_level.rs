@@ -1,42 +1,15 @@
 use std::collections::HashMap;
 
-use chrono::NaiveTime;
 use serde::{Deserialize, Serialize};
+
+use super::control::ControlConfig;
 
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct WaterLevelConfig {
     #[serde(default)]
-    pub control: WaterLevelControlConfig,
+    pub control: ControlConfig,
     #[serde(default)]
     pub sample: WaterLevelSampleConfig,
-}
-
-#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
-#[serde(tag = "mode")]
-pub enum WaterLevelControlConfig {
-    /// Disabled water level control.
-    #[default]
-    Off,
-    /// Cyclic activation and deactivation of the control pin.
-    Cyclic {
-        /// The GPIO pin used to control the water level, e.g. via a water pump.
-        pin: u32,
-        /// The duration in seconds for which the control pin should
-        /// be activated (0 means never).
-        on_duration_secs: u64,
-        /// The duration in seconds for which the control pin should
-        /// be deactivated (0 means never).
-        off_duration_secs: u64,
-    },
-    /// Activate and deactivate the control pin based on time stamps.
-    TimeBased {
-        /// The GPIO pin used to control the water level, e.g. via a water pump.
-        pin: u32,
-        /// The time of the day when the water pumps should be switched on.
-        activate_time: NaiveTime,
-        /// The time of the day when the water pumps should be switched off.
-        deactivate_time: NaiveTime,
-    },
 }
 
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]

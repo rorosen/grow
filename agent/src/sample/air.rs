@@ -45,12 +45,10 @@ impl AirSampler {
         })
     }
 
-    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<&'static str> {
-        const IDENTIFIER: &str = "Air sampler";
-
+    pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
         if self.sensors.is_empty() {
             log::info!("No air sensors configured - air sampler is disabled");
-            return Ok(IDENTIFIER);
+            return Ok(());
         }
 
         log::debug!("Starting air sampler");
@@ -78,7 +76,7 @@ impl AirSampler {
                     }
                 }
                 _ = cancel_token.cancelled() => {
-                    return Ok(IDENTIFIER);
+                    return Ok(());
                 }
             }
         }
