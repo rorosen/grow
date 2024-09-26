@@ -1,6 +1,8 @@
 use std::{env, process::ExitCode};
 
 use agent::Agent;
+use tracing::error;
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 mod agent;
 mod air;
@@ -26,17 +28,20 @@ async fn main() -> ExitCode {
         }
         Some(arg) => {
             eprintln!("Unknown argument {arg:?}");
-            eprintln!("Pass {PRINT_DEFAULT_CONFIG:?} to print the default configuration and exit");
+            eprintln!("Pass {PRINT_DEFAULT_CONFIG:?} to print the default configuration");
             eprintln!("Or pass no arguments to start the agent in daemon mode");
             ExitCode::FAILURE
         }
         None => {
-            env_logger::init();
+            tracing_subscriber::registry()
+                .with(fmt::layer())
+                .with(EnvFilter::from_default_env())
+                .init();
 
             let agent = match Agent::new().await {
                 Ok(agent) => agent,
                 Err(err) => {
-                    log::error!("Failed to initialize agent: {err:#}");
+                    error!("Failed to initialize agent: {err:#}");
                     return ExitCode::FAILURE;
                 }
             };
@@ -44,7 +49,7 @@ async fn main() -> ExitCode {
             match agent.run().await {
                 Ok(_) => ExitCode::SUCCESS,
                 Err(err) => {
-                    log::error!("Failed to run agent: {err:#}");
+                    error!("Failed to run agent: {err:#}");
                     ExitCode::FAILURE
                 }
             }

@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use grow_measure::light::LightMeasurement;
 use tokio::{sync::mpsc, task::JoinSet};
 use tokio_util::sync::CancellationToken;
+use tracing::trace;
 
 pub struct LightManager {
     receiver: mpsc::Receiver<Vec<LightMeasurement>>,
@@ -54,7 +55,7 @@ impl LightManager {
                     }
                 }
                 Some(measurements) = self.receiver.recv() => {
-                    log::trace!("Light measurements: {measurements:?}");
+                    trace!("Light measurements: {measurements:?}");
                     self.store.add_light_measurements(measurements).await?;
                 }
             }

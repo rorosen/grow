@@ -10,6 +10,7 @@ use tokio::{
     task::{spawn_blocking, JoinSet},
 };
 use tokio_util::sync::CancellationToken;
+use tracing::{info, span, Instrument as _, Level};
 
 #[derive(Debug)]
 pub struct Agent {
@@ -63,12 +64,6 @@ impl Agent {
         .await
         .context("Failed to initialize data store")?;
 
-        let air_pump_controller =
-            Controller::new(&self.config.air_pump.control, &self.config.gpio_path)
-                .context("Failed to initialize air pump controller")?;
-        let fan_controller = Controller::new(&self.config.fan.control, &self.config.gpio_path)
-            .context("Failed to initialize fan controller")?;
-
         let air_manager = AirManager::new(
             &self.config.air,
             store.clone(),
@@ -77,6 +72,13 @@ impl Agent {
         )
         .await
         .context("Failed to initialize air manager")?;
+
+        let air_pump_controller =
+            Controller::new(&self.config.air_pump.control, &self.config.gpio_path)
+                .context("Failed to initialize air pump controller")?;
+
+        let fan_controller = Controller::new(&self.config.fan.control, &self.config.gpio_path)
+            .context("Failed to initialize fan controller")?;
 
         let light_manager = LightManager::new(
             &self.config.light,
@@ -87,7 +89,7 @@ impl Agent {
         .await
         .context("Failed to initialize light manager")?;
 
-        let water_manager = WaterLevelManager::new(
+        let water_level_manager = WaterLevelManager::new(
             &self.config.water_level,
             store,
             &self.config.i2c_path,
@@ -98,20 +100,43 @@ impl Agent {
 
         let cancel_token = CancellationToken::new();
         let mut set = JoinSet::new();
-        set.spawn(air_manager.run(cancel_token.clone()));
-        set.spawn(air_pump_controller.run(cancel_token.clone()));
-        set.spawn(fan_controller.run(cancel_token.clone()));
-        set.spawn(light_manager.run(cancel_token.clone()));
-        set.spawn(water_manager.run(cancel_token.clone()));
+        {
+            let span = span!(Level::DEBUG, "air manager task");
+            set.spawn(air_manager.run(cancel_token.clone()).instrument(span));
+        }
+        {
+            let span = span!(Level::DEBUG, "air pump controller task");
+            set.spawn(
+                air_pump_controller
+                    .run(cancel_token.clone())
+                    .instrument(span),
+            );
+        }
+        {
+            let span = span!(Level::DEBUG, "fan controller task");
+            set.spawn(fan_controller.run(cancel_token.clone()).instrument(span));
+        }
+        {
+            let span = span!(Level::DEBUG, "light manager task");
+            set.spawn(light_manager.run(cancel_token.clone()).instrument(span));
+        }
+        {
+            let span = span!(Level::DEBUG, "water level manager task");
+            set.spawn(
+                water_level_manager
+                    .run(cancel_token.clone())
+                    .instrument(span),
+            );
+        }
 
         loop {
             tokio::select! {
                 _ = sigint.recv() => {
-                    log::info!("Shutting down on sigint...");
+                    info!("Shutting down on sigint...");
                     cancel_token.cancel();
                 }
                 _ = sigterm.recv() => {
-                    log::info!("Shutting down on sigterm...");
+                    info!("Shutting down on sigterm...");
                     cancel_token.cancel();
                 }
                 res = set.join_next() => {
@@ -121,7 +146,7 @@ impl Agent {
                                 .context("Failed to run agent task")?;
                         },
                         None => {
-                            log::info!("All tasks terminated successfully");
+                            info!("All tasks terminated successfully");
                             return Ok(());
                         }
                     }

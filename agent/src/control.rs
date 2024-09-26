@@ -2,6 +2,7 @@ use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use chrono::{NaiveTime, Utc};
 use gpio_cdev::{Chip, LineHandle, LineRequestFlags};
+use tracing::{debug, info};
 use std::{path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
 
@@ -63,13 +64,12 @@ impl Controller {
 
     pub async fn run(self, cancel_token: CancellationToken) -> Result<()> {
         if let Some(mut controller) = self.inner {
-            log::info!("Starting air pump controller");
             controller
                 .run(cancel_token)
                 .await
-                .context("Failed to run air pump controller")?;
+                .context("Failed to run controller")?;
         } else {
-            log::info!("Air pump controller is disabled");
+            info!("Controller is disabled");
         }
 
         Ok(())
@@ -110,9 +110,8 @@ impl Control for CyclicController {
         &mut self,
         cancel_token: CancellationToken,
     ) -> Result<()> {
-        //TODO: use tracing
         if self.off_duration.is_zero() {
-            // log::info!("{identifier}: Activating control pin permanently");
+            info!("Activating control pin permanently");
             self.handle
                 .set_value(GPIO_ACTIVATE)
                 .context("Failed to set value of control pin")?;
@@ -122,7 +121,7 @@ impl Control for CyclicController {
         }
 
         if self.on_duration.is_zero() {
-            // log::info!("{identifier}: Deactivating control pin permanently");
+            info!("Deactivating control pin permanently");
             self.handle
                 .set_value(GPIO_DEACTIVATE)
                 .context("Failed to set value of control pin")?;
@@ -131,7 +130,7 @@ impl Control for CyclicController {
             return Ok(());
         }
 
-        // log::debug!("{identifier}: Activating control pin");
+        debug!("Activating control pin");
         self.handle
             .set_value(GPIO_ACTIVATE)
             .context("Failed to set value of control pin")?;
@@ -145,13 +144,13 @@ impl Control for CyclicController {
                         .context("Failed to get value of control pin")?;
 
                     if value == GPIO_ACTIVATE {
-                        // log::debug!("{identifier}: Deactivating control pin");
+                        debug!("Deactivating control pin");
                         self.handle
                             .set_value(GPIO_DEACTIVATE)
                             .context("Failed to set value of control pin")?;
                         timeout = self.on_duration;
                     } else {
-                        // log::debug!("{identifier}: Activating control pin");
+                        debug!("Activating control pin");
                         self.handle
                             .set_value(GPIO_ACTIVATE)
                             .context("Failed to set value of control pin")?;
@@ -204,30 +203,29 @@ impl Control for TimeBasedController {
         &mut self,
         cancel_token: CancellationToken,
     ) -> Result<()> {
-        //TODO: use tracing
         const ACTION_ACTIVATE: &str = "Activating";
         const ACTION_DEACTIVATE: &str = "Deactivating";
 
         let mut timeout = Duration::from_secs(0);
         let set_pin = |value: u8, dur: chrono::Duration| -> Result<Duration> {
-            let _actions = if value == GPIO_ACTIVATE {
+            let actions = if value == GPIO_ACTIVATE {
                 (ACTION_ACTIVATE, ACTION_DEACTIVATE)
             } else {
                 (ACTION_DEACTIVATE, ACTION_ACTIVATE)
             };
 
-            // log::debug!("{identifier}: {} control pin", actions.0);
+            debug!("{} control pin", actions.0);
             self.handle
                 .set_value(value)
                 .context("Failed to set value of control pin")?;
 
-            // log::debug!(
-                // "{identifier}: {} control pin in {:02}:{:02}:{:02}h",
-                // actions.1,
-                // dur.num_hours(),
-                // dur.num_minutes() % 60,
-                // dur.num_seconds() % 60
-            // );
+            debug!(
+                "{} control pin in {:02}:{:02}:{:02}h",
+                actions.1,
+                dur.num_hours(),
+                dur.num_minutes() % 60,
+                dur.num_seconds() % 60
+            );
 
             let ret = dur
                 .to_std()

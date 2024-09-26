@@ -1,5 +1,6 @@
 use anyhow::{bail, Context, Result};
 use grow_measure::air::{bme680::Bme680, AirMeasurement, AirSensor};
+use tracing::{debug, info, warn};
 use std::{collections::HashMap, path::Path, time::Duration};
 use tokio::{sync::mpsc, time::Interval};
 use tokio_util::sync::CancellationToken;
@@ -47,11 +48,11 @@ impl AirSampler {
 
     pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
         if self.sensors.is_empty() {
-            log::info!("No air sensors configured - air sampler is disabled");
+            info!("No air sensors configured - air sampler is disabled");
             return Ok(());
         }
 
-        log::debug!("Starting air sampler");
+        debug!("Starting air sampler");
         loop {
             tokio::select! {
                 _ = self.interval.tick() => {
@@ -63,7 +64,7 @@ impl AirSampler {
                                 measurements.push(measurement);
                             }
                             Err(err) => {
-                                log::warn!("Failed to measure with {label} air sensor: {err}");
+                                warn!("Failed to measure with {label} air sensor: {err}");
                             }
                         };
                     }

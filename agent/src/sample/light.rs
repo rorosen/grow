@@ -1,5 +1,6 @@
 use anyhow::{bail, Context, Result};
 use grow_measure::light::{bh1750fvi::Bh1750Fvi, LightMeasurement, LightSensor};
+use tracing::{debug, info, warn};
 use std::{collections::HashMap, path::Path, time::Duration};
 use tokio::{sync::mpsc, time::Interval};
 use tokio_util::sync::CancellationToken;
@@ -47,11 +48,11 @@ impl LightSampler {
 
     pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
         if self.sensors.is_empty() {
-            log::info!("No light sensors configured - light sampler is disabled");
+            info!("No light sensors configured - light sampler is disabled");
             return Ok(());
         }
 
-        log::debug!("Starting light sampler");
+        debug!("Starting light sampler");
         loop {
             tokio::select! {
                 _ = self.interval.tick() => {
@@ -63,7 +64,7 @@ impl LightSampler {
                                 measurements.push(measurement);
                             }
                             Err(err) => {
-                                log::warn!("Failed to measure with {label} light sensor: {err}");
+                                warn!("Failed to measure with {label} light sensor: {err}");
                             }
                         };
                     }

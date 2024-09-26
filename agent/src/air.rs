@@ -2,6 +2,7 @@ use super::sample::air::AirSampler;
 use crate::{config::air::AirConfig, control::Controller, datastore::DataStore};
 use anyhow::{Context, Result};
 use grow_measure::air::AirMeasurement;
+use tracing::trace;
 use std::path::Path;
 use tokio::{sync::mpsc, task::JoinSet};
 use tokio_util::sync::CancellationToken;
@@ -52,7 +53,7 @@ impl AirManager {
                     }
                 }
                 Some(measurements) = self.receiver.recv() => {
-                    log::trace!("Air measurements: {measurements:?}");
+                    trace!("Air measurements: {measurements:?}");
                     self.store.add_air_measurements(measurements).await?;
                 }
             }

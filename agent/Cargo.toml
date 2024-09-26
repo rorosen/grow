@@ -8,10 +8,8 @@ edition.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 chrono = { workspace = true, features = ["serde"] }
-env_logger.workspace = true
 gpio-cdev.workspace = true
 grow-measure.workspace = true
-log.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 thiserror.workspace = true
@@ -26,6 +24,8 @@ tokio = { workspace = true, features = [
     "io-util",
 ] }
 tokio-util = { workspace = true, features = ["rt"] }
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 [dev-dependencies]
 tempfile = "3.10.1"

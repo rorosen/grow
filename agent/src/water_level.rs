@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use grow_measure::water_level::WaterLevelMeasurement;
 use tokio::{sync::mpsc, task::JoinSet};
 use tokio_util::sync::CancellationToken;
+use tracing::trace;
 
 pub struct WaterLevelManager {
     receiver: mpsc::Receiver<Vec<WaterLevelMeasurement>>,
@@ -54,7 +55,7 @@ impl WaterLevelManager {
                     }
                 }
                 Some(measurements) = self.receiver.recv() => {
-                    log::trace!("Water level measurements: {measurements:?}");
+                    trace!("Water level measurements: {measurements:?}");
                     self.store.add_water_level_measurements(measurements).await?
                 }
             }

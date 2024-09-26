@@ -1,5 +1,6 @@
 use anyhow::{bail, Context, Result};
 use grow_measure::water_level::{vl53l0x::Vl53L0X, WaterLevelMeasurement, WaterLevelSensor};
+use tracing::{debug, info, warn};
 use std::{collections::HashMap, path::Path, time::Duration};
 use tokio::{sync::mpsc, time::Interval};
 use tokio_util::sync::CancellationToken;
@@ -47,11 +48,11 @@ impl WaterLevelSampler {
 
     pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
         if self.sensors.is_empty() {
-            log::info!("No water level sensors configured - water level sampler is disabled");
+            info!("No water level sensors configured - water level sampler is disabled");
             return Ok(());
         }
 
-        log::debug!("Starting water level sampler");
+        debug!("Starting water level sampler");
         loop {
             tokio::select! {
                 _ = self.interval.tick() => {
@@ -63,7 +64,7 @@ impl WaterLevelSampler {
                                 measurements.push(measurement);
                             }
                             Err(err) => {
-                                log::warn!("Failed to measure with {label} water level sensor: {err}");
+                                warn!("Failed to measure with {label} water level sensor: {err}");
                             }
                         };
                     }
