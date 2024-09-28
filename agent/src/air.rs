@@ -2,10 +2,10 @@ use super::sample::air::AirSampler;
 use crate::{config::air::AirConfig, control::Controller, datastore::DataStore};
 use anyhow::{Context, Result};
 use grow_measure::air::AirMeasurement;
-use tracing::trace;
 use std::path::Path;
 use tokio::{sync::mpsc, task::JoinSet};
 use tokio_util::sync::CancellationToken;
+use tracing::{debug_span, trace, Instrument};
 
 pub struct AirManager {
     receiver: mpsc::Receiver<Vec<AirMeasurement>>,
@@ -38,7 +38,11 @@ impl AirManager {
 
     pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
         let mut set = JoinSet::new();
-        set.spawn(self.controller.run(cancel_token.clone()));
+        set.spawn(
+            self.controller
+                .run(cancel_token.clone())
+                .instrument(debug_span!("controller")),
+        );
         set.spawn(self.sampler.run(cancel_token));
 
         loop {

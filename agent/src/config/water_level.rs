@@ -15,8 +15,10 @@ pub struct WaterLevelConfig {
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct WaterLevelSampleConfig {
     /// The rate in which the water level sensor takes measurements in seconds.
+    #[serde(default)]
     pub sample_rate_secs: u64,
     /// The water level sensors in use.
+    #[serde(default)]
     pub sensors: HashMap<String, WaterLevelSensorConfig>,
 }
 

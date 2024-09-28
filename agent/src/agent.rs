@@ -10,7 +10,7 @@ use tokio::{
     task::{spawn_blocking, JoinSet},
 };
 use tokio_util::sync::CancellationToken;
-use tracing::{info, span, Instrument as _, Level};
+use tracing::{debug_span, info, Instrument as _};
 
 #[derive(Debug)]
 pub struct Agent {
@@ -100,34 +100,31 @@ impl Agent {
 
         let cancel_token = CancellationToken::new();
         let mut set = JoinSet::new();
-        {
-            let span = span!(Level::DEBUG, "air manager task");
-            set.spawn(air_manager.run(cancel_token.clone()).instrument(span));
-        }
-        {
-            let span = span!(Level::DEBUG, "air pump controller task");
-            set.spawn(
-                air_pump_controller
-                    .run(cancel_token.clone())
-                    .instrument(span),
-            );
-        }
-        {
-            let span = span!(Level::DEBUG, "fan controller task");
-            set.spawn(fan_controller.run(cancel_token.clone()).instrument(span));
-        }
-        {
-            let span = span!(Level::DEBUG, "light manager task");
-            set.spawn(light_manager.run(cancel_token.clone()).instrument(span));
-        }
-        {
-            let span = span!(Level::DEBUG, "water level manager task");
-            set.spawn(
-                water_level_manager
-                    .run(cancel_token.clone())
-                    .instrument(span),
-            );
-        }
+        set.spawn(
+            air_manager
+                .run(cancel_token.clone())
+                .instrument(debug_span!("air manager")),
+        );
+        set.spawn(
+            air_pump_controller
+                .run(cancel_token.clone())
+                .instrument(debug_span!("air pump controller")),
+        );
+        set.spawn(
+            fan_controller
+                .run(cancel_token.clone())
+                .instrument(debug_span!("fan controller")),
+        );
+        set.spawn(
+            light_manager
+                .run(cancel_token.clone())
+                .instrument(debug_span!("light manager")),
+        );
+        set.spawn(
+            water_level_manager
+                .run(cancel_token.clone())
+                .instrument(debug_span!("water level manager")),
+        );
 
         loop {
             tokio::select! {

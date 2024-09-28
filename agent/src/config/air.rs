@@ -14,8 +14,10 @@ pub struct AirConfig {
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct AirSampleConfig {
     /// The rate in which the air sensors are sampled in seconds.
+    #[serde(default)]
     pub sample_rate_secs: u64,
     /// The air sensors in use.
+    #[serde(default)]
     pub sensors: HashMap<String, AirSensorConfig>,
 }
 

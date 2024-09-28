@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use grow_measure::water_level::WaterLevelMeasurement;
 use tokio::{sync::mpsc, task::JoinSet};
 use tokio_util::sync::CancellationToken;
-use tracing::trace;
+use tracing::{debug_span, trace, Instrument};
 
 pub struct WaterLevelManager {
     receiver: mpsc::Receiver<Vec<WaterLevelMeasurement>>,
@@ -40,7 +40,11 @@ impl WaterLevelManager {
 
     pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
         let mut set = JoinSet::new();
-        set.spawn(self.controller.run(cancel_token.clone()));
+        set.spawn(
+            self.controller
+                .run(cancel_token.clone())
+                .instrument(debug_span!("controller")),
+        );
         set.spawn(self.sampler.run(cancel_token));
 
         loop {

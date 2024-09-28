@@ -14,8 +14,10 @@ pub struct LightConfig {
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct LightSampleConfig {
     /// The rate in which the light sensors take measurements in seconds.
+    #[serde(default)]
     pub sample_rate_secs: u64,
     /// The light sensors in use.
+    #[serde(default)]
     pub sensors: HashMap<String, LightSensorConfig>,
 }
 
