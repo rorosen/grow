@@ -1,11 +1,11 @@
-use async_trait::async_trait;
+use anyhow::{bail, Result};
 use chrono::Utc;
 use std::{path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
 
-use crate::{i2c::I2C, light::LightMeasurement, Error};
+use crate::measure::LightMeasurement;
 
-use super::LightSensor;
+use super::{i2c::I2C, Measure};
 
 const MODE_ONE_TIME_HIGH_RES: u8 = 0x20;
 const WAIT_DURATION: Duration = Duration::from_millis(200);
@@ -18,23 +18,24 @@ const CMD_SET_MT_LOW: u8 = 0b011 << 5;
 /// BH1750FVI
 pub struct Bh1750Fvi {
     i2c: I2C,
+    label: String,
 }
 
 impl Bh1750Fvi {
-    pub async fn new(i2c_path: impl AsRef<Path>, address: u8) -> Result<Self, Error> {
+    pub async fn new(i2c_path: impl AsRef<Path>, address: u8, label: String) -> Result<Self> {
         let i2c = I2C::new(i2c_path, address).await?;
 
-        Ok(Self { i2c })
+        Ok(Self { i2c, label })
     }
 }
 
-#[async_trait]
-impl LightSensor for Bh1750Fvi {
+impl Measure for Bh1750Fvi {
+    type Measurement = LightMeasurement;
+
     async fn measure(
         &mut self,
-        label: String,
         cancel_token: CancellationToken,
-    ) -> Result<LightMeasurement, Error> {
+    ) -> Result<Self::Measurement> {
         self.i2c
             .write_bytes(&[CMD_SET_MT_HIGH | (MT_REG_MAX >> 5)])
             .await?;
@@ -48,17 +49,20 @@ impl LightSensor for Bh1750Fvi {
 
         tokio::select! {
             _ = cancel_token.cancelled() => {
-                log::debug!("Aborting light measurement: token cancelled");
-                return Err(Error::Cancelled);
+                bail!("Measurement cancelled");
             }
             _ = tokio::time::sleep(WAIT_DURATION) => {
                 let mut buf = [0; 2];
                 self.i2c.read_bytes(&mut buf[..]).await?;
                 let illuminance = ((((buf[0] as u32) << 8) | (buf[1] as u32)) as f64) / 1.2 * ((MT_REG_DEFAULT as f64) / (MT_REG_MAX as f64));
-                let measurement = LightMeasurement::new(measure_time, label).illuminance(illuminance);
+                let measurement = LightMeasurement::new(measure_time, self.label.clone()).illuminance(illuminance);
 
-                return Ok(measurement);
+                Ok(measurement)
             }
         }
+    }
+
+    fn label(&self) ->  &str {
+        &self.label
     }
 }

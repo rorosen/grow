@@ -1,17 +1,8 @@
 use std::{env, process::ExitCode};
 
-use agent::Agent;
+use grow_agent::{agent::Agent, config::Config};
 use tracing::error;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
-
-mod agent;
-mod air;
-mod config;
-mod control;
-mod datastore;
-mod light;
-mod sample;
-mod water_level;
 
 const PRINT_DEFAULT_CONFIG: &str = "--print-default-config";
 
@@ -20,7 +11,7 @@ async fn main() -> ExitCode {
     match env::args().nth(1) {
         Some(arg) if arg == PRINT_DEFAULT_CONFIG => {
             let stdout = std::io::stdout().lock();
-            if let Err(err) = serde_json::to_writer_pretty(stdout, &config::Config::default()) {
+            if let Err(err) = serde_json::to_writer_pretty(stdout, &Config::default()) {
                 eprintln!("Failed to print default config: {err:#?}");
                 return ExitCode::FAILURE;
             }

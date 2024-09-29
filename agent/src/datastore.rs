@@ -1,10 +1,9 @@
 use std::str::FromStr;
 
 use anyhow::{Context, Result};
-use grow_measure::{
-    air::AirMeasurement, light::LightMeasurement, water_level::WaterLevelMeasurement,
-};
 use sqlx::{sqlite::SqliteConnectOptions, QueryBuilder, Sqlite, SqlitePool};
+
+use crate::measure::{AirMeasurement, LightMeasurement, WaterLevelMeasurement};
 
 pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 

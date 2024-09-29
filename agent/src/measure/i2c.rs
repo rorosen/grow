@@ -50,7 +50,6 @@ impl I2C {
 
     pub async fn read_reg_byte(&mut self, address: u8) -> Result<u8, I2cError> {
         self.dev.write_u8(address).await.map_err(I2cError::Write)?;
-
         self.dev.read_u8().await.map_err(I2cError::Read)
     }
 
@@ -63,7 +62,6 @@ impl I2C {
 
     pub async fn set_reg_bits(&mut self, address: u8, mask: u8) -> Result<(), I2cError> {
         let data = self.read_reg_byte(address).await?;
-
         self.write_reg_byte(address, data | mask).await
     }
 

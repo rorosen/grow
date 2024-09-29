@@ -1,6 +1,5 @@
-use super::WaterLevelSensor;
-use crate::{i2c::I2C, water_level::WaterLevelMeasurement, Error};
-use async_trait::async_trait;
+use super::{i2c::I2C, Measure, WaterLevelMeasurement};
+use anyhow::{bail, Context, Result};
 use chrono::Utc;
 use std::{path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
@@ -26,28 +25,28 @@ const REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT: u8 = 0x44;
 // VL53L0X
 pub struct Vl53L0X {
     i2c: I2C,
-    stop_variable: Option<u8>,
+    label: String,
+    stop_variable: u8,
 }
 
 impl Vl53L0X {
-    pub async fn new(i2c_path: impl AsRef<Path>, address: u8) -> Result<Self, Error> {
+    pub async fn new(i2c_path: impl AsRef<Path>, address: u8, label: String) -> Result<Self> {
         let mut i2c = I2C::new(i2c_path, address).await?;
+        let stop_variable = Self::init(&mut i2c).await.with_context(|| {
+            format!("Failed to initialize stop variable of VL53L0X at address 0x{address:02x}")
+        })?;
 
-        let stop_variable = match Self::init(&mut i2c).await {
-            Ok(var) => Some(var),
-            Err(err) => {
-                log::warn!("Failed to initialize water level sensor: {err:#}");
-                None
-            }
-        };
-
-        Ok(Self { i2c, stop_variable })
+        Ok(Self {
+            i2c,
+            label,
+            stop_variable,
+        })
     }
 
-    async fn init(i2c: &mut I2C) -> Result<u8, Error> {
+    async fn init(i2c: &mut I2C) -> Result<u8> {
         let device_id = i2c.read_reg_byte(REG_IDENTIFICATION_MODEL_ID).await?;
         if device_id != IDENTIFICATION_MODEL_ID {
-            return Err(Error::Identify);
+            bail!("Failed to identify VL53L0X sensor");
         }
 
         let stop_variable = Vl53L0X::init_data(i2c).await?;
@@ -57,7 +56,7 @@ impl Vl53L0X {
         Ok(stop_variable)
     }
 
-    async fn stop_measurement(&mut self, stop_variable: u8) -> Result<(), Error> {
+    async fn stop_measurement(&mut self, stop_variable: u8) -> Result<()> {
         self.i2c.write_reg_byte(0x80, 0x01).await?;
         self.i2c.write_reg_byte(0xFF, 0x01).await?;
         self.i2c.write_reg_byte(0x00, 0x00).await?;
@@ -69,7 +68,7 @@ impl Vl53L0X {
         Ok(())
     }
 
-    async fn init_data(i2c: &mut I2C) -> Result<u8, Error> {
+    async fn init_data(i2c: &mut I2C) -> Result<u8> {
         // set 2v8 mode
         i2c.set_reg_bits(REG_VHV_CONFIG_PAD_SCL_SDA_EXTSUP_HV, 0x01)
             .await?;
@@ -96,7 +95,7 @@ impl Vl53L0X {
         Ok(stop_variable)
     }
 
-    async fn init_static(i2c: &mut I2C) -> Result<(), Error> {
+    async fn init_static(i2c: &mut I2C) -> Result<()> {
         // load default tuning settings
         i2c.write_reg_byte(0xFF, 0x01).await?;
         i2c.write_reg_byte(0x00, 0x00).await?;
@@ -202,7 +201,7 @@ impl Vl53L0X {
         Ok(())
     }
 
-    async fn perform_ref_calibration(i2c: &mut I2C) -> Result<(), Error> {
+    async fn perform_ref_calibration(i2c: &mut I2C) -> Result<()> {
         Vl53L0X::perform_single_ref_calibration(i2c, 0x01, 0x01 | 0x40).await?;
         Vl53L0X::perform_single_ref_calibration(i2c, 0x02, 0x01).await?;
 
@@ -222,7 +221,7 @@ impl Vl53L0X {
         i2c: &mut I2C,
         sequence_config: u8,
         sysrange_start: u8,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         i2c.write_reg_byte(REG_SYSTEM_SEQUENCE_CONFIG, sequence_config)
             .await?;
         i2c.write_reg_byte(REG_SYSRANGE_START, sysrange_start)
@@ -242,20 +241,12 @@ impl Vl53L0X {
     }
 }
 
-#[async_trait]
-impl WaterLevelSensor for Vl53L0X {
-    async fn measure(
-        &mut self,
-        label: String,
-        cancel_token: CancellationToken,
-    ) -> Result<WaterLevelMeasurement, Error> {
-        if self.stop_variable.is_none() {
-            self.stop_variable = Self::init(&mut self.i2c).await.ok();
-        }
+impl Measure for Vl53L0X {
+    type Measurement = WaterLevelMeasurement;
 
-        let stop_variable = self.stop_variable.ok_or(Error::NotInit)?;
+    async fn measure(&mut self, cancel_token: CancellationToken) -> Result<Self::Measurement> {
         // stop any ongoing measurement
-        self.stop_measurement(stop_variable).await?;
+        self.stop_measurement(self.stop_variable).await?;
         // trigger new range measurement
         self.i2c.write_reg_byte(REG_SYSRANGE_START, 0x01).await?;
 
@@ -263,7 +254,7 @@ impl WaterLevelSensor for Vl53L0X {
         loop {
             tokio::select! {
                 _ = cancel_token.cancelled() => {
-                    return Err(Error::Cancelled);
+                    bail!("Measurement cancelled");
                 },
                 _ = tokio::time::sleep(Duration::from_millis(10)) => {
                     let sysrange_start = self.i2c.read_reg_byte(REG_SYSRANGE_START).await?;
@@ -278,7 +269,7 @@ impl WaterLevelSensor for Vl53L0X {
         loop {
             tokio::select! {
                 _ = cancel_token.cancelled() => {
-                    return Err(Error::Cancelled);
+                    bail!("Measurement cancelled");
                 },
                 _ = tokio::time::sleep(Duration::from_millis(10)) => {
                     let interrupt_status = self.i2c.read_reg_byte(REG_RESULT_INTERRUPT_STATUS).await?;
@@ -289,6 +280,7 @@ impl WaterLevelSensor for Vl53L0X {
             }
         }
         let measure_time = Utc::now().timestamp();
+
         // read measurement result
         let distance = self
             .i2c
@@ -300,8 +292,14 @@ impl WaterLevelSensor for Vl53L0X {
         self.i2c
             .write_reg_byte(REG_SYSTEM_INTERRUPT_CLEAR, 0x01)
             .await?;
-        let measurement = WaterLevelMeasurement::new(measure_time, label).distance(distance);
+
+        let measurement =
+            WaterLevelMeasurement::new(measure_time, self.label.clone()).distance(distance);
 
         Ok(measurement)
+    }
+
+    fn label(&self) -> &str {
+        &self.label
     }
 }

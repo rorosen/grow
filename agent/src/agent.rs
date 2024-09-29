@@ -1,8 +1,12 @@
 use std::env;
 
 use crate::{
-    air::AirManager, config::Config, control::Controller, datastore::DataStore,
-    light::LightManager, water_level::WaterLevelManager,
+    air_manager::AirManager,
+    config::Config,
+    control::Controller,
+    datastore::DataStore,
+    light_sampler::LightSampler,
+    water_level_manager::WaterLevelManager,
 };
 use anyhow::{Context, Result};
 use tokio::{
@@ -80,14 +84,16 @@ impl Agent {
         let fan_controller = Controller::new(&self.config.fan.control, &self.config.gpio_path)
             .context("Failed to initialize fan controller")?;
 
-        let light_manager = LightManager::new(
-            &self.config.light,
-            store.clone(),
+        let light_controller = Controller::new(&self.config.light.control, &self.config.gpio_path)
+            .context("Failed to initilaize light controller")?;
+
+        let light_sampler = LightSampler::new(
+            &self.config.light.sample,
             &self.config.i2c_path,
-            &self.config.gpio_path,
+            store.clone(),
         )
         .await
-        .context("Failed to initialize light manager")?;
+        .context("Failed to initilaize light sampler")?;
 
         let water_level_manager = WaterLevelManager::new(
             &self.config.water_level,
@@ -116,9 +122,14 @@ impl Agent {
                 .instrument(debug_span!("fan controller")),
         );
         set.spawn(
-            light_manager
+            light_controller
                 .run(cancel_token.clone())
-                .instrument(debug_span!("light manager")),
+                .instrument(debug_span!("light controller")),
+        );
+        set.spawn(
+            light_sampler
+                .run(cancel_token.clone())
+                .instrument(debug_span!("light sampler")),
         );
         set.spawn(
             water_level_manager
@@ -139,8 +150,8 @@ impl Agent {
                 res = set.join_next() => {
                     match res {
                         Some(ret) => {
-                            ret.context("Agent task panicked")?
-                                .context("Failed to run agent task")?;
+                            ret.context("Task panicked")?
+                                .context("Failed to run task")?;
                         },
                         None => {
                             info!("All tasks terminated successfully");

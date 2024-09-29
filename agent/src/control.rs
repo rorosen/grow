@@ -2,9 +2,9 @@ use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use chrono::{NaiveTime, Utc};
 use gpio_cdev::{Chip, LineHandle, LineRequestFlags};
-use tracing::{debug, info};
 use std::{path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
+use tracing::{debug, info};
 
 use crate::config::control::ControlConfig;
 
@@ -14,10 +14,7 @@ const GPIO_CONSUMER: &str = "grow-agent";
 
 #[async_trait]
 trait Control {
-    async fn run(
-        &mut self,
-        cancel_token: CancellationToken,
-    ) -> Result<()>;
+    async fn run(&mut self, cancel_token: CancellationToken) -> Result<()>;
 }
 
 pub struct Controller {
@@ -26,7 +23,7 @@ pub struct Controller {
 
 impl Controller {
     pub fn new(config: &ControlConfig, gpio_path: impl AsRef<Path>) -> Result<Self> {
-        let controller: Option<Box<dyn Control + Send>> = match config {
+        let inner: Option<Box<dyn Control + Send>> = match config {
             ControlConfig::Off => None,
             ControlConfig::Cyclic {
                 pin,
@@ -59,7 +56,7 @@ impl Controller {
             }
         };
 
-        Ok(Self { inner: controller })
+        Ok(Self { inner })
     }
 
     pub async fn run(self, cancel_token: CancellationToken) -> Result<()> {
@@ -106,10 +103,7 @@ impl CyclicController {
 
 #[async_trait]
 impl Control for CyclicController {
-    async fn run(
-        &mut self,
-        cancel_token: CancellationToken,
-    ) -> Result<()> {
+    async fn run(&mut self, cancel_token: CancellationToken) -> Result<()> {
         if self.off_duration.is_zero() {
             info!("Activating control pin permanently");
             self.handle
@@ -199,10 +193,7 @@ impl TimeBasedController {
 
 #[async_trait]
 impl Control for TimeBasedController {
-    async fn run(
-        &mut self,
-        cancel_token: CancellationToken,
-    ) -> Result<()> {
+    async fn run(&mut self, cancel_token: CancellationToken) -> Result<()> {
         const ACTION_ACTIVATE: &str = "Activating";
         const ACTION_DEACTIVATE: &str = "Deactivating";
 

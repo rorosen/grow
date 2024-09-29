@@ -1,10 +1,8 @@
-use crate::{air::AirSensor, i2c::I2C, Error};
-use async_trait::async_trait;
+use super::{i2c::I2C, AirMeasurement, Measure};
+use anyhow::{bail, Context, Result};
 use chrono::Utc;
 use std::{path::Path, time::Duration};
 use tokio_util::sync::CancellationToken;
-
-use super::AirMeasurement;
 
 const TEMPERATURE_MAX: u16 = 400;
 const GAS_WAIT_MS_MAX: u16 = 4032;
@@ -317,27 +315,21 @@ impl Params {
 /// BME680
 pub struct Bme680 {
     i2c: I2C,
-    params: Option<Params>,
+    label: String,
+    params: Params,
 }
 
 impl Bme680 {
-    pub async fn new(i2c_path: impl AsRef<Path>, address: u8) -> Result<Self, Error> {
+    pub async fn new(i2c_path: impl AsRef<Path>, address: u8, label: String) -> Result<Self> {
         let mut i2c = I2C::new(i2c_path, address).await?;
-        let params = match Self::init_params(&mut i2c).await {
-            Ok(params) => Some(params),
-            Err(err) => {
-                log::warn!("Failed to initialize BME680 at address 0x{address:02x}: {err}");
-                None
-            }
-        };
+        let params = Self::init_params(&mut i2c).await.with_context(|| {
+            format!("Failed to initialize parameters of BME680 at address 0x{address:02x}")
+        })?;
 
-        Ok(Self { i2c, params })
+        Ok(Self { i2c, label, params })
     }
 
-    async fn read_sensor_data(
-        &mut self,
-        cancel_token: CancellationToken,
-    ) -> Result<SensorData, Error> {
+    async fn read_sensor_data(&mut self, cancel_token: CancellationToken) -> Result<SensorData> {
         let mut buf = [0; DATA_SIZE];
         self.i2c.read_reg_bytes(REG_DATA0, &mut buf).await?;
 
@@ -348,7 +340,7 @@ impl Bme680 {
         loop {
             tokio::select! {
                 _ = cancel_token.cancelled() => {
-                    return Err(Error::Cancelled);
+                    bail!("Measurement cancelled");
                 },
                 _ = tokio::time::sleep(Duration::from_millis(10)) => {
                     self.i2c.read_reg_bytes(REG_DATA0, &mut buf).await?;
@@ -361,7 +353,7 @@ impl Bme680 {
         }
     }
 
-    async fn set_op_mode(&mut self, mode: u8) -> Result<(), Error> {
+    async fn set_op_mode(&mut self, mode: u8) -> Result<()> {
         let ctr_meas = self.i2c.read_reg_byte(REG_CTRL_MEAS).await?;
         self.i2c
             .write_reg_byte(REG_CTRL_MEAS, (ctr_meas & !MODE_MASK) | mode)
@@ -375,7 +367,7 @@ impl Bme680 {
         humidity: u8,
         temperature: u8,
         pressure: u8,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         const OSRS_HMASK: u8 = 0x07;
         const OSRS_TMASK: u8 = 0xE0;
         const OSRS_PMASK: u8 = 0x1C;
@@ -404,20 +396,17 @@ impl Bme680 {
         ambient_temperature: i8,
         temperature: u16,
         duration: u16,
-    ) -> Result<(), Error> {
-        let Some(ref params) = self.params else {
-            return Err(Error::NotInit);
-        };
-
+    ) -> Result<()> {
         self.i2c
             .write_reg_byte(
                 REG_RES_HEAT0,
-                params.calc_heat_resistance(ambient_temperature, temperature),
+                self.params
+                    .calc_heat_resistance(ambient_temperature, temperature),
             )
             .await?;
 
         self.i2c
-            .write_reg_byte(REG_GAS_WAIT0, params.calc_gas_wait(duration))
+            .write_reg_byte(REG_GAS_WAIT0, self.params.calc_gas_wait(duration))
             .await?;
 
         // enable run gas and select heater profile 0
@@ -426,11 +415,11 @@ impl Bme680 {
         Ok(())
     }
 
-    async fn init_params(i2c: &mut I2C) -> Result<Params, Error> {
+    async fn init_params(i2c: &mut I2C) -> Result<Params> {
         let id = i2c.read_reg_byte(REG_CHIP_ID).await?;
 
         if id != CHIP_ID {
-            return Err(Error::Identify);
+            bail!("Failed to identify sensor");
         }
 
         i2c.write_reg_byte(REG_RESET, CMD_SOFT_RESET).await?;
@@ -449,17 +438,10 @@ impl Bme680 {
     }
 }
 
-#[async_trait]
-impl AirSensor for Bme680 {
-    async fn measure(
-        &mut self,
-        label: String,
-        cancel_token: CancellationToken,
-    ) -> Result<AirMeasurement, Error> {
-        if self.params.is_none() {
-            self.params = Self::init_params(&mut self.i2c).await.ok();
-        }
+impl Measure for Bme680 {
+    type Measurement = AirMeasurement;
 
+    async fn measure(&mut self, cancel_token: CancellationToken) -> Result<Self::Measurement> {
         self.set_op_mode(MODE_SLEEP).await?;
         self.ensure_oversampling(OVERSAMPLING_X2, OVERSAMPLING_X2, OVERSAMPLING_X16)
             .await?;
@@ -467,17 +449,22 @@ impl AirSensor for Bme680 {
         self.set_op_mode(MODE_FORCED).await?;
         let data = self.read_sensor_data(cancel_token).await?;
         let measure_time = Utc::now().timestamp();
-        let params = self.params.as_ref().ok_or(Error::NotInit)?;
-        let (t_fine, temperature) = params.calc_temperature(data.temp_adc);
-        let humidity = params.calc_humidity(data.hum_adc, temperature);
-        let pressure = params.calc_pressure(data.press_adc, t_fine) / 100.;
-        let resistance = params.compute_resistance(data.gas_adc, data.gas_range as usize);
-        let measurement = AirMeasurement::new(measure_time, label)
+        let (t_fine, temperature) = self.params.calc_temperature(data.temp_adc);
+        let humidity = self.params.calc_humidity(data.hum_adc, temperature);
+        let pressure = self.params.calc_pressure(data.press_adc, t_fine) / 100.;
+        let resistance = self
+            .params
+            .compute_resistance(data.gas_adc, data.gas_range as usize);
+        let measurement = AirMeasurement::new(measure_time, self.label.clone())
             .temperature(temperature)
             .humidity(humidity)
             .pressure(pressure)
             .resistance(resistance);
 
         Ok(measurement)
+    }
+
+    fn label(&self) -> &str {
+        &self.label
     }
 }
