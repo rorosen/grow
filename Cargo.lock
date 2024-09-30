@@ -590,6 +590,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "grow-sensortest"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "grow-agent",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "grow-server"
 version = "0.1.0"
 dependencies = [

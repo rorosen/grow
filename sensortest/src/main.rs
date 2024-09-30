@@ -1,11 +1,7 @@
 use std::{env, str::FromStr};
 
 use anyhow::{bail, Context, Result};
-use grow_measure::{
-    air::{bme680::Bme680, AirSensor},
-    light::{bh1750fvi::Bh1750Fvi, LightSensor},
-    water_level::{vl53l0x::Vl53L0X, WaterLevelSensor},
-};
+use grow_agent::measure::{bh1750fvi::Bh1750Fvi, bme680::Bme680, vl53l0x::Vl53L0X, Measure};
 use tokio_util::sync::CancellationToken;
 
 const I2C_PATH: &str = "/dev/i2c-1";
@@ -71,16 +67,16 @@ async fn main() -> Result<(), anyhow::Error> {
 
     match &config.variant {
         Variant::Bme680 => {
-            let mut sensor = Bme680::new(I2C_PATH, config.address)
+            let mut sensor = Bme680::new(I2C_PATH, config.address, "test".into())
                 .await
                 .with_context(|| {
                     format!("Failed to initialize BME680 sensor at {}", config.address)
                 })?;
-            let measurement = sensor.measure("test".into(), token).await?;
+            let measurement = sensor.measure(token).await?;
             println!("{measurement:?}");
         }
         Variant::Bh1750Fvi => {
-            let mut sensor = Vl53L0X::new(I2C_PATH, config.address)
+            let mut sensor = Vl53L0X::new(I2C_PATH, config.address, "test".into())
                 .await
                 .with_context(|| {
                     format!(
@@ -88,16 +84,16 @@ async fn main() -> Result<(), anyhow::Error> {
                         config.address
                     )
                 })?;
-            let measurement = sensor.measure("test".into(), token).await?;
+            let measurement = sensor.measure(token).await?;
             println!("{measurement:?}");
         }
         Variant::Vl53L0X => {
-            let mut sensor = Bh1750Fvi::new(I2C_PATH, config.address)
+            let mut sensor = Bh1750Fvi::new(I2C_PATH, config.address, "test".into())
                 .await
                 .with_context(|| {
                     format!("Failed to initialize VL53L0X sensor at {}", config.address)
                 })?;
-            let measurement = sensor.measure("test".into(), token).await?;
+            let measurement = sensor.measure(token).await?;
             println!("{measurement:?}");
         }
     }

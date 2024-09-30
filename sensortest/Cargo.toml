@@ -6,6 +6,6 @@ authors.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-grow-measurements.workspace = true
+grow-agent.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 tokio-util.workspace = true
