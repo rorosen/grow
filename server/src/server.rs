@@ -13,9 +13,7 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use grow_measure::{
-    air::AirMeasurement, light::LightMeasurement, water_level::WaterLevelMeasurement,
-};
+use grow_agent::measure::{AirMeasurement, LightMeasurement, WaterLevelMeasurement};
 use serde::Deserialize;
 use sqlx::SqlitePool;
 use thiserror::Error;

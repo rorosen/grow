@@ -6,9 +6,9 @@ authors.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-axum = "0.7.5"
+axum.workspace = true
 chrono = { workspace = true, features = ["serde"] }
-grow-measure.workspace = true
+grow-agent.workspace = true
 log.workspace = true
 serde = { workspace = true, features = ["derive"] }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"]}
@@ -17,6 +17,6 @@ tokio = { workspace = true, features = [
     "macros",
     "rt-multi-thread",
 ] }
-tower-http = { version = "0.5.2", features = ["trace"] }
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tower-http = { workspace = true, features = ["trace"] }
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
