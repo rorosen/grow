@@ -11,7 +11,7 @@ The agent interfaces with hardware and stores measurements in local databases. S
   [deep water culture](https://en.wikipedia.org/wiki/Deep_water_culture) setups, e.g. the distance
   to the water surface.
 
-Currently only a few sensors are supported but more will follow.
+Currently only a few sensors are supported.
 
 | Type        | Model                                                                                                    | Comment                                                  |
 | ----------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
@@ -31,7 +31,7 @@ nix run github:rorosen/grow#agent -- --print-default-config
 ```
 
 However, notice that the default configuration does exactly nothing as everything is disabled by
-default. It can be used as a template for your configuration. You can omit any item of the config
+default. It can be used as a template for a real configuration. You can omit any item of the config
 that you don't want to configure, meaning that the following configurations are equivalent.
 
 <details>
