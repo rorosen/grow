@@ -21,7 +21,7 @@ pub trait Measure {
 pub struct AirMeasurement {
     /// The number of seconds since unix epoch.
     pub measure_time: i64,
-    /// The label of this measurement, used to organize measurements.
+    /// The label of the sensor that took this measurement.
     pub label: String,
     /// The temperature in degree celsius.
     pub temperature: Option<f64>,
@@ -69,32 +69,12 @@ impl AirMeasurement {
     }
 }
 
-// impl Storable<'_> for AirMeasurement {
-//     fn into_insert_query<'args>(
-//         &self,
-//     ) -> sqlx::query::Query<'args, sqlx::Sqlite, <sqlx::Sqlite as sqlx::Database>::Arguments<'args>>
-//     {
-//         let mut query_builder: QueryBuilder<Sqlite> = QueryBuilder::new(
-//             "INSERT INTO air_measurements(measure_time, label, temperature, humidity, pressure, resistance) ",
-//         );
-//         query_builder
-//             .push_bind(self.measure_time)
-//             .push_bind(self.label)
-//             .push_bind(self.temperature)
-//             .push_bind(self.humidity)
-//             .push_bind(self.pressure)
-//             .push_bind(self.resistance);
-//
-//         query_builder.build()
-//     }
-// }
-
 /// A single light measurement.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, FromRow)]
 pub struct LightMeasurement {
     /// The number of seconds since unix epoch.
     pub measure_time: i64,
-    /// The label of this measurement, used to organize measurements.
+    /// The label of the sensor that took this measurement.
     pub label: String,
     /// The illuminance in lux.
     pub illuminance: Option<f64>,
@@ -115,28 +95,12 @@ impl LightMeasurement {
     }
 }
 
-// impl Storable<'_> for LightMeasurement {
-//     fn into_insert_query<'args>(
-//         &self,
-//     ) -> sqlx::query::Query<'args, sqlx::Sqlite, <sqlx::Sqlite as sqlx::Database>::Arguments<'args>>
-//     {
-//         let mut query_builder: QueryBuilder<Sqlite> =
-//             QueryBuilder::new("INSERT INTO light_measurements(measure_time, label, illuminance) ");
-//         query_builder
-//             .push_bind(self.measure_time)
-//             .push_bind(self.label)
-//             .push_bind(self.illuminance);
-//
-//         query_builder.build()
-//     }
-// }
-
 /// A single water level measurement.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, FromRow)]
 pub struct WaterLevelMeasurement {
     /// The number of seconds since unix epoch.
     pub measure_time: i64,
-    /// The label of this measurement, used to organize measurements.
+    /// The label of the sensor that took this measurement.
     pub label: String,
     /// The distance between the sensor and the water surface in mm.
     pub distance: Option<u32>,
@@ -156,20 +120,3 @@ impl WaterLevelMeasurement {
         self
     }
 }
-
-// impl Storable<'_> for WaterLevelMeasurement {
-//     fn into_insert_query<'args>(
-//         &self,
-//     ) -> sqlx::query::Query<'args, sqlx::Sqlite, <sqlx::Sqlite as sqlx::Database>::Arguments<'args>>
-//     {
-//         let mut query_builder: QueryBuilder<Sqlite> = QueryBuilder::new(
-//             "INSERT INTO water_level_measurements(measure_time, label, distance) ",
-//         );
-//         query_builder
-//             .push_bind(self.measure_time)
-//             .push_bind(self.label)
-//             .push_bind(self.distance);
-//
-//         query_builder.build()
-//     }
-// }
