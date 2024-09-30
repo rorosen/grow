@@ -1,19 +1,19 @@
-use std::{path::Path, time::Duration};
+use std::path::Path;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use futures::future::join_all;
-use tokio::time::{interval, Interval};
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
     config::light::{LightSampleConfig, LightSensorConfig, LightSensorModel},
     datastore::DataStore,
-    measure::bh1750fvi::Bh1750Fvi,
+    measure::{bh1750fvi::Bh1750Fvi, LightMeasurement},
     sample::Sampler,
 };
 
 pub struct LightSampler {
-    interval: Interval,
+    receiver: mpsc::Receiver<Vec<LightMeasurement>>,
     sampler: Sampler<Bh1750Fvi>,
     store: DataStore,
 }
@@ -24,11 +24,6 @@ impl LightSampler {
         i2c_path: &Path,
         store: DataStore,
     ) -> Result<Self> {
-        let period = Duration::from_secs(config.sample_rate_secs);
-        if period.is_zero() {
-            bail!("Sample rate cannot be zero");
-        }
-
         let sensors = join_all(
             config
                 .sensors
@@ -39,29 +34,32 @@ impl LightSampler {
         .into_iter()
         .collect::<Result<Vec<Bh1750Fvi>>>()?;
 
+        let (sender, receiver) = mpsc::channel(8);
+        let sampler = Sampler::new(config.sample_rate_secs, sender, sensors)
+            .context("Failed to initialize light sampler")?;
+
         Ok(Self {
-            interval: interval(period),
-            sampler: Sampler::new(sensors),
+            receiver,
+            sampler,
             store,
         })
     }
 
     pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
+        let mut sampler_handle = tokio::spawn(self.sampler.run(cancel_token.clone()));
+
         loop {
             tokio::select! {
-                _ = self.interval.tick() => {
-                    let measurements = self
-                        .sampler
-                        .take_measurements(cancel_token.clone())
-                        .await
-                        .context("Failed to take light measurements")?;
-
+                Some(measurements) = self.receiver.recv() => {
                     self.store
                         .add_light_measurements(measurements)
                         .await
-                        .context("Failed to store light measurements")?;
+                        .context("Failed to store water level measurements")?;
                 }
-                _ = cancel_token.cancelled() => {
+                res = &mut sampler_handle => {
+                    res.context("Light sampler panicked")?
+                        .context("Failed to run light sampler")?;
+
                     return Ok(());
                 }
             }

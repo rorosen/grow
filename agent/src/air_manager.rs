@@ -2,21 +2,19 @@ use crate::{
     config::air::{AirConfig, AirSensorConfig, AirSensorModel},
     control::Controller,
     datastore::DataStore,
-    measure::bme680::Bme680,
+    measure::{bme680::Bme680, AirMeasurement},
     sample::Sampler,
 };
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use futures::future::join_all;
-use std::{path::Path, time::Duration};
-use tokio::
-    time::{interval, Interval}
-;
+use std::path::Path;
+use tokio::{sync::mpsc, task::JoinSet};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug_span, Instrument};
 
 pub struct AirManager {
     controller: Controller,
-    interval: Interval,
+    receiver: mpsc::Receiver<Vec<AirMeasurement>>,
     sampler: Sampler<Bme680>,
     store: DataStore,
 }
@@ -31,11 +29,6 @@ impl AirManager {
         let controller = Controller::new(&config.control, &gpio_path)
             .context("Failed to initialize air controller")?;
 
-        let period = Duration::from_secs(config.sample.sample_rate_secs);
-        if period.is_zero() {
-            bail!("Sample rate cannot be zero");
-        }
-
         let sensors = join_all(
             config
                 .sample
@@ -47,38 +40,47 @@ impl AirManager {
         .into_iter()
         .collect::<Result<Vec<Bme680>>>()?;
 
+        let (sender, receiver) = mpsc::channel(8);
+        let sampler = Sampler::new(config.sample.sample_rate_secs, sender, sensors)
+            .context("Failed to initialize air sampler")?;
+
         Ok(Self {
             controller,
-            interval: interval(period),
-            sampler: Sampler::new(sensors),
+            receiver,
+            sampler,
             store,
         })
     }
 
     pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
-        let mut controller_handle = tokio::spawn(
+        let mut set = JoinSet::new();
+        set.spawn(
             self.controller
                 .run(cancel_token.clone())
                 .instrument(debug_span!("controller")),
         );
+        set.spawn(
+            self.sampler
+                .run(cancel_token.clone())
+                .instrument(debug_span!("sampler")),
+        );
 
         loop {
             tokio::select! {
-                _ = self.interval.tick() => {
-                    let measurements = self
-                        .sampler
-                        .take_measurements(cancel_token.clone())
-                        .await
-                        .context("Failed to take air measurements")?;
-
+                res = set.join_next() => {
+                    match res {
+                        Some(ret) => {
+                            ret.context("Air manager task panicked")?
+                                .context("Failed to run air manager task")?;
+                        },
+                        None => return Ok(()),
+                    }
+                }
+                Some(measurements) = self.receiver.recv() => {
                     self.store
                         .add_air_measurements(measurements)
                         .await
                         .context("Failed to store air measurements")?;
-                }
-                res = &mut controller_handle => {
-                    res.context("Air controller panicked")?
-                        .context("Failed to run air controller")?;
                 }
             }
         }

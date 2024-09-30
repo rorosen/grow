@@ -1,22 +1,22 @@
-use std::{path::Path, time::Duration};
+use std::path::Path;
 
 use crate::{
     config::water_level::{WaterLevelConfig, WaterLevelSensorConfig, WaterLevelSensorModel},
     control::Controller,
     datastore::DataStore,
-    measure::vl53l0x::Vl53L0X,
+    measure::{vl53l0x::Vl53L0X, WaterLevelMeasurement},
     sample::Sampler,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use futures::future::join_all;
-use tokio::time::{interval, Interval};
+use tokio::{sync::mpsc, task::JoinSet};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug_span, Instrument};
 
 pub struct WaterLevelManager {
     controller: Controller,
-    interval: Interval,
+    receiver: mpsc::Receiver<Vec<WaterLevelMeasurement>>,
     sampler: Sampler<Vl53L0X>,
     store: DataStore,
 }
@@ -31,11 +31,6 @@ impl WaterLevelManager {
         let controller = Controller::new(&config.control, &gpio_path)
             .context("Failed to initialize water level controller")?;
 
-        let period = Duration::from_secs(config.sample.sample_rate_secs);
-        if period.is_zero() {
-            bail!("Sample rate cannot be zero");
-        }
-
         let sensors = join_all(
             config
                 .sample
@@ -47,38 +42,47 @@ impl WaterLevelManager {
         .into_iter()
         .collect::<Result<Vec<Vl53L0X>>>()?;
 
+        let (sender, receiver) = mpsc::channel(8);
+        let sampler = Sampler::new(config.sample.sample_rate_secs, sender, sensors)
+            .context("Failed to initialize water level sampler")?;
+
         Ok(Self {
             controller,
-            interval: interval(period),
-            sampler: Sampler::new(sensors),
+            receiver,
+            sampler,
             store,
         })
     }
 
     pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
-        let mut controller_handle = tokio::spawn(
+        let mut set = JoinSet::new();
+        set.spawn(
             self.controller
                 .run(cancel_token.clone())
                 .instrument(debug_span!("controller")),
         );
+        set.spawn(
+            self.sampler
+                .run(cancel_token.clone())
+                .instrument(debug_span!("sampler")),
+        );
 
         loop {
             tokio::select! {
-                _ = self.interval.tick() => {
-                    let measurements = self
-                        .sampler
-                        .take_measurements(cancel_token.clone())
-                        .await
-                        .context("Failed to take water level measurements")?;
-
+                res = set.join_next() => {
+                    match res {
+                        Some(ret) => {
+                            ret.context("Water level task panicked")?
+                                .context("Failed to run water level task")?;
+                        },
+                        None => return Ok(()),
+                    }
+                }
+                Some(measurements) = self.receiver.recv() => {
                     self.store
                         .add_water_level_measurements(measurements)
                         .await
                         .context("Failed to store water level measurements")?;
-                }
-                res = &mut controller_handle => {
-                    res.context("Water level controller panicked")?
-                        .context("Failed to run water level controller")?;
                 }
             }
         }
