@@ -27,4 +27,13 @@ pub enum ControlConfig {
         /// The time of the day when the control pin should be deactivated.
         deactivate_time: NaiveTime,
     },
+    /// Activate and deactivate the control pin based on measured values.
+    Feedback {
+        /// The GPIO pin used for control.
+        pin: u32,
+        /// The condition that activates the control pin.
+        activate_condition: String,
+        /// The condition that deactivates the control pin.
+        deactivate_condition: String,
+    }
 }

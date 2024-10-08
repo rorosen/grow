@@ -1,0 +1,10 @@
+condition = { SOI ~ field ~ comparator ~ value ~ EOI }
+field = { ASCII_ALPHA+ }
+comparator = { gt_eq | gt | lt_eq | lt }
+value = @{ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT*)?  }
+gt    = { ">" }
+gt_eq = { ">=" }
+lt    = { "<" }
+lt_eq = { "<=" }
+
+WHITESPACE = _{ " " | "\t" }

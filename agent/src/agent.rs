@@ -1,14 +1,14 @@
-use std::env;
+use std::{env, path::Path};
 
 use crate::{
     air_manager::AirManager,
-    config::Config,
+    config::{control::ControlConfig, Config},
     control::Controller,
     datastore::DataStore,
     light_sampler::LightSampler,
     water_level_manager::WaterLevelManager,
 };
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use tokio::{
     signal::unix::{signal, SignalKind},
     task::{spawn_blocking, JoinSet},
@@ -78,14 +78,16 @@ impl Agent {
         .context("Failed to initialize air manager")?;
 
         let air_pump_controller =
-            Controller::new(&self.config.air_pump.control, &self.config.gpio_path)
+            Self::init_controller(&self.config.air_pump.control, &self.config.gpio_path)
                 .context("Failed to initialize air pump controller")?;
 
-        let fan_controller = Controller::new(&self.config.fan.control, &self.config.gpio_path)
-            .context("Failed to initialize fan controller")?;
+        let fan_controller =
+            Self::init_controller(&self.config.fan.control, &self.config.gpio_path)
+                .context("Failed to initialize fan controller")?;
 
-        let light_controller = Controller::new(&self.config.light.control, &self.config.gpio_path)
-            .context("Failed to initilaize light controller")?;
+        let light_controller =
+            Self::init_controller(&self.config.light.control, &self.config.gpio_path)
+                .context("Failed to initilaize light controller")?;
 
         let light_sampler = LightSampler::new(
             &self.config.light.sample,
@@ -159,6 +161,25 @@ impl Agent {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    fn init_controller(config: &ControlConfig, gpio_path: impl AsRef<Path>) -> Result<Controller> {
+        match &config {
+            ControlConfig::Off => Ok(Controller::new_disabled()),
+            ControlConfig::Cyclic {
+                pin,
+                on_duration_secs,
+                off_duration_secs,
+            } => Controller::new_cyclic(gpio_path, *pin, *on_duration_secs, *off_duration_secs),
+            ControlConfig::TimeBased {
+                pin,
+                activate_time,
+                deactivate_time,
+            } => Controller::new_time_based(gpio_path, *pin, *activate_time, *deactivate_time),
+            ControlConfig::Feedback { .. } => {
+                bail!("Feedback control is not implement for this type")
             }
         }
     }

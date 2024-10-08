@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use futures::future::join_all;
-use tokio::sync::mpsc;
+use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
@@ -13,7 +13,7 @@ use crate::{
 };
 
 pub struct LightSampler {
-    receiver: mpsc::Receiver<Vec<LightMeasurement>>,
+    receiver: broadcast::Receiver<Vec<LightMeasurement>>,
     sampler: Sampler<Bh1750Fvi>,
     store: DataStore,
 }
@@ -34,7 +34,7 @@ impl LightSampler {
         .into_iter()
         .collect::<Result<Vec<Bh1750Fvi>>>()?;
 
-        let (sender, receiver) = mpsc::channel(8);
+        let (sender, receiver) = broadcast::channel(8);
         let sampler = Sampler::new(config.sample_rate_secs, sender, sensors)
             .context("Failed to initialize light sampler")?;
 
@@ -50,7 +50,7 @@ impl LightSampler {
 
         loop {
             tokio::select! {
-                Some(measurements) = self.receiver.recv() => {
+                Ok(measurements) = self.receiver.recv() => {
                     self.store
                         .add_light_measurements(measurements)
                         .await

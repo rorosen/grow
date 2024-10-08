@@ -6,48 +6,64 @@
 }:
 let
   cfg = config.services.grow-agent;
-  controlOptions = {
-    mode = lib.mkOption {
-      type = lib.types.enum [
-        "Off"
-        "Cyclic"
-        "TimeBased"
-      ];
-      example = "Cyclic";
-      default = "Off";
+  mkControlOptions =
+    {
+      feedbackControl ? false,
+    }:
+    {
+      mode = lib.mkOption {
+        type =
+          lib.types.enum [
+            "Off"
+            "Cyclic"
+            "TimeBased"
+          ]
+          ++ (lib.optional feedbackControl "Feedback");
+        example = "Cyclic";
+        default = "Off";
+      };
+      pin = lib.mkOption {
+        type = lib.types.ints.u8;
+        example = 24;
+        description = "The GPIO pin used for control.";
+      };
+      on_duration_secs = lib.mkOption {
+        type = lib.types.ints.unsigned;
+        example = 300;
+        description = ''
+          The duration in seconds for which the control pin should be activated
+          (0 means never). Only has an effect in cyclic mode.
+        '';
+      };
+      off_duration_secs = lib.mkOption {
+        type = lib.types.ints.unsigned;
+        example = 600;
+        description = ''
+          The duration in seconds for which the control pin should be Deactivated
+          (0 means never). Only has an effect in cyclic mode.
+        '';
+      };
+      activate_time = lib.mkOption {
+        type = lib.types.nonEmptyStr;
+        example = "10:00:00";
+        description = "Time of the day to activate the control pin.";
+      };
+      deactivate_time = lib.mkOption {
+        type = lib.types.nonEmptyStr;
+        example = "22:00:00";
+        description = "Time of the day to deactivate the control pin.";
+      };
+      activate_condition = lib.mkOption {
+        type = lib.types.nonEmptyStr;
+        example = "some_value > 100";
+        description = "The condition that activates the control pin.";
+      };
+      deactivate_condition = lib.mkOption {
+        type = lib.types.nonEmptyStr;
+        example = "another_value <= 69";
+        description = "The condition that deactivates the control pin.";
+      };
     };
-    pin = lib.mkOption {
-      type = lib.types.ints.u8;
-      example = 24;
-      description = "The GPIO pin used to control the air pump.";
-    };
-    on_duration_secs = lib.mkOption {
-      type = lib.types.ints.unsigned;
-      example = 300;
-      description = ''
-        The duration in seconds for which the air pump control pin should
-        be activated (0 means never). Only has an effect in cyclic mode.
-      '';
-    };
-    off_duration_secs = lib.mkOption {
-      type = lib.types.ints.unsigned;
-      example = 600;
-      description = ''
-        The duration in seconds for which the air pump control pin should
-        be deactivated (0 means never). Only has an effect in cyclic mode.
-      '';
-    };
-    activate_time = lib.mkOption {
-      type = lib.types.nonEmptyStr;
-      example = "10:00:00";
-      description = "Time of the day to activate the light control pin.";
-    };
-    deactivate_time = lib.mkOption {
-      type = lib.types.nonEmptyStr;
-      example = "22:00:00";
-      description = "Time of the day to deactivate the light control pin.";
-    };
-  };
 
   mkSampleOptions = models: {
     sample_rate_secs = lib.mkOption {
@@ -122,21 +138,21 @@ in
       };
 
       air = {
-        control = controlOptions;
+        control = mkControlOptions { feedbackControl = true; };
         sample = mkSampleOptions [ "Bme680" ];
       };
 
-      air_pump.control = controlOptions;
-      fan.control = controlOptions;
+      air_pump.control = mkControlOptions;
+      fan.control = mkControlOptions;
 
       light = {
         sample = mkSampleOptions [ "Bh1750Fvi" ];
-        control = controlOptions;
+        control = mkControlOptions;
       };
 
       water_level = {
         sample = mkSampleOptions [ "Vl53L0X" ];
-        control = controlOptions;
+        control = mkControlOptions { feedbackControl = true; };
       };
     };
   };
@@ -161,6 +177,15 @@ in
               pin
               on_duration_secs
               off_duration_secs
+              ;
+          }
+        else if opts.mode == "Feedback" then
+          {
+            inherit (opts)
+              mode
+              pin
+              activate_condition
+              deactivate_condition
               ;
           }
         else

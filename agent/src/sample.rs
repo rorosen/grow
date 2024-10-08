@@ -1,15 +1,18 @@
 use std::time::Duration;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use futures::future::join_all;
-use tokio::{sync::mpsc, time::interval};
+use tokio::{
+    sync::broadcast,
+    time::interval,
+};
 use tokio_util::sync::CancellationToken;
 
 use crate::measure::Measure;
 
 pub struct Sampler<M: Measure> {
     period: Duration,
-    sender: mpsc::Sender<Vec<M::Measurement>>,
+    sender: broadcast::Sender<Vec<M::Measurement>>,
     sensors: Vec<M>,
 }
 
@@ -20,7 +23,7 @@ where
 {
     pub fn new(
         sample_rate_secs: u64,
-        sender: mpsc::Sender<Vec<M::Measurement>>,
+        sender: broadcast::Sender<Vec<M::Measurement>>,
         sensors: Vec<M>,
     ) -> Result<Self> {
         let period = Duration::from_secs(sample_rate_secs);
@@ -41,6 +44,7 @@ where
         }
 
         let mut interval = interval(self.period);
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             tokio::select! {
                 _ = interval.tick() => {
@@ -56,7 +60,7 @@ where
 
                     self.sender
                         .send(measurements)
-                        .await
+                        .map_err(|_| anyhow!("channel closed"))
                         .context("Failed to send measurements")?;
                 }
                 _ = cancel_token.cancelled() => {

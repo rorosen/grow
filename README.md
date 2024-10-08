@@ -6,10 +6,10 @@ It is focused on indoor use, but can also be used outdoors or in mixed scenarios
 ## Features
 
 - Measurement of environmental data through sensors
-- Structured storage of measurements in local databases
 - Easy integration with monitoring and visualization tools, e.g. [Grafana](https://grafana.com)
-- Control of various actuators via GPIOs
+- Feedback control based on measured data
 - Highly configurable for different use cases
+- Structured storage of measurements in local databases
 - Easy installation and maintenance with the help of [Nix](https://nixos.org/)
 
 ## Installation
@@ -32,7 +32,7 @@ The [NixOS modules](./nix/modules/default.nix) provide a very convenient way to 
 configure everything together with a pre-provisioned Grafana instance. If you don't have Nix
 installed already, check out the
 [Determinate Nix Installer](https://determinate.systems/posts/determinate-nix-installer/), it boils
-down to one command. Check out the [Nix Raspberry Pi SD image example](./examples/nix-rpi-sd-image)
+down to one command. See the [Nix Raspberry Pi SD image example](./examples/nix-rpi-sd-image)
 to build a ready-to-run image for a Raspberry Pi 4 that you can flash on an SD card and plug into
 your Pi, no further configuration is needed.
 

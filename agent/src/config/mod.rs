@@ -164,10 +164,10 @@ mod tests {
             },
             "water_level": {
                 "control": {
-                    "mode": "TimeBased",
+                    "mode": "Feedback",
                     "pin": 17,
-                    "activate_time": "9:00:00",
-                    "deactivate_time": "9:01:30"
+                    "activate_condition": "distance > 1",
+                    "deactivate_condition": "distance > 9"
                 },
                 "sample": {
                     "sample_rate_secs": 86400,
@@ -254,12 +254,10 @@ mod tests {
                 },
             },
             water_level: WaterLevelConfig {
-                control: ControlConfig::TimeBased {
+                control: ControlConfig::Feedback {
                     pin: 17,
-                    activate_time: NaiveTime::from_hms_opt(9, 0, 0)
-                        .expect("Failed to craete NaiveTime"),
-                    deactivate_time: NaiveTime::from_hms_opt(9, 1, 30)
-                        .expect("Failed to craete NaiveTime"),
+                    activate_condition: String::from("distance > 1"),
+                    deactivate_condition: String::from("distance > 9"),
                 },
                 sample: WaterLevelSampleConfig {
                     sample_rate_secs: 86400,
