@@ -62,6 +62,7 @@ pub trait Control {
     async fn run(&mut self, cancel_token: CancellationToken) -> Result<()>;
 }
 
+// TODO: deactivate pin before terminating
 pub struct Controller {
     inner: Option<Box<dyn Control + Send>>,
 }
@@ -74,14 +75,14 @@ impl Controller {
     pub fn new_cyclic(
         gpio_path: impl AsRef<Path>,
         pin: u32,
-        on_duration_secs: u64,
-        off_duration_secs: u64,
+        on_duration: Duration,
+        off_duration: Duration,
     ) -> Result<Self> {
         let controller = CyclicController::new(
             gpio_path,
             pin,
-            Duration::from_secs(on_duration_secs),
-            Duration::from_secs(off_duration_secs),
+            on_duration,
+            off_duration,
         )
         .context("Failed to initilaize cyclic controller")?;
 

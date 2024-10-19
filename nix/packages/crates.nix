@@ -2,27 +2,36 @@
   lib,
   craneLib,
   stdenv,
+  python3,
 }:
 let
   isAarch64 = stdenv.targetPlatform.system == "aarch64-linux";
-  sqlFilter = path: _type: builtins.match ".*\.sql$" path != null;
-  sqlOrCargo = path: type: (sqlFilter path type) || (craneLib.filterCargoSources path type);
+  isCross = with stdenv; buildPlatform.system != targetPlatform.system;
+  assetFilter = path: _type: builtins.match ".*\.pest$|.*\.sql$" path != null;
+  sourceFilter = path: type: (assetFilter path type) || (craneLib.filterCargoSources path type);
   cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 
   commonArgs =
     {
       src = lib.cleanSourceWith {
         src = craneLib.path ./../..;
-        filter = sqlOrCargo;
+        filter = sourceFilter;
       };
       strictDeps = true;
       doCheck = true;
+      nativeBuildInputs = [
+        python3
+      ];
     }
     // (lib.optionalAttrs isAarch64 {
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER = "${stdenv.cc.targetPrefix}cc";
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER = "qemu-aarch64";
       HOST_CC = "${stdenv.cc.nativePrefix}cc";
       TARGET_CC = "${stdenv.cc.targetPrefix}cc";
+    })
+    // (lib.optionalAttrs isCross {
+      PYO3_CROSS_PYTHON_VERSION = python3.pythonVersion;
+      RUSTFLAGS = "-L ${python3}/lib";
     });
 
   crateArgs =
@@ -32,7 +41,11 @@ let
         "--package=${pname}" + lib.optionalString isAarch64 " --target aarch64-unknown-linux-gnu";
     in
     {
-      inherit pname cargoArtifacts cargoExtraArgs;
+      inherit
+        cargoArtifacts
+        cargoExtraArgs
+        pname
+        ;
     };
 
   agent = craneLib.buildPackage (

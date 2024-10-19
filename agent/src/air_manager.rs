@@ -1,11 +1,8 @@
 use crate::{
-    config::{
-        air::{AirConfig, AirSensorConfig, AirSensorModel},
-        control::ControlConfig,
-    },
+    config::{control::ControlConfig, AirConfig},
     control::Controller,
     datastore::DataStore,
-    measure::{bme680::Bme680, AirMeasurement},
+    measure::AirMeasurement,
     sample::Sampler,
 };
 use anyhow::{bail, Context, Result};
@@ -21,7 +18,7 @@ use tracing::{debug_span, warn, Instrument};
 pub struct AirManager {
     controller: Controller,
     receiver: broadcast::Receiver<Vec<AirMeasurement>>,
-    sampler: Sampler<Bme680>,
+    sampler: Sampler<AirMeasurement>,
     store: DataStore,
 }
 
@@ -37,9 +34,9 @@ impl AirManager {
             ControlConfig::Off => Controller::new_disabled(),
             ControlConfig::Cyclic {
                 pin,
-                on_duration_secs,
-                off_duration_secs,
-            } => Controller::new_cyclic(gpio_path, *pin, *on_duration_secs, *off_duration_secs)?,
+                on_duration,
+                off_duration,
+            } => Controller::new_cyclic(gpio_path, *pin, *on_duration, *off_duration)?,
             ControlConfig::TimeBased {
                 pin,
                 activate_time,
@@ -50,13 +47,13 @@ impl AirManager {
                 activate_condition,
                 deactivate_condition,
             } => {
-                if config.sample.sensors.is_empty() {
-                    bail!("Feedback control requires at least one activated air sensor");
-                }
+                // if config.sample.sensors.is_empty() {
+                //     bail!("Feedback control requires at least one activated air sensor");
+                // }
 
                 Controller::new_threshold(
-                    activate_condition,
-                    deactivate_condition,
+                    &activate_condition,
+                    &deactivate_condition,
                     gpio_path,
                     *pin,
                     sender.subscribe(),
@@ -64,19 +61,28 @@ impl AirManager {
             }
         };
 
-        let sensors = join_all(
-            config
-                .sample
-                .sensors
-                .iter()
-                .map(|(label, config)| Self::init_sensor(config, label, i2c_path)),
-        )
-        .await
-        .into_iter()
-        .collect::<Result<Vec<Bme680>>>()?;
+        let sampler = match &config.sample {
+            crate::config::sample::SampleConfig::Off => todo!(),
+            crate::config::sample::SampleConfig::Interval {
+                period,
+                script_path,
+            } => Sampler::new(*period, script_path, sender)
+                .context("Failed to initialize sampler")?,
+        };
 
-        let sampler = Sampler::new(config.sample.sample_rate_secs, sender, sensors)
-            .context("Failed to initialize air sampler")?;
+        // let sensors = join_all(
+        //     config
+        //         .sample
+        //         .sensors
+        //         .iter()
+        //         .map(|(label, config)| Self::init_sensor(config, label, i2c_path)),
+        // )
+        // .await
+        // .into_iter()
+        // .collect::<Result<Vec<Bme680>>>()?;
+        //
+        // let sampler = Sampler::new(config.sample.sample_rate_secs, sender, sensors)
+        //     .context("Failed to initialize air sampler")?;
 
         Ok(Self {
             controller,
@@ -120,9 +126,9 @@ impl AirManager {
                         },
                         Err(RecvError::Lagged(num_skipped)) => warn!("Skipping {num_skipped} measurements due to lagging"),
                         Err(RecvError::Closed) => {
-                            if !cancel_token.is_cancelled() {
-                                bail!("Failed to receive measurements: {}", RecvError::Closed)
-                            }
+                            // if !cancel_token.is_cancelled() {
+                            //     bail!("Air Manager Failed to receive measurements: {}", RecvError::Closed)
+                            // }
                         }
                     }
                 }
@@ -130,15 +136,15 @@ impl AirManager {
         }
     }
 
-    async fn init_sensor(
-        config: &AirSensorConfig,
-        label: &str,
-        i2c_path: impl AsRef<Path>,
-    ) -> Result<Bme680> {
-        match config.model {
-            AirSensorModel::Bme680 => Bme680::new(i2c_path, config.address, label.to_owned())
-                .await
-                .with_context(|| format!("Failed to initialize {:?} air sensor", label)),
-        }
-    }
+    // async fn init_sensor(
+    //     config: &AirSensorConfig,
+    //     label: &str,
+    //     i2c_path: impl AsRef<Path>,
+    // ) -> Result<Bme680> {
+    //     match config.model {
+    //         AirSensorModel::Bme680 => Bme680::new(i2c_path, config.address, label.to_owned())
+    //             .await
+    //             .with_context(|| format!("Failed to initialize {:?} air sensor", label)),
+    //     }
+    // }
 }

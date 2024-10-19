@@ -1,48 +1,38 @@
-use std::path::Path;
-
-use anyhow::{Context, Result};
-use futures::future::join_all;
-use tokio::sync::broadcast;
+use anyhow::{bail, Context, Result};
+use tokio::sync::broadcast::{self, error::RecvError};
 use tokio_util::sync::CancellationToken;
+use tracing::warn;
 
 use crate::{
-    config::light::{LightSampleConfig, LightSensorConfig, LightSensorModel},
-    datastore::DataStore,
-    measure::{bh1750fvi::Bh1750Fvi, LightMeasurement},
-    sample::Sampler,
+    config::sample::SampleConfig, datastore::DataStore, measure::LightMeasurement, sample::Sampler,
 };
 
 pub struct LightSampler {
     receiver: broadcast::Receiver<Vec<LightMeasurement>>,
-    sampler: Sampler<Bh1750Fvi>,
+    sampler: Sampler<LightMeasurement>,
     store: DataStore,
 }
 
 impl LightSampler {
-    pub async fn new(
-        config: &LightSampleConfig,
-        i2c_path: &Path,
-        store: DataStore,
-    ) -> Result<Self> {
-        let sensors = join_all(
-            config
-                .sensors
-                .iter()
-                .map(|(label, config)| Self::init_sensor(config, label, i2c_path)),
-        )
-        .await
-        .into_iter()
-        .collect::<Result<Vec<Bh1750Fvi>>>()?;
+    pub async fn new(config: &SampleConfig, store: DataStore) -> Result<Option<Self>> {
+        match config {
+            SampleConfig::Off => None,
+            SampleConfig::Interval {
+                period,
+                script_path,
+            } => {
+                let (sender, receiver) = broadcast::channel(8);
+                let sampler = Sampler::new(*period, script_path, sender)
+                    .context("Failed to initialize light sampler")?;
 
-        let (sender, receiver) = broadcast::channel(8);
-        let sampler = Sampler::new(config.sample_rate_secs, sender, sensors)
-            .context("Failed to initialize light sampler")?;
-
-        Ok(Self {
-            receiver,
-            sampler,
-            store,
-        })
+                Some(Ok(Self {
+                    receiver,
+                    sampler,
+                    store,
+                }))
+            }
+        }
+        .transpose()
     }
 
     pub async fn run(mut self, cancel_token: CancellationToken) -> Result<()> {
@@ -50,11 +40,17 @@ impl LightSampler {
 
         loop {
             tokio::select! {
-                Ok(measurements) = self.receiver.recv() => {
-                    self.store
-                        .add_light_measurements(measurements)
-                        .await
-                        .context("Failed to store water level measurements")?;
+                res = self.receiver.recv(), if !cancel_token.is_cancelled() => {
+                    match res {
+                        Ok(measurements) => {
+                            self.store
+                                .add_light_measurements(measurements)
+                                .await
+                                .context("Failed to store light measurements")?;
+                        },
+                        Err(RecvError::Lagged(num_skipped)) => warn!("Skipping {num_skipped} measurements due to lagging"),
+                        Err(RecvError::Closed) => bail!("Failed to receive measurements: {}", RecvError::Closed),
+                    }
                 }
                 res = &mut sampler_handle => {
                     res.context("Light sampler panicked")?
@@ -62,20 +58,6 @@ impl LightSampler {
 
                     return Ok(());
                 }
-            }
-        }
-    }
-
-    async fn init_sensor(
-        config: &LightSensorConfig,
-        label: &str,
-        i2c_path: impl AsRef<Path>,
-    ) -> Result<Bh1750Fvi> {
-        match config.model {
-            LightSensorModel::Bh1750Fvi => {
-                Bh1750Fvi::new(i2c_path, config.address, label.to_owned())
-                    .await
-                    .with_context(|| format!("Failed to initialize {:?} light sensor", label))
             }
         }
     }

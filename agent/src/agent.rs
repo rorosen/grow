@@ -8,7 +8,7 @@ use crate::{
     light_sampler::LightSampler,
     water_level_manager::WaterLevelManager,
 };
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use tokio::{
     signal::unix::{signal, SignalKind},
     task::{spawn_blocking, JoinSet},
@@ -20,6 +20,8 @@ use tracing::{debug_span, info, Instrument as _};
 pub struct Agent {
     config: Config,
     state_dir: String,
+    cancel_token: CancellationToken,
+    set: JoinSet<Result<()>>,
 }
 
 impl Agent {
@@ -40,7 +42,13 @@ impl Agent {
         .await
         .context("Panic while initializing config")??;
 
-        Ok(Self { config, state_dir })
+        Ok(Self {
+            config,
+            state_dir,
+            cancel_token: CancellationToken::new(),
+            set: JoinSet::new(),
+
+        })
     }
 
     fn first_systemd_dir(name: &str) -> Result<String> {
@@ -55,7 +63,7 @@ impl Agent {
         Ok(dir)
     }
 
-    pub async fn run(self) -> Result<()> {
+    pub async fn run(&mut self) -> Result<()> {
         let mut sigint =
             signal(SignalKind::interrupt()).context("Failed to register SIGINT handler")?;
         let mut sigterm =
@@ -76,111 +84,146 @@ impl Agent {
         )
         .await
         .context("Failed to initialize air manager")?;
-
-        let air_pump_controller =
-            Self::init_controller(&self.config.air_pump.control, &self.config.gpio_path)
-                .context("Failed to initialize air pump controller")?;
-
-        let fan_controller =
-            Self::init_controller(&self.config.fan.control, &self.config.gpio_path)
-                .context("Failed to initialize fan controller")?;
-
-        let light_controller =
-            Self::init_controller(&self.config.light.control, &self.config.gpio_path)
-                .context("Failed to initilaize light controller")?;
-
-        let light_sampler = LightSampler::new(
-            &self.config.light.sample,
-            &self.config.i2c_path,
-            store.clone(),
-        )
-        .await
-        .context("Failed to initilaize light sampler")?;
-
-        let water_level_manager = WaterLevelManager::new(
-            &self.config.water_level,
-            store,
-            &self.config.i2c_path,
-            &self.config.gpio_path,
-        )
-        .await
-        .context("Failed to initialize water level manager")?;
-
-        let cancel_token = CancellationToken::new();
-        let mut set = JoinSet::new();
-        set.spawn(
+        self.set.spawn(
             air_manager
-                .run(cancel_token.clone())
+                .run(self.cancel_token.clone())
                 .instrument(debug_span!("air manager")),
         );
-        set.spawn(
-            air_pump_controller
-                .run(cancel_token.clone())
-                .instrument(debug_span!("air pump controller")),
-        );
-        set.spawn(
-            fan_controller
-                .run(cancel_token.clone())
-                .instrument(debug_span!("fan controller")),
-        );
-        set.spawn(
-            light_controller
-                .run(cancel_token.clone())
-                .instrument(debug_span!("light controller")),
-        );
-        set.spawn(
-            light_sampler
-                .run(cancel_token.clone())
-                .instrument(debug_span!("light sampler")),
-        );
-        set.spawn(
-            water_level_manager
-                .run(cancel_token.clone())
-                .instrument(debug_span!("water level manager")),
-        );
 
-        loop {
-            tokio::select! {
-                _ = sigint.recv() => {
-                    info!("Shutting down on sigint...");
-                    cancel_token.cancel();
-                }
-                _ = sigterm.recv() => {
-                    info!("Shutting down on sigterm...");
-                    cancel_token.cancel();
-                }
-                res = set.join_next() => {
-                    match res {
-                        Some(ret) => {
-                            ret.context("Task panicked")?
-                                .context("Failed to run task")?;
-                        },
-                        None => {
-                            info!("All tasks terminated successfully");
-                            return Ok(());
-                        }
+        // if let Some(air_pump_controller) =
+        //     Self::init_controller(&self.config.air_pump.control, &self.config.gpio_path)
+        //         .context("Failed to initialize air pump controller")?
+        // {
+        //     self.set.spawn(
+        //         air_pump_controller
+        //             .run(self.cancel_token.clone())
+        //             .instrument(debug_span!("air pump controller")),
+        //     );
+        // }
+
+        // if let Some(fan_controller) =
+        //     Self::init_controller(&self.config.fan.control, &self.config.gpio_path)
+        //         .context("Failed to initialize fan controller")?
+        // {
+        //     self.set.spawn(
+        //         fan_controller
+        //             .run(self.cancel_token.clone())
+        //             .instrument(debug_span!("fan controller")),
+        //     );
+        // }
+
+        // if let Some(light_controller) =
+        //     Self::init_controller(&self.config.light.control, &self.config.gpio_path)
+        //         .context("Failed to initilaize light controller")?
+        // {
+        //     self.set.spawn(
+        //         light_controller
+        //             .run(self.cancel_token.clone())
+        //             .instrument(debug_span!("light controller")),
+        //     );
+        // }
+
+        // if let Some(light_sampler) = LightSampler::new(&self.config.light.sample, store.clone())
+        //     .await
+        //     .context("Failed to initilaize light sampler")?
+        // {
+        //     self.set.spawn(
+        //         light_sampler
+        //             .run(self.cancel_token.clone())
+        //             .instrument(debug_span!("light sampler")),
+        //     );
+        // }
+        //
+        // let water_level_manager = WaterLevelManager::new(
+        //     &self.config.water_level,
+        //     store,
+        //     &self.config.i2c_path,
+        //     &self.config.gpio_path,
+        // )
+        // .await
+        // .context("Failed to initialize water level manager")?;
+        // self.set.spawn(
+        //     water_level_manager
+        //         .run(self.cancel_token.clone())
+        //         .instrument(debug_span!("water level manager")),
+        // );
+
+        tokio::select! {
+            _ = sigint.recv() => {
+                info!("Shutting down on sigint...");
+                self.shutdown().await
+            }
+            _ = sigterm.recv() => {
+                info!("Shutting down on sigterm...");
+                self.shutdown().await
+            }
+            opt = self.set.join_next() => {
+                match opt {
+                    Some(Ok(Ok(_))) => bail!("Task terminated unexpectedly"),
+                    Some(Ok(Err(err))) => bail!("Task failed to run: {err:#}"),
+                    Some(Err(err)) => bail!("Task panicked: {err:#}"),
+                    None => {
+                        bail!("All tasks terminated unexpectedly");
                     }
                 }
             }
         }
     }
 
-    fn init_controller(config: &ControlConfig, gpio_path: impl AsRef<Path>) -> Result<Controller> {
+    pub async fn shutdown(&mut self) -> Result<()> {
+        self.cancel_token.cancel();
+        let mut has_error = false;
+        while let Some(res) = self.set.join_next().await {
+            match res {
+                Ok(Ok(_)) => (),
+                Ok(Err(err)) => {
+                    tracing::error!("Task failed during shutdown: {err:#}");
+                    has_error = true;
+                }
+                Err(err) => {
+                    tracing::error!("Task panicked during shutdown: {err:#}");
+                    has_error = true;
+                }
+            }
+        }
+
+        if has_error {
+            bail!("Errors occurred");
+        }
+
+        Ok(())
+    }
+
+    fn init_controller(
+        config: &ControlConfig,
+        gpio_path: impl AsRef<Path>,
+    ) -> Result<Option<Controller>> {
         match &config {
-            ControlConfig::Off => Ok(Controller::new_disabled()),
+            ControlConfig::Off => None,
             ControlConfig::Cyclic {
                 pin,
-                on_duration_secs,
-                off_duration_secs,
-            } => Controller::new_cyclic(gpio_path, *pin, *on_duration_secs, *off_duration_secs),
+                on_duration: on_duration_secs,
+                off_duration: off_duration_secs,
+            } => Some(Controller::new_cyclic(
+                gpio_path,
+                *pin,
+                *on_duration_secs,
+                *off_duration_secs,
+            )),
             ControlConfig::TimeBased {
                 pin,
                 activate_time,
                 deactivate_time,
-            } => Controller::new_time_based(gpio_path, *pin, *activate_time, *deactivate_time),
-            ControlConfig::Feedback { .. } => {
-                bail!("Feedback control is not implement for this type")
-            }
+            } => Some(Controller::new_time_based(
+                gpio_path,
+                *pin,
+                *activate_time,
+                *deactivate_time,
+            )),
+            ControlConfig::Feedback { .. } => Some(Err(anyhow!(
+                "Feedback control is not implemented for this type"
+            ))),
         }
+        .transpose()
     }
 }

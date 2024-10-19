@@ -12,13 +12,14 @@ let
     }:
     {
       mode = lib.mkOption {
-        type =
-          lib.types.enum [
+        type = lib.types.enum (
+          [
             "Off"
             "Cyclic"
             "TimeBased"
           ]
-          ++ (lib.optional feedbackControl "Feedback");
+          ++ (lib.optional feedbackControl "Feedback")
+        );
         example = "Cyclic";
         default = "Off";
       };
@@ -65,41 +66,24 @@ let
       };
     };
 
-  mkSampleOptions = models: {
-    sample_rate_secs = lib.mkOption {
-      type = lib.types.ints.unsigned;
-      example = 1800;
-      description = "Rate in which the sensors will be sampled.";
+  sampleOptions = {
+    mode = lib.mkOption {
+      type = lib.types.enum [
+        "Off"
+        "Interval"
+      ];
+      example = "Interval";
+      default = "Off";
     };
-    sensors = lib.mkOption {
-      type =
-        with lib.types;
-        attrsOf (submodule {
-          options = {
-            model = lib.mkOption {
-              type = lib.types.enum models;
-              description = "The model of the sensor";
-            };
-            address = lib.mkOption {
-              type = lib.types.nonEmptyStr;
-              description = "The address of the sensor";
-            };
-          };
-        });
-      default = { };
-      example = lib.literalExpression ''
-        {
-          left = {
-              model = "some_model";
-              address = "0x79";
-          };
-          right = {
-              model = "another_model";
-              address = "0x46";
-          };
-        }
-      '';
-      description = "The sensors to use.";
+    period = lib.mkOption {
+      type = lib.types.nonEmptyStr;
+      example = "10m30s";
+      description = "The period between two measurements";
+    };
+    script_path = lib.mkOption {
+      type = with lib.types; either nonEmptyStr path;
+      example = "/path/to/script.py";
+      description = "Path to the python script that takes the measurement";
     };
   };
 
@@ -139,19 +123,19 @@ in
 
       air = {
         control = mkControlOptions { feedbackControl = true; };
-        sample = mkSampleOptions [ "Bme680" ];
+        sample = sampleOptions;
       };
 
-      air_pump.control = mkControlOptions;
-      fan.control = mkControlOptions;
+      air_pump.control = mkControlOptions { };
+      fan.control = mkControlOptions { };
 
       light = {
-        sample = mkSampleOptions [ "Bh1750Fvi" ];
-        control = mkControlOptions;
+        sample = sampleOptions;
+        control = mkControlOptions { };
       };
 
       water_level = {
-        sample = mkSampleOptions [ "Vl53L0X" ];
+        sample = sampleOptions;
         control = mkControlOptions { feedbackControl = true; };
       };
     };
@@ -192,7 +176,13 @@ in
           { inherit (opts) mode; };
 
       mkSampleConfig =
-        opts: lib.optionalAttrs (opts.sensors != { }) { inherit (opts) sample_rate_secs sensors; };
+        opts:
+        if opts.mode == "Interval" then
+          {
+            inherit (opts) mode period script_path;
+          }
+        else
+          { inherit (opts) mode; };
 
       agentConfig = {
         air = {

@@ -1,26 +1,26 @@
 use std::path::Path;
 
 use crate::{
-    config::{
-        control::ControlConfig,
-        water_level::{WaterLevelConfig, WaterLevelSensorConfig, WaterLevelSensorModel},
-    },
+    config::{control::ControlConfig, WaterLevelConfig},
     control::Controller,
     datastore::DataStore,
-    measure::{vl53l0x::Vl53L0X, WaterLevelMeasurement},
+    measure::WaterLevelMeasurement,
     sample::Sampler,
 };
 
 use anyhow::{bail, Context, Result};
 use futures::future::join_all;
-use tokio::{sync::broadcast::{self, error::RecvError}, task::JoinSet};
+use tokio::{
+    sync::broadcast::{self, error::RecvError},
+    task::JoinSet,
+};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug_span, warn, Instrument};
 
 pub struct WaterLevelManager {
     controller: Controller,
     receiver: broadcast::Receiver<Vec<WaterLevelMeasurement>>,
-    sampler: Sampler<Vl53L0X>,
+    // sampler: Sampler<Vl53L0X>,
     store: DataStore,
 }
 
@@ -36,9 +36,9 @@ impl WaterLevelManager {
             ControlConfig::Off => Controller::new_disabled(),
             ControlConfig::Cyclic {
                 pin,
-                on_duration_secs,
-                off_duration_secs,
-            } => Controller::new_cyclic(gpio_path, *pin, *on_duration_secs, *off_duration_secs)?,
+                on_duration,
+                off_duration,
+            } => Controller::new_cyclic(gpio_path, *pin, *on_duration, *off_duration)?,
             ControlConfig::TimeBased {
                 pin,
                 activate_time,
@@ -49,38 +49,38 @@ impl WaterLevelManager {
                 activate_condition,
                 deactivate_condition,
             } => {
-                if config.sample.sensors.is_empty() {
-                    bail!("Feedback control requires at least one activated water level sensor");
-                }
+                // if config.sample.sensors.is_empty() {
+                //     bail!("Feedback control requires at least one activated water level sensor");
+                // }
 
                 Controller::new_threshold(
-                activate_condition,
-                deactivate_condition,
-                gpio_path,
-                *pin,
-                sender.subscribe(),
-            )?
-            },
+                    activate_condition,
+                    deactivate_condition,
+                    gpio_path,
+                    *pin,
+                    sender.subscribe(),
+                )?
+            }
         };
 
-        let sensors = join_all(
-            config
-                .sample
-                .sensors
-                .iter()
-                .map(|(label, config)| Self::init_sensor(config, label, i2c_path)),
-        )
-        .await
-        .into_iter()
-        .collect::<Result<Vec<Vl53L0X>>>()?;
-
-        let sampler = Sampler::new(config.sample.sample_rate_secs, sender, sensors)
-            .context("Failed to initialize water level sampler")?;
+        // let sensors = join_all(
+        //     config
+        //         .sample
+        //         .sensors
+        //         .iter()
+        //         .map(|(label, config)| Self::init_sensor(config, label, i2c_path)),
+        // )
+        // .await
+        // .into_iter()
+        // .collect::<Result<Vec<Vl53L0X>>>()?;
+        //
+        // let sampler = Sampler::new(config.sample.sample_rate_secs, sender, sensors)
+        //     .context("Failed to initialize water level sampler")?;
 
         Ok(Self {
             controller,
             receiver,
-            sampler,
+            // sampler,
             store,
         })
     }
@@ -92,11 +92,11 @@ impl WaterLevelManager {
                 .run(cancel_token.clone())
                 .instrument(debug_span!("controller")),
         );
-        set.spawn(
-            self.sampler
-                .run(cancel_token.clone())
-                .instrument(debug_span!("sampler")),
-        );
+        // set.spawn(
+        //     self.sampler
+        //         .run(cancel_token.clone())
+        //         .instrument(debug_span!("sampler")),
+        // );
 
         loop {
             tokio::select! {
@@ -109,7 +109,7 @@ impl WaterLevelManager {
                         None => return Ok(()),
                     }
                 }
-                res = self.receiver.recv() => {
+                res = self.receiver.recv(), if !cancel_token.is_cancelled() => {
                     match res {
                         Ok(measurements) => {
                             self.store
@@ -118,28 +118,24 @@ impl WaterLevelManager {
                                 .context("Failed to store water level measurements")?;
                         },
                         Err(RecvError::Lagged(num_skipped)) => warn!("Skipping {num_skipped} measurements due to lagging"),
-                        Err(RecvError::Closed) => {
-                            if !cancel_token.is_cancelled() {
-                                bail!("Failed to receive measurements: {}", RecvError::Closed)
-                            }
-                        }
+                        Err(RecvError::Closed) => bail!("Failed to receive measurements: {}", RecvError::Closed),
                     }
                 }
             }
         }
     }
 
-    async fn init_sensor(
-        config: &WaterLevelSensorConfig,
-        label: &str,
-        i2c_path: impl AsRef<Path>,
-    ) -> Result<Vl53L0X> {
-        match config.model {
-            WaterLevelSensorModel::Vl53L0X => {
-                Vl53L0X::new(i2c_path, config.address, label.to_owned())
-                    .await
-                    .with_context(|| format!("Failed to initialize {:?} water level sensor", label))
-            }
-        }
-    }
+    // async fn init_sensor(
+    //     config: &WaterLevelSensorConfig,
+    //     label: &str,
+    //     i2c_path: impl AsRef<Path>,
+    // ) -> Result<Vl53L0X> {
+    //     match config.model {
+    //         WaterLevelSensorModel::Vl53L0X => {
+    //             Vl53L0X::new(i2c_path, config.address, label.to_owned())
+    //                 .await
+    //                 .with_context(|| format!("Failed to initialize {:?} water level sensor", label))
+    //         }
+    //     }
+    // }
 }

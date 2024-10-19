@@ -2,7 +2,7 @@ use std::{env, process::ExitCode};
 
 use grow_agent::{agent::Agent, config::Config};
 use tracing::error;
-use tracing_subscriber::{EnvFilter, fmt, prelude::*};
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 const PRINT_DEFAULT_CONFIG: &str = "--print-default-config";
 
@@ -29,7 +29,7 @@ async fn main() -> ExitCode {
                 .with(EnvFilter::from_default_env())
                 .init();
 
-            let agent = match Agent::new().await {
+            let mut agent = match Agent::new().await {
                 Ok(agent) => agent,
                 Err(err) => {
                     error!("Failed to initialize agent: {err:#}");
@@ -37,13 +37,18 @@ async fn main() -> ExitCode {
                 }
             };
 
-            match agent.run().await {
-                Ok(_) => ExitCode::SUCCESS,
-                Err(err) => {
-                    error!("Failed to run agent: {err:#}");
-                    ExitCode::FAILURE
-                }
+            let mut exit_code = ExitCode::SUCCESS;
+            if let Err(err) = agent.run().await {
+                error!("Failed to run agent: {err:#}");
+                exit_code = ExitCode::FAILURE;
             }
+
+            if let Err(err) = agent.shutdown().await {
+                error!("Failed to shutdown agent: {err:#}");
+                exit_code = ExitCode::FAILURE;
+            }
+
+            exit_code
         }
     }
 }

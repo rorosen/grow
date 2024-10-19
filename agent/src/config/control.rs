@@ -1,4 +1,7 @@
+use std::time::Duration;
+
 use chrono::NaiveTime;
+use duration_str::deserialize_duration;
 use serde::{Deserialize, Serialize};
 
 #[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
@@ -13,10 +16,12 @@ pub enum ControlConfig {
         pin: u32,
         /// The duration in seconds for which the control pin should
         /// be activated (0 means never).
-        on_duration_secs: u64,
+        #[serde(deserialize_with = "deserialize_duration")]
+        on_duration: Duration,
         /// The duration in seconds for which the control pin should
         /// be deactivated (0 means never).
-        off_duration_secs: u64,
+        #[serde(deserialize_with = "deserialize_duration")]
+        off_duration: Duration,
     },
     /// Activate and deactivate the control pin based on time stamps.
     TimeBased {
@@ -35,5 +40,11 @@ pub enum ControlConfig {
         activate_condition: String,
         /// The condition that deactivates the control pin.
         deactivate_condition: String,
+    },
+}
+
+impl ControlConfig {
+    pub fn is_enabled(&self) -> bool {
+        !matches!(self, Self::Off)
     }
 }

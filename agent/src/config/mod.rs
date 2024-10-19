@@ -3,20 +3,49 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use air::AirConfig;
-use air_pump::AirPumpConfig;
 use anyhow::{Context, Result};
-use fan::FanConfig;
-use light::LightConfig;
-use serde::{de::Error, Deserialize, Deserializer, Serialize};
-use water_level::WaterLevelConfig;
+use control::ControlConfig;
+use sample::SampleConfig;
+use serde::{Deserialize, Serialize};
 
-pub mod air;
-pub mod air_pump;
-pub mod fan;
-pub mod light;
-pub mod water_level;
 pub mod control;
+pub mod sample;
+
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
+pub struct AirConfig {
+    #[serde(default)]
+    pub control: ControlConfig,
+    #[serde(default)]
+    pub sample: SampleConfig,
+}
+
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
+pub struct AirPumpConfig {
+    #[serde(default)]
+    pub control: ControlConfig,
+}
+
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
+pub struct FanConfig {
+    #[serde(default)]
+    pub control: ControlConfig,
+}
+
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
+pub struct LightConfig {
+    #[serde(default)]
+    pub control: ControlConfig,
+    #[serde(default)]
+    pub sample: SampleConfig,
+}
+
+#[derive(PartialEq, Debug, Default, Serialize, Deserialize)]
+pub struct WaterLevelConfig {
+    #[serde(default)]
+    pub control: ControlConfig,
+    #[serde(default)]
+    pub sample: SampleConfig,
+}
 
 #[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -73,29 +102,15 @@ fn default_grow_id() -> String {
     "grow".into()
 }
 
-fn from_hex<'de, D>(deserializer: D) -> Result<u8, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s: String = Deserialize::deserialize(deserializer)?;
-    let s = s.strip_prefix("0x").unwrap_or(&s);
-    u8::from_str_radix(s, 16).map_err(D::Error::custom)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use air::{AirSampleConfig, AirSensorConfig, AirSensorModel};
     use chrono::NaiveTime;
     use control::ControlConfig;
-    use light::{ LightSampleConfig, LightSensorConfig, LightSensorModel};
-    use std::{collections::HashMap, io::Write};
+    use sample::SampleConfig;
+    use std::{io::Write, time::Duration};
     use tempfile::NamedTempFile;
-    use water_level::{
-        WaterLevelSampleConfig, WaterLevelSensorConfig,
-        WaterLevelSensorModel,
-    };
 
     #[test]
     fn parse_config_ok() {
@@ -108,37 +123,29 @@ mod tests {
                 "control": {
                     "mode": "Cyclic",
                     "pin": 25,
-                    "on_duration_secs": 1,
-                    "off_duration_secs": 0
+                    "on_duration": "1s",
+                    "off_duration": "0"
                 },
                 "sample": {
-                    "sample_rate_secs": 1800,
-                    "sensors": {
-                        "left": {
-                            "model": "Bme680",
-                            "address": "0x77"
-                        },
-                        "right": {
-                            "model": "Bme680",
-                            "address": "0x76"
-                        }
-                    }
+                    "mode": "Interval",
+                    "period": "30m",
+                    "script_path": "/foo/bar/script.py",
                 }
             },
             "air_pump": {
                 "control": {
                     "mode": "Cyclic",
                     "pin": 24,
-                    "on_duration_secs": 1,
-                    "off_duration_secs": 0
+                    "on_duration": "1m30s",
+                    "off_duration": "2h"
                 },
             },
             "fan": {
                 "control": {
                     "mode": "Cyclic",
                     "pin": 23,
-                    "on_duration_secs": 0,
-                    "off_duration_secs": 1
+                    "on_duration": "100s",
+                    "off_duration": "10d"
                 },
             },
             "light": {
@@ -149,34 +156,20 @@ mod tests {
                     "deactivate_time": "04:00:00"
                 },
                 "sample": {
-                    "sample_rate_secs": 123,
-                    "sensors": {
-                        "left": {
-                            "model": "Bh1750Fvi",
-                            "address": "0x23"
-                        },
-                        "right": {
-                            "model": "Bh1750Fvi",
-                            "address": "0x5C"
-                        }
-                    }
+                    "mode": "Off",
                 }
             },
             "water_level": {
                 "control": {
                     "mode": "Feedback",
                     "pin": 17,
-                    "activate_condition": "distance > 1",
-                    "deactivate_condition": "distance > 9"
+                    "activate_condition": "distance > 8",
+                    "deactivate_condition": "distance < 3"
                 },
                 "sample": {
-                    "sample_rate_secs": 86400,
-                    "sensors": {
-                        "main": {
-                            "model": "Vl53L0X",
-                            "address": "0x29"
-                        }
-                    }
+                    "mode": "Interval",
+                    "period": "1h",
+                    "script_path": "/path/baz/another_script.py",
                 }
             }
         });
@@ -188,41 +181,26 @@ mod tests {
             air: AirConfig {
                 control: ControlConfig::Cyclic {
                     pin: 25,
-                    on_duration_secs: 1,
-                    off_duration_secs: 0,
+                    on_duration: Duration::from_secs(1),
+                    off_duration: Duration::from_secs(0),
                 },
-                sample: AirSampleConfig {
-                    sample_rate_secs: 1800,
-                    sensors: HashMap::from([
-                        (
-                            "left".into(),
-                            AirSensorConfig {
-                                model: AirSensorModel::Bme680,
-                                address: 119,
-                            },
-                        ),
-                        (
-                            "right".into(),
-                            AirSensorConfig {
-                                model: AirSensorModel::Bme680,
-                                address: 118,
-                            },
-                        ),
-                    ]),
+                sample: SampleConfig::Interval {
+                    period: Duration::from_secs(1800),
+                    script_path: PathBuf::from("/foo/bar/script.py"),
                 },
             },
             air_pump: AirPumpConfig {
                 control: ControlConfig::Cyclic {
                     pin: 24,
-                    on_duration_secs: 1,
-                    off_duration_secs: 0,
+                    on_duration: Duration::from_secs(90),
+                    off_duration: Duration::from_secs(2 * 3600),
                 },
             },
             fan: FanConfig {
                 control: ControlConfig::Cyclic {
                     pin: 23,
-                    on_duration_secs: 0,
-                    off_duration_secs: 1,
+                    on_duration: Duration::from_secs(100),
+                    off_duration: Duration::from_secs(10 * 24 * 3600),
                 },
             },
             light: LightConfig {
@@ -233,41 +211,17 @@ mod tests {
                     deactivate_time: NaiveTime::from_hms_opt(4, 0, 0)
                         .expect("Failed to craete NaiveTime"),
                 },
-                sample: LightSampleConfig {
-                    sample_rate_secs: 123,
-                    sensors: HashMap::from([
-                        (
-                            "left".into(),
-                            LightSensorConfig {
-                                model: LightSensorModel::Bh1750Fvi,
-                                address: 35,
-                            },
-                        ),
-                        (
-                            "right".into(),
-                            LightSensorConfig {
-                                model: LightSensorModel::Bh1750Fvi,
-                                address: 92,
-                            },
-                        ),
-                    ]),
-                },
+                sample: SampleConfig::Off,
             },
             water_level: WaterLevelConfig {
                 control: ControlConfig::Feedback {
                     pin: 17,
-                    activate_condition: String::from("distance > 1"),
-                    deactivate_condition: String::from("distance > 9"),
+                    activate_condition: String::from("distance > 8"),
+                    deactivate_condition: String::from("distance < 3"),
                 },
-                sample: WaterLevelSampleConfig {
-                    sample_rate_secs: 86400,
-                    sensors: HashMap::from([(
-                        "main".into(),
-                        WaterLevelSensorConfig {
-                            model: WaterLevelSensorModel::Vl53L0X,
-                            address: 41,
-                        },
-                    )]),
+                sample: SampleConfig::Interval {
+                    period: Duration::from_secs(3600),
+                    script_path: PathBuf::from("/path/baz/another_script.py"),
                 },
             },
         };
@@ -298,17 +252,9 @@ mod tests {
                     "deactivate_time": "04:00:00"
                 },
                 "sample": {
-                    "sample_rate_secs": 123,
-                    "sensors": {
-                        "left": {
-                            "model": "Bh1750Fvi",
-                            "address": "0x23"
-                        },
-                        "right": {
-                            "model": "Bh1750Fvi",
-                            "address": "0x5C"
-                        }
-                    }
+                    "mode": "Interval",
+                    "period": "2h+30m",
+                    "script_path": "/some_script.py",
                 }
             }
         });
@@ -322,24 +268,9 @@ mod tests {
                     deactivate_time: NaiveTime::from_hms_opt(4, 0, 0)
                         .expect("Failed to craete NaiveTime"),
                 },
-                sample: LightSampleConfig {
-                    sample_rate_secs: 123,
-                    sensors: HashMap::from([
-                        (
-                            "left".into(),
-                            LightSensorConfig {
-                                model: LightSensorModel::Bh1750Fvi,
-                                address: 35,
-                            },
-                        ),
-                        (
-                            "right".into(),
-                            LightSensorConfig {
-                                model: LightSensorModel::Bh1750Fvi,
-                                address: 92,
-                            },
-                        ),
-                    ]),
+                sample: SampleConfig::Interval {
+                    period: Duration::from_secs(2 * 3600 + 1800),
+                    script_path: PathBuf::from("/some_script.py"),
                 },
             },
             ..Default::default()
